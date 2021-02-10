@@ -1,15 +1,26 @@
 include config.mk
 
-.PHONY: open_and_watch open compile reload watch
+.PHONY: open_and_watch open compile reload watch setup
+
+SVG_IMAGES=$(wildcard src/images/*.svg)
+PNG_IMAGES=$(SVG_IMAGES:src/images/%.svg=build/images/%.png)
 
 open_and_watch: open watch
 
-open:
+setup:
 	mkdir -p build/
+	mkdir -p build/images
 	touch build/index.html
+
+open: setup
 	$(BROWSER) build/index.html
 
-compile:
+build/images/%.png: src/images/%.svg
+	inkscape $< \
+		--export-filename $@ \
+		--export-dpi 96
+
+compile: setup $(PNG_IMAGES)
 	pandoc \
 		--from markdown \
 		--to html \
@@ -23,4 +34,7 @@ reload: compile
 		./reload-browser.sh
 
 watch:
-	ls -d src/* | entr sh -c 'make reload'
+	ls -d src/* src/images/* | entr sh -c 'make reload'
+
+clean:
+	rm -rf build/
