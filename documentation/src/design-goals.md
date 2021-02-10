@@ -2,9 +2,7 @@
 
 ## [allow the presentation of any kind of data](any-data.html) ##
 
-## appreciate the distinction between data and interpretation ##
-
-[kakoi](kakoi.html) separates the interpretation of data from the data itself.
+## [appreciate the distinction between data and its interpretation](data-versus-interpretation.html) ##
 
 ## impose structure by surrounding alike things ##
 
