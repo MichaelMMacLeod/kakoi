@@ -47,10 +47,7 @@ to create a group that references itself.
 
 [kakoi](kakoi.html) facilitates the sharing of groups between computers.
 
-## support queries ##
-
-[kakoi](kakoi.html) must allow its users to use search functionality to locate
-specific groups.
+## [support queries](support-queries.html) ##
 
 ## enable introspection of fundamental data types ##
 
