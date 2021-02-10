@@ -1,9 +1,6 @@
 # kakoi - design goals #
 
-## allow the presentation of any kind of data ##
-
-[kakoi](kakoi.html) reasons about anything on a computer, including but not
-limited to: text, video, audio, sets, lists, trees, graphs, and tables.
+## [allow the presentation of any kind of data](any-data.html) ##
 
 ## appreciate the distinction between data and interpretation ##
 
