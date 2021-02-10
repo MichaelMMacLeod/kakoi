@@ -5,6 +5,8 @@ include config.mk
 open_and_watch: open watch
 
 open:
+	mkdir -p build/
+	touch build/index.html
 	$(BROWSER) build/index.html
 
 compile:
