@@ -2,6 +2,8 @@
   
 -------------------------------------------------------------------------------
 
+![](images/vowels-and-consonants.png)
+
 ## development status: DESIGN ##
 
 This software currently exists only as design documentation. No code has been
