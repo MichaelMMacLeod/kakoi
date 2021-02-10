@@ -17,8 +17,8 @@ pacman -S make inkscape pandoc entr xdotool
 ## building documentation ##
 
 If you want your browser to automatically reload the current tab upon
-documentation source file change, copy `config.mk.template` and customize
-BROWSER-* related variables to your liking.
+documentation source file change, copy `config.mk.template` to `config.mk` and
+customize BROWSER-* related variables to your liking in the new file.
 
 - Compile documentation and open files in a web browser, reload on changes
 
