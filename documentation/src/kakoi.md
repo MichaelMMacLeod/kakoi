@@ -1,2 +1,5 @@
-# Kakoi - software for surrounding
+# kakoi - software for surrounding #
   
+-------------------------------------------------------------------------------
+
+![Vowels and Consonants](images/vowels-and-consonants.png)
