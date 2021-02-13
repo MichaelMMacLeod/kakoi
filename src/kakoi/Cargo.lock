@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kakoi_lib"
+name = "kakoi"
 version = "0.1.0"
 dependencies = [
  "float-cmp",
