@@ -1,4 +1,7 @@
 pub mod math {
+    use svg::node::element::Circle;
+    use svg::Document;
+
     struct EqualConfig {
         radius: f64,
         angle: f64,
@@ -10,19 +13,110 @@ pub mod math {
         angle: f64,
     }
 
-    enum CircleLayout {
+    enum Layout {
         Equal(EqualConfig),
         Zoomed(ZoomedConfig),
     }
 
-    fn make_circle_layout(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> CircleLayout {
+    pub fn write_circle_svg(path: String, enclosing_radius: f64, enclosed_circles: u64, zoom: f64) {
+        let document = Document::new()
+            .set("viewBox", (0, 0, enclosing_radius, enclosing_radius))
+            .add(make_circle(enclosing_radius, enclosed_circles, zoom));
+
+        svg::save(path, &document).unwrap();
+    }
+
+    fn make_circle(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Circle {
+        let mut enclosing_circle = Circle::new();
+        enclosing_circle = enclosing_circle.set("cx", 0.0);
+        enclosing_circle = enclosing_circle.set("cy", 0.0);
+        enclosing_circle = enclosing_circle.set("r", enclosing_radius);
+
+        match make_circle_layout(enclosing_radius, enclosed_circles, zoom) {
+            Layout::Equal(EqualConfig { radius, angle }) => {
+                for i in 0..enclosed_circles {
+                    let r = i as f64 * angle;
+                    let cx = radius * r.cos();
+                    let cy = radius * r.sin();
+
+                    let mut smaller_circle = Circle::new();
+                    smaller_circle = smaller_circle.set("cx", cx);
+                    smaller_circle = smaller_circle.set("cy", cy);
+                    smaller_circle = smaller_circle.set("r", radius);
+
+                    enclosing_circle = enclosing_circle.add(smaller_circle);
+                }
+            }
+            Layout::Zoomed(ZoomedConfig {
+                large_radius,
+                small_radius,
+                angle,
+            }) => {
+                let mut larger_circle = Circle::new();
+                larger_circle = larger_circle.set("cx", enclosing_radius - large_radius);
+                larger_circle = larger_circle.set("cy", 0.0);
+                larger_circle = larger_circle.set("r", large_radius);
+
+                enclosing_circle = enclosing_circle.add(larger_circle);
+
+                if enclosed_circles % 2 == 0 {
+                    for i in 0..((enclosed_circles - 1) / 2) {
+                        let t = (i as f64 + 0.5) * angle;
+                        let cx = (enclosing_radius - small_radius) * t.cos();
+                        let cy = (enclosing_radius - small_radius) * t.sin();
+
+                        let mut smaller_circle_above = Circle::new();
+                        smaller_circle_above = smaller_circle_above.set("cx", cx);
+                        smaller_circle_above = smaller_circle_above.set("cy", cy);
+                        smaller_circle_above = smaller_circle_above.set("r", small_radius);
+
+                        let mut smaller_circle_below = Circle::new();
+                        smaller_circle_below = smaller_circle_below.set("cx", cx);
+                        smaller_circle_below = smaller_circle_below.set("cy", -cy);
+                        smaller_circle_below = smaller_circle_below.set("r", small_radius);
+                        enclosing_circle = enclosing_circle.add(smaller_circle_above);
+                        enclosing_circle = enclosing_circle.add(smaller_circle_below);
+                    }
+                } else {
+                    let mut smaller_circle = Circle::new();
+                    smaller_circle = smaller_circle.set("cx", enclosing_radius - small_radius);
+                    smaller_circle = smaller_circle.set("cy", 0.0);
+                    smaller_circle = smaller_circle.set("r", small_radius);
+
+                    enclosing_circle = enclosing_circle.add(smaller_circle);
+
+                    for i in 1..((enclosed_circles - 1) / 2) {
+                        let t = i as f64 * angle;
+                        let cx = (enclosing_radius - small_radius) * t.cos();
+                        let cy = (enclosing_radius - small_radius) * t.sin();
+
+                        let mut smaller_circle_above = Circle::new();
+                        smaller_circle_above = smaller_circle_above.set("cx", cx);
+                        smaller_circle_above = smaller_circle_above.set("cy", cy);
+                        smaller_circle_above = smaller_circle_above.set("r", small_radius);
+
+                        let mut smaller_circle_below = Circle::new();
+                        smaller_circle_below = smaller_circle_below.set("cx", cx);
+                        smaller_circle_below = smaller_circle_below.set("cy", -cy);
+                        smaller_circle_below = smaller_circle_below.set("r", small_radius);
+                        enclosing_circle = enclosing_circle.add(smaller_circle_above);
+                        enclosing_circle = enclosing_circle.add(smaller_circle_below);
+                    }
+                }
+            }
+        }
+
+        enclosing_circle
+    }
+
+    fn make_circle_layout(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Layout {
         if zoom == 0.0 {
             let (radius, angle) = fit_equal_circles(enclosing_radius, enclosed_circles);
-            CircleLayout::Equal(EqualConfig { radius, angle })
+            Layout::Equal(EqualConfig { radius, angle })
         } else {
             let zoomed_radius = calculate_zoomed_radius(enclosing_radius, enclosed_circles, zoom);
             let (r, t) = find_r_theta(enclosing_radius, zoomed_radius, enclosed_circles);
-            CircleLayout::Zoomed(ZoomedConfig {
+            Layout::Zoomed(ZoomedConfig {
                 large_radius: zoomed_radius,
                 small_radius: r,
                 angle: t,
