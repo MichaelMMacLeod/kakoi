@@ -4,12 +4,7 @@
 
 ## [appreciate the distinction between data and its interpretation](data-versus-interpretation.html) ##
 
-## impose structure by surrounding alike things ##
-
-[kakoi](kakoi.html) allows the grouping of alike things. A single interpretation
-of a piece of data may be placed in any number of---possibly
-overlapping---groups. Groups themselves are treated as pieces of information
-that can be placed in further groups.
+## [impose structure by surrounding alike things](structure-through-surrounding.html) ##
 
 ## display groups as nested circles ##
 
