@@ -1,2 +1,3 @@
 documentation/config.mk
 documentation/build
+src/kakoi_lib/target
