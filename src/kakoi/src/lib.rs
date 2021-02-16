@@ -60,7 +60,7 @@ pub mod math {
 
         match make_circle_layout(enclosing_radius, enclosed_circles, zoom) {
             Layout::Equal(EqualConfig { radius, angle }) => {
-                for i in 1..enclosed_circles {
+                for i in 0..enclosed_circles {
                     let r = i as f64 * angle + std::f64::consts::PI;
                     let dist = enclosing_radius - radius;
                     let cx = dist * r.cos();
