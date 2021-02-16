@@ -25,8 +25,9 @@ pub mod math {
         enclosing_radius: f64,
         enclosed_circles: u64,
         zoom: f64,
+        focus_angle: f64,
     ) {
-        let document = make_document(enclosing_radius, enclosed_circles, zoom);
+        let document = make_document(enclosing_radius, enclosed_circles, zoom, focus_angle);
         svg::write(out, &document).unwrap();
     }
 
@@ -46,17 +47,36 @@ pub mod math {
         center: Point,
         enclosing_radius: f64,
         enclosed_circles: u64,
+        focus_angle: f64,
     }
 
     impl CirclePositioner {
-        fn new(enclosing_radius: f64, enclosed_circles: u64, zoom: f64, center: Point) -> Self {
+        fn new(
+            enclosing_radius: f64,
+            enclosed_circles: u64,
+            zoom: f64,
+            center: Point,
+            focus_angle: f64,
+        ) -> Self {
             Self {
                 layout: make_circle_layout(enclosing_radius, enclosed_circles, zoom),
                 current: 0,
                 center,
                 enclosing_radius,
                 enclosed_circles,
+                focus_angle,
             }
+        }
+    }
+
+    fn rotate(p: Point, angle: f64) -> Point {
+        let fac = angle.cos();
+        let fas = angle.sin();
+
+        // https://en.wikipedia.org/wiki/Rotation_matrix
+        Point {
+            x: p.x * fac - p.y * fas,
+            y: p.x * fas + p.y * fac,
         }
     }
 
@@ -66,8 +86,9 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
+        focus_angle: f64,
     ) -> Circle {
-        let r = n as f64 * angle + std::f64::consts::PI;
+        let r = n as f64 * angle + std::f64::consts::PI + focus_angle;
         let dist = enclosing_radius - radius;
         let cx = dist * r.cos();
         let cy = dist * r.sin();
@@ -87,24 +108,27 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
+        focus_angle: f64,
     ) -> Circle {
         let t = (((n - 1) / 2) as f64 + 0.5) * angle;
         let cx = (enclosing_radius - radius) * t.cos();
         let cy = (enclosing_radius - radius) * t.sin();
 
         if n % 2 == 0 {
+            let p = rotate(Point { x: cx, y: cy }, focus_angle);
             Circle {
                 center: Point {
-                    x: center.x + cx,
-                    y: center.y + cy,
+                    x: p.x + center.x,
+                    y: p.y + center.y,
                 },
                 radius,
             }
         } else {
+            let p = rotate(Point { x: cx, y: -cy }, focus_angle);
             Circle {
                 center: Point {
-                    x: center.x + cx,
-                    y: center.y - cy,
+                    x: p.x + center.x,
+                    y: p.y + center.y,
                 },
                 radius,
             }
@@ -117,12 +141,20 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
+        focus_angle: f64,
     ) -> Circle {
         if n == 1 {
+            let p = rotate(
+                Point {
+                    x: enclosing_radius - radius,
+                    y: 0.0,
+                },
+                focus_angle,
+            );
             Circle {
                 center: Point {
-                    x: center.x + enclosing_radius - radius,
-                    y: center.y,
+                    x: p.x + center.x,
+                    y: p.y + center.y,
                 },
                 radius,
             }
@@ -132,18 +164,20 @@ pub mod math {
             let cy = (enclosing_radius - radius) * t.sin();
 
             if n % 2 == 0 {
+                let p = rotate(Point { x: cx, y: cy }, focus_angle);
                 Circle {
                     center: Point {
-                        x: center.x + cx,
-                        y: center.y + cy,
+                        x: p.x + center.x,
+                        y: p.y + center.y,
                     },
                     radius,
                 }
             } else {
+                let p = rotate(Point { x: cx, y: -cy }, focus_angle);
                 Circle {
                     center: Point {
-                        x: center.x + cx,
-                        y: center.y - cy,
+                        x: p.x + center.x,
+                        y: p.y + center.y,
                     },
                     radius,
                 }
@@ -158,19 +192,50 @@ pub mod math {
         radius: f64,
         center: Point,
         enclosed_circles: u64,
+        focus_angle: f64,
     ) -> Circle {
         if enclosed_circles % 2 == 1 {
-            position_zoomed_small_odd_circle_n(n, angle, enclosing_radius, radius, center)
+            position_zoomed_small_odd_circle_n(
+                n,
+                angle,
+                enclosing_radius,
+                radius,
+                center,
+                focus_angle,
+            )
         } else {
-            position_zoomed_small_even_circle_n(n, angle, enclosing_radius, radius, center)
+            position_zoomed_small_even_circle_n(
+                n,
+                angle,
+                enclosing_radius,
+                radius,
+                center,
+                focus_angle,
+            )
         }
     }
 
-    fn position_zoomed_large_circle(enclosing_radius: f64, radius: f64, center: Point) -> Circle {
+    fn position_zoomed_large_circle(
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+        focus_angle: f64,
+    ) -> Circle {
+        let x = center.x - enclosing_radius + radius;
+        let y = center.y;
+
+        let p = rotate(
+            Point {
+                x: radius - enclosing_radius,
+                y: 0.0,
+            },
+            focus_angle,
+        );
+
         Circle {
             center: Point {
-                x: center.x - enclosing_radius + radius,
-                y: center.y,
+                x: p.x + center.x,
+                y: p.y + center.y,
             },
             radius,
         }
@@ -184,9 +249,10 @@ pub mod math {
         small_circle_radius: f64,
         center: Point,
         enclosed_circles: u64,
+        focus_angle: f64,
     ) -> Circle {
         if n == 0 {
-            position_zoomed_large_circle(enclosing_radius, large_circle_radius, center)
+            position_zoomed_large_circle(enclosing_radius, large_circle_radius, center, focus_angle)
         } else {
             position_zoomed_small_circle_n(
                 n,
@@ -195,6 +261,7 @@ pub mod math {
                 small_circle_radius,
                 center,
                 enclosed_circles,
+                focus_angle,
             )
         }
     }
@@ -205,10 +272,11 @@ pub mod math {
         enclosing_radius: f64,
         center: Point,
         enclosed_circles: u64,
+        focus_angle: f64,
     ) -> Circle {
         match layout {
             Layout::Equal(EqualConfig { radius, angle }) => {
-                position_equal_circle_n(n, *angle, enclosing_radius, *radius, center)
+                position_equal_circle_n(n, *angle, enclosing_radius, *radius, center, focus_angle)
             }
             Layout::Zoomed(ZoomedConfig {
                 large_radius,
@@ -222,6 +290,7 @@ pub mod math {
                 *small_radius,
                 center,
                 enclosed_circles,
+                focus_angle,
             ),
         }
     }
@@ -242,6 +311,7 @@ pub mod math {
                         y: self.center.y,
                     },
                     self.enclosed_circles,
+                    self.focus_angle,
                 ))
             } else {
                 None
@@ -249,7 +319,12 @@ pub mod math {
         }
     }
 
-    fn make_document(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Document {
+    fn make_document(
+        enclosing_radius: f64,
+        enclosed_circles: u64,
+        zoom: f64,
+        focus_angle: f64,
+    ) -> Document {
         let center = enclosing_radius;
 
         let mut document = Document::new().set("viewBox", (0, 0, center * 2.0, center * 2.0));
@@ -282,6 +357,7 @@ pub mod math {
                 x: center,
                 y: center,
             },
+            focus_angle,
         ) {
             document = document.add(
                 SVGCircle::new()
