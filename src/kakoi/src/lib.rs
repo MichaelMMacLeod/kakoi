@@ -64,114 +64,193 @@ pub mod math {
         }
     }
 
+    fn position_equal_circle_n(
+        n: u64,
+        angle: f64,
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+    ) -> (Point, Radius) {
+        let r = n as f64 * angle + std::f64::consts::PI;
+        let dist = enclosing_radius - radius;
+        let cx = dist * r.cos();
+        let cy = dist * r.sin();
+
+        (
+            Point {
+                x: center.x + cx,
+                y: center.y + cy,
+            },
+            radius,
+        )
+    }
+
+    fn position_zoomed_small_odd_circle_n(
+        n: u64,
+        angle: f64,
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+    ) -> (Point, Radius) {
+        let t = (((n - 1) / 2) as f64 + 0.5) * angle;
+        let cx = (enclosing_radius - radius) * t.cos();
+        let cy = (enclosing_radius - radius) * t.sin();
+
+        if n % 2 == 0 {
+            (
+                Point {
+                    x: center.x + cx,
+                    y: center.y + cy,
+                },
+                radius,
+            )
+        } else {
+            (
+                Point {
+                    x: center.x + cx,
+                    y: center.y - cy,
+                },
+                radius,
+            )
+        }
+    }
+
+    fn position_zoomed_small_even_circle_n(
+        n: u64,
+        angle: f64,
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+    ) -> (Point, Radius) {
+        if n == 1 {
+            (
+                Point {
+                    x: center.x + enclosing_radius - radius,
+                    y: center.y,
+                },
+                radius,
+            )
+        } else {
+            let t = (n / 2) as f64 * angle;
+            let cx = (enclosing_radius - radius) * t.cos();
+            let cy = (enclosing_radius - radius) * t.sin();
+
+            if n % 2 == 0 {
+                (
+                    Point {
+                        x: center.x + cx,
+                        y: center.y + cy,
+                    },
+                    radius,
+                )
+            } else {
+                (
+                    Point {
+                        x: center.x + cx,
+                        y: center.y - cy,
+                    },
+                    radius,
+                )
+            }
+        }
+    }
+
+    fn position_zoomed_small_circle_n(
+        n: u64,
+        angle: f64,
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+        enclosed_circles: u64,
+    ) -> (Point, Radius) {
+        if enclosed_circles % 2 == 1 {
+            position_zoomed_small_odd_circle_n(n, angle, enclosing_radius, radius, center)
+        } else {
+            position_zoomed_small_even_circle_n(n, angle, enclosing_radius, radius, center)
+        }
+    }
+
+    fn position_zoomed_large_circle(
+        enclosing_radius: f64,
+        radius: f64,
+        center: Point,
+    ) -> (Point, Radius) {
+        (
+            Point {
+                x: center.x - enclosing_radius + radius,
+                y: center.y,
+            },
+            radius,
+        )
+    }
+
+    fn position_zoomed_circle_n(
+        n: u64,
+        angle: f64,
+        enclosing_radius: f64,
+        large_circle_radius: f64,
+        small_circle_radius: f64,
+        center: Point,
+        enclosed_circles: u64,
+    ) -> (Point, Radius) {
+        if n == 0 {
+            position_zoomed_large_circle(enclosing_radius, large_circle_radius, center)
+        } else {
+            position_zoomed_small_circle_n(
+                n,
+                angle,
+                enclosing_radius,
+                small_circle_radius,
+                center,
+                enclosed_circles,
+            )
+        }
+    }
+
+    fn position_circle_n(
+        layout: &Layout,
+        n: u64,
+        enclosing_radius: f64,
+        center: Point,
+        enclosed_circles: u64,
+    ) -> (Point, Radius) {
+        match layout {
+            Layout::Equal(EqualConfig { radius, angle }) => {
+                position_equal_circle_n(n, *angle, enclosing_radius, *radius, center)
+            }
+            Layout::Zoomed(ZoomedConfig {
+                large_radius,
+                small_radius,
+                angle,
+            }) => position_zoomed_circle_n(
+                n,
+                *angle,
+                enclosing_radius,
+                *large_radius,
+                *small_radius,
+                center,
+                enclosed_circles,
+            ),
+        }
+    }
+
     impl Iterator for CirclePositioner {
         type Item = (Point, Radius);
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.current < self.enclosed_circles {
-                match self.layout {
-                    Layout::Equal(EqualConfig { radius, angle }) => {
-                        if self.current < self.enclosed_circles {
-                            let r = self.current as f64 * angle + std::f64::consts::PI;
-                            let dist = self.enclosing_radius - radius;
-                            let cx = dist * r.cos();
-                            let cy = dist * r.sin();
-
-                            self.current += 1;
-
-                            Some((
-                                Point {
-                                    x: self.center.x + cx,
-                                    y: self.center.y + cy,
-                                },
-                                radius,
-                            ))
-                        } else {
-                            None
-                        }
-                    }
-                    Layout::Zoomed(ZoomedConfig {
-                        large_radius,
-                        small_radius,
-                        angle,
-                    }) => {
-                        if self.current == 0 {
-                            self.current += 1;
-
-                            Some((
-                                Point {
-                                    x: self.center.x - self.enclosing_radius + large_radius,
-                                    y: self.center.y,
-                                },
-                                large_radius,
-                            ))
-                        } else if self.enclosed_circles % 2 == 1 {
-                            let t = (((self.current - 1) / 2) as f64 + 0.5) * angle;
-                            let cx = (self.enclosing_radius - small_radius) * t.cos();
-                            let cy = (self.enclosing_radius - small_radius) * t.sin();
-
-                            if self.current % 2 == 0 {
-                                self.current += 1;
-
-                                Some((
-                                    Point {
-                                        x: self.center.x + cx,
-                                        y: self.center.y + cy,
-                                    },
-                                    small_radius,
-                                ))
-                            } else {
-                                self.current += 1;
-
-                                Some((
-                                    Point {
-                                        x: self.center.x + cx,
-                                        y: self.center.y - cy,
-                                    },
-                                    small_radius,
-                                ))
-                            }
-                        } else {
-                            if self.current == 1 {
-                                self.current += 1;
-
-                                Some((
-                                    Point {
-                                        x: self.center.x + self.enclosing_radius - small_radius,
-                                        y: self.center.y,
-                                    },
-                                    small_radius,
-                                ))
-                            } else {
-                                let t = (self.current / 2) as f64 * angle;
-                                let cx = (self.enclosing_radius - small_radius) * t.cos();
-                                let cy = (self.enclosing_radius - small_radius) * t.sin();
-
-                                if self.current % 2 == 0 {
-                                    self.current += 1;
-
-                                    Some((
-                                        Point {
-                                            x: self.center.x + cx,
-                                            y: self.center.y + cy,
-                                        },
-                                        small_radius,
-                                    ))
-                                } else {
-                                    self.current += 1;
-
-                                    Some((
-                                        Point {
-                                            x: self.center.x + cx,
-                                            y: self.center.y - cy,
-                                        },
-                                        small_radius,
-                                    ))
-                                }
-                            }
-                        }
-                    }
-                }
+                let n = self.current;
+                self.current += 1;
+                Some(position_circle_n(
+                    &self.layout,
+                    n,
+                    self.enclosing_radius,
+                    Point {
+                        x: self.center.x,
+                        y: self.center.y,
+                    },
+                    self.enclosed_circles,
+                ))
             } else {
                 None
             }
