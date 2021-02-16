@@ -1,4 +1,6 @@
 pub mod math {
+    use std::convert::TryFrom;
+    use std::convert::TryInto;
     use std::io::Write;
     use svg::node::element::Circle;
     use svg::node::element::Rectangle;
@@ -35,6 +37,116 @@ pub mod math {
         svg::save(path, &document).unwrap();
     }
 
+    struct Point {
+        x: f64,
+        y: f64,
+    }
+
+    type Radius = f64;
+
+    fn position_circles(
+        center_x: f64,
+        center_y: f64,
+        enclosing_radius: f64,
+        enclosed_circles: u64,
+        zoom: f64,
+    ) -> Vec<(Point, Radius)> {
+        let mut circles = Vec::with_capacity(
+            enclosed_circles
+                .try_into()
+                .ok()
+                .map_or_else(|| usize::MAX, |v| v),
+        );
+
+        match make_circle_layout(enclosing_radius, enclosed_circles, zoom) {
+            Layout::Equal(EqualConfig { radius, angle }) => {
+                for i in 1..enclosed_circles {
+                    let r = i as f64 * angle + std::f64::consts::PI;
+                    let dist = enclosing_radius - radius;
+                    let cx = dist * r.cos();
+                    let cy = dist * r.sin();
+
+                    circles.push((
+                        Point {
+                            x: center_x + cx,
+                            y: center_y + cy,
+                        },
+                        radius,
+                    ));
+                }
+            }
+            Layout::Zoomed(ZoomedConfig {
+                large_radius,
+                small_radius,
+                angle,
+            }) => {
+                circles.push((
+                    Point {
+                        x: center_x - enclosing_radius + large_radius,
+                        y: center_y,
+                    },
+                    large_radius,
+                ));
+
+                if enclosed_circles % 2 == 1 {
+                    for i in 0..((enclosed_circles - 1) / 2) {
+                        let t = (i as f64 + 0.5) * angle;
+                        let cx = (enclosing_radius - small_radius) * t.cos();
+                        let cy = (enclosing_radius - small_radius) * t.sin();
+
+                        circles.push((
+                            Point {
+                                x: center_x + cx,
+                                y: center_y + cy,
+                            },
+                            small_radius,
+                        ));
+
+                        circles.push((
+                            Point {
+                                x: center_x + cx,
+                                y: center_y - cy,
+                            },
+                            small_radius,
+                        ));
+                    }
+                } else {
+                    circles.push((
+                        Point {
+                            x: center_x + enclosing_radius - small_radius,
+                            y: center_y,
+                        },
+                        small_radius,
+                    ));
+
+                    for i in 1..((enclosed_circles - 1) / 2 + 1) {
+                        let t = i as f64 * angle;
+                        let cx = (enclosing_radius - small_radius) * t.cos();
+                        let cy = (enclosing_radius - small_radius) * t.sin();
+
+                        circles.push((
+                            Point {
+                                x: center_x + cx,
+                                y: center_y + cy,
+                            },
+                            small_radius,
+                        ));
+
+                        circles.push((
+                            Point {
+                                x: center_x + cx,
+                                y: center_y - cy,
+                            },
+                            small_radius,
+                        ));
+                    }
+                }
+            }
+        }
+
+        circles
+    }
+
     fn make_document(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Document {
         let center = enclosing_radius;
 
@@ -50,100 +162,24 @@ pub mod math {
 
         let enclosing_circle = Circle::new()
             .set("fill", "none")
-            .set("stroke", "#0000aa")
+            .set("stroke", "#000000")
             .set("cx", center)
             .set("cy", center)
             .set("r", enclosing_radius);
 
         document = document.add(bg).add(enclosing_circle);
 
-        match make_circle_layout(enclosing_radius, enclosed_circles, zoom) {
-            Layout::Equal(EqualConfig { radius, angle }) => {
-                for i in 0..enclosed_circles {
-                    let r = i as f64 * angle + std::f64::consts::PI;
-                    let dist = enclosing_radius - radius;
-                    let cx = dist * r.cos();
-                    let cy = dist * r.sin();
+        let circles = position_circles(center, center, enclosing_radius, enclosed_circles, zoom);
 
-                    let smaller_circle = Circle::new()
-                        .set("fill", "none")
-                        .set("stroke", "#000000")
-                        .set("cx", center + cx)
-                        .set("cy", center + cy)
-                        .set("r", radius);
-
-                    document = document.add(smaller_circle);
-                }
-            }
-            Layout::Zoomed(ZoomedConfig {
-                large_radius,
-                small_radius,
-                angle,
-            }) => {
-                let larger_circle = Circle::new()
+        for (Point { x, y }, r) in circles {
+            document = document.add(
+                Circle::new()
                     .set("fill", "none")
-                    .set("stroke", "#aa0000")
-                    .set("cx", center - enclosing_radius + large_radius)
-                    .set("cy", center + 0.0)
-                    .set("r", large_radius);
-
-                document = document.add(larger_circle);
-
-                if enclosed_circles % 2 == 1 {
-                    for i in 0..((enclosed_circles - 1) / 2) {
-                        let t = (i as f64 + 0.5) * angle;
-                        let cx = (enclosing_radius - small_radius) * t.cos();
-                        let cy = (enclosing_radius - small_radius) * t.sin();
-
-                        let smaller_circle_above = Circle::new()
-                            .set("fill", "none")
-                            .set("stroke", "#000000")
-                            .set("cx", center + cx)
-                            .set("cy", center + cy)
-                            .set("r", small_radius);
-
-                        let smaller_circle_below = Circle::new()
-                            .set("fill", "none")
-                            .set("stroke", "#000000")
-                            .set("cx", center + cx)
-                            .set("cy", center - cy)
-                            .set("r", small_radius);
-
-                        document = document.add(smaller_circle_above).add(smaller_circle_below);
-                    }
-                } else {
-                    let smaller_circle = Circle::new()
-                        .set("fill", "none")
-                        .set("stroke", "#000000")
-                        .set("cx", center + enclosing_radius - small_radius)
-                        .set("cy", center)
-                        .set("r", small_radius);
-
-                    document = document.add(smaller_circle);
-
-                    for i in 1..((enclosed_circles - 1) / 2 + 1) {
-                        let t = i as f64 * angle;
-                        let cx = (enclosing_radius - small_radius) * t.cos();
-                        let cy = (enclosing_radius - small_radius) * t.sin();
-
-                        let smaller_circle_above = Circle::new()
-                            .set("fill", "none")
-                            .set("stroke", "#000000")
-                            .set("cx", center + cx)
-                            .set("cy", center + cy)
-                            .set("r", small_radius);
-
-                        let smaller_circle_below = Circle::new()
-                            .set("fill", "none")
-                            .set("stroke", "#000000")
-                            .set("cx", center + cx)
-                            .set("cy", center - cy)
-                            .set("r", small_radius);
-
-                        document = document.add(smaller_circle_above).add(smaller_circle_below);
-                    }
-                }
-            }
+                    .set("stroke", "#000000")
+                    .set("cx", x)
+                    .set("cy", y)
+                    .set("r", r),
+            );
         }
 
         document
