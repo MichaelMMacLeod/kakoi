@@ -1,8 +1,6 @@
 pub mod math {
-    use std::convert::TryFrom;
-    use std::convert::TryInto;
     use std::io::Write;
-    use svg::node::element::Circle;
+    use svg::node::element::Circle as SVGCircle;
     use svg::node::element::Rectangle;
     use svg::Document;
 
@@ -42,7 +40,10 @@ pub mod math {
         y: f64,
     }
 
-    type Radius = f64;
+    struct Circle {
+        center: Point,
+        radius: f64,
+    }
 
     struct CirclePositioner {
         layout: Layout,
@@ -70,19 +71,19 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         let r = n as f64 * angle + std::f64::consts::PI;
         let dist = enclosing_radius - radius;
         let cx = dist * r.cos();
         let cy = dist * r.sin();
 
-        (
-            Point {
+        Circle {
+            center: Point {
                 x: center.x + cx,
                 y: center.y + cy,
             },
             radius,
-        )
+        }
     }
 
     fn position_zoomed_small_odd_circle_n(
@@ -91,27 +92,27 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         let t = (((n - 1) / 2) as f64 + 0.5) * angle;
         let cx = (enclosing_radius - radius) * t.cos();
         let cy = (enclosing_radius - radius) * t.sin();
 
         if n % 2 == 0 {
-            (
-                Point {
+            Circle {
+                center: Point {
                     x: center.x + cx,
                     y: center.y + cy,
                 },
                 radius,
-            )
+            }
         } else {
-            (
-                Point {
+            Circle {
+                center: Point {
                     x: center.x + cx,
                     y: center.y - cy,
                 },
                 radius,
-            )
+            }
         }
     }
 
@@ -121,36 +122,36 @@ pub mod math {
         enclosing_radius: f64,
         radius: f64,
         center: Point,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         if n == 1 {
-            (
-                Point {
+            Circle {
+                center: Point {
                     x: center.x + enclosing_radius - radius,
                     y: center.y,
                 },
                 radius,
-            )
+            }
         } else {
             let t = (n / 2) as f64 * angle;
             let cx = (enclosing_radius - radius) * t.cos();
             let cy = (enclosing_radius - radius) * t.sin();
 
             if n % 2 == 0 {
-                (
-                    Point {
+                Circle {
+                    center: Point {
                         x: center.x + cx,
                         y: center.y + cy,
                     },
                     radius,
-                )
+                }
             } else {
-                (
-                    Point {
+                Circle {
+                    center: Point {
                         x: center.x + cx,
                         y: center.y - cy,
                     },
                     radius,
-                )
+                }
             }
         }
     }
@@ -162,7 +163,7 @@ pub mod math {
         radius: f64,
         center: Point,
         enclosed_circles: u64,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         if enclosed_circles % 2 == 1 {
             position_zoomed_small_odd_circle_n(n, angle, enclosing_radius, radius, center)
         } else {
@@ -170,18 +171,14 @@ pub mod math {
         }
     }
 
-    fn position_zoomed_large_circle(
-        enclosing_radius: f64,
-        radius: f64,
-        center: Point,
-    ) -> (Point, Radius) {
-        (
-            Point {
+    fn position_zoomed_large_circle(enclosing_radius: f64, radius: f64, center: Point) -> Circle {
+        Circle {
+            center: Point {
                 x: center.x - enclosing_radius + radius,
                 y: center.y,
             },
             radius,
-        )
+        }
     }
 
     fn position_zoomed_circle_n(
@@ -192,7 +189,7 @@ pub mod math {
         small_circle_radius: f64,
         center: Point,
         enclosed_circles: u64,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         if n == 0 {
             position_zoomed_large_circle(enclosing_radius, large_circle_radius, center)
         } else {
@@ -213,7 +210,7 @@ pub mod math {
         enclosing_radius: f64,
         center: Point,
         enclosed_circles: u64,
-    ) -> (Point, Radius) {
+    ) -> Circle {
         match layout {
             Layout::Equal(EqualConfig { radius, angle }) => {
                 position_equal_circle_n(n, *angle, enclosing_radius, *radius, center)
@@ -235,7 +232,7 @@ pub mod math {
     }
 
     impl Iterator for CirclePositioner {
-        type Item = (Point, Radius);
+        type Item = Circle;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.current < self.enclosed_circles {
@@ -270,7 +267,7 @@ pub mod math {
             .set("width", center * 2.0)
             .set("height", center * 2.0);
 
-        let enclosing_circle = Circle::new()
+        let enclosing_circle = SVGCircle::new()
             .set("fill", "none")
             .set("stroke", "#000000")
             .set("cx", center)
@@ -279,7 +276,10 @@ pub mod math {
 
         document = document.add(bg).add(enclosing_circle);
 
-        for (Point { x, y }, r) in CirclePositioner::new(
+        for Circle {
+            center: Point { x, y },
+            radius,
+        } in CirclePositioner::new(
             enclosing_radius,
             enclosed_circles,
             zoom,
@@ -289,12 +289,12 @@ pub mod math {
             },
         ) {
             document = document.add(
-                Circle::new()
+                SVGCircle::new()
                     .set("fill", "none")
                     .set("stroke", "#000000")
                     .set("cx", x)
                     .set("cy", y)
-                    .set("r", r),
+                    .set("r", radius),
             );
         }
 
@@ -384,9 +384,7 @@ pub mod math {
     // See
     // https://math.stackexchange.com/questions/3984340/formula-for-radius-of-circles-on-vertices-of-regular-polygon/3990915#3990915
     pub fn fit_equal_circles(outer_radius: f64, inner_circle_count: u64) -> (f64, f64) {
-        if outer_radius <= 0.0 {
-            (0.0, 0.0)
-        } else if inner_circle_count == 0 {
+        if outer_radius <= 0.0 || inner_circle_count == 0 {
             (0.0, 0.0)
         } else if inner_circle_count == 1 {
             (outer_radius, 0.0)
