@@ -30,11 +30,6 @@ pub mod math {
         svg::write(out, &document).unwrap();
     }
 
-    pub fn write_circle_svg(path: String, enclosing_radius: f64, enclosed_circles: u64, zoom: f64) {
-        let document = make_document(enclosing_radius, enclosed_circles, zoom);
-        svg::save(path, &document).unwrap();
-    }
-
     struct Point {
         x: f64,
         y: f64,
