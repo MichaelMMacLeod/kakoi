@@ -257,35 +257,6 @@ pub mod math {
         }
     }
 
-    fn position_circles(
-        center_x: f64,
-        center_y: f64,
-        enclosing_radius: f64,
-        enclosed_circles: u64,
-        zoom: f64,
-    ) -> Vec<(Point, Radius)> {
-        let mut circles = Vec::with_capacity(
-            enclosed_circles
-                .try_into()
-                .ok()
-                .map_or_else(|| usize::MAX, |v| v),
-        );
-
-        for circle in CirclePositioner::new(
-            enclosing_radius,
-            enclosed_circles,
-            zoom,
-            Point {
-                x: center_x,
-                y: center_y,
-            },
-        ) {
-            circles.push(circle);
-        }
-
-        circles
-    }
-
     fn make_document(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Document {
         let center = enclosing_radius;
 
@@ -308,9 +279,15 @@ pub mod math {
 
         document = document.add(bg).add(enclosing_circle);
 
-        let circles = position_circles(center, center, enclosing_radius, enclosed_circles, zoom);
-
-        for (Point { x, y }, r) in circles {
+        for (Point { x, y }, r) in CirclePositioner::new(
+            enclosing_radius,
+            enclosed_circles,
+            zoom,
+            Point {
+                x: center,
+                y: center,
+            },
+        ) {
             document = document.add(
                 Circle::new()
                     .set("fill", "none")
