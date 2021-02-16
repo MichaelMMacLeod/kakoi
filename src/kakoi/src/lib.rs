@@ -44,6 +44,140 @@ pub mod math {
 
     type Radius = f64;
 
+    struct CirclePositioner {
+        layout: Layout,
+        current: u64,
+        center: Point,
+        enclosing_radius: f64,
+        enclosed_circles: u64,
+    }
+
+    impl CirclePositioner {
+        fn new(enclosing_radius: f64, enclosed_circles: u64, zoom: f64, center: Point) -> Self {
+            Self {
+                layout: make_circle_layout(enclosing_radius, enclosed_circles, zoom),
+                current: 0,
+                center,
+                enclosing_radius,
+                enclosed_circles,
+            }
+        }
+    }
+
+    impl Iterator for CirclePositioner {
+        type Item = (Point, Radius);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.current < self.enclosed_circles {
+                match self.layout {
+                    Layout::Equal(EqualConfig { radius, angle }) => {
+                        if self.current < self.enclosed_circles {
+                            let r = self.current as f64 * angle + std::f64::consts::PI;
+                            let dist = self.enclosing_radius - radius;
+                            let cx = dist * r.cos();
+                            let cy = dist * r.sin();
+
+                            self.current += 1;
+
+                            Some((
+                                Point {
+                                    x: self.center.x + cx,
+                                    y: self.center.y + cy,
+                                },
+                                radius,
+                            ))
+                        } else {
+                            None
+                        }
+                    }
+                    Layout::Zoomed(ZoomedConfig {
+                        large_radius,
+                        small_radius,
+                        angle,
+                    }) => {
+                        if self.current == 0 {
+                            self.current += 1;
+
+                            Some((
+                                Point {
+                                    x: self.center.x - self.enclosing_radius + large_radius,
+                                    y: self.center.y,
+                                },
+                                large_radius,
+                            ))
+                        } else if self.enclosed_circles % 2 == 1 {
+                            let t = (((self.current - 1) / 2) as f64 + 0.5) * angle;
+                            let cx = (self.enclosing_radius - small_radius) * t.cos();
+                            let cy = (self.enclosing_radius - small_radius) * t.sin();
+
+                            if self.current % 2 == 0 {
+                                self.current += 1;
+
+                                Some((
+                                    Point {
+                                        x: self.center.x + cx,
+                                        y: self.center.y + cy,
+                                    },
+                                    small_radius,
+                                ))
+                            } else {
+                                self.current += 1;
+
+                                Some((
+                                    Point {
+                                        x: self.center.x + cx,
+                                        y: self.center.y - cy,
+                                    },
+                                    small_radius,
+                                ))
+                            }
+                        } else {
+                            if self.current == 1 {
+                                self.current += 1;
+
+                                Some((
+                                    Point {
+                                        x: self.center.x + self.enclosing_radius - small_radius,
+                                        y: self.center.y,
+                                    },
+                                    small_radius,
+                                ))
+                            } else {
+                                let t = (self.current / 2) as f64 * angle;
+                                let cx = (self.enclosing_radius - small_radius) * t.cos();
+                                let cy = (self.enclosing_radius - small_radius) * t.sin();
+
+                                if self.current % 2 == 0 {
+                                    self.current += 1;
+
+                                    Some((
+                                        Point {
+                                            x: self.center.x + cx,
+                                            y: self.center.y + cy,
+                                        },
+                                        small_radius,
+                                    ))
+                                } else {
+                                    self.current += 1;
+
+                                    Some((
+                                        Point {
+                                            x: self.center.x + cx,
+                                            y: self.center.y - cy,
+                                        },
+                                        small_radius,
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                None
+            }
+        }
+    }
+
     fn position_circles(
         center_x: f64,
         center_y: f64,
@@ -58,90 +192,16 @@ pub mod math {
                 .map_or_else(|| usize::MAX, |v| v),
         );
 
-        match make_circle_layout(enclosing_radius, enclosed_circles, zoom) {
-            Layout::Equal(EqualConfig { radius, angle }) => {
-                for i in 0..enclosed_circles {
-                    let r = i as f64 * angle + std::f64::consts::PI;
-                    let dist = enclosing_radius - radius;
-                    let cx = dist * r.cos();
-                    let cy = dist * r.sin();
-
-                    circles.push((
-                        Point {
-                            x: center_x + cx,
-                            y: center_y + cy,
-                        },
-                        radius,
-                    ));
-                }
-            }
-            Layout::Zoomed(ZoomedConfig {
-                large_radius,
-                small_radius,
-                angle,
-            }) => {
-                circles.push((
-                    Point {
-                        x: center_x - enclosing_radius + large_radius,
-                        y: center_y,
-                    },
-                    large_radius,
-                ));
-
-                if enclosed_circles % 2 == 1 {
-                    for i in 0..((enclosed_circles - 1) / 2) {
-                        let t = (i as f64 + 0.5) * angle;
-                        let cx = (enclosing_radius - small_radius) * t.cos();
-                        let cy = (enclosing_radius - small_radius) * t.sin();
-
-                        circles.push((
-                            Point {
-                                x: center_x + cx,
-                                y: center_y + cy,
-                            },
-                            small_radius,
-                        ));
-
-                        circles.push((
-                            Point {
-                                x: center_x + cx,
-                                y: center_y - cy,
-                            },
-                            small_radius,
-                        ));
-                    }
-                } else {
-                    circles.push((
-                        Point {
-                            x: center_x + enclosing_radius - small_radius,
-                            y: center_y,
-                        },
-                        small_radius,
-                    ));
-
-                    for i in 1..((enclosed_circles - 1) / 2 + 1) {
-                        let t = i as f64 * angle;
-                        let cx = (enclosing_radius - small_radius) * t.cos();
-                        let cy = (enclosing_radius - small_radius) * t.sin();
-
-                        circles.push((
-                            Point {
-                                x: center_x + cx,
-                                y: center_y + cy,
-                            },
-                            small_radius,
-                        ));
-
-                        circles.push((
-                            Point {
-                                x: center_x + cx,
-                                y: center_y - cy,
-                            },
-                            small_radius,
-                        ));
-                    }
-                }
-            }
+        for circle in CirclePositioner::new(
+            enclosing_radius,
+            enclosed_circles,
+            zoom,
+            Point {
+                x: center_x,
+                y: center_y,
+            },
+        ) {
+            circles.push(circle);
         }
 
         circles
