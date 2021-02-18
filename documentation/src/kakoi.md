@@ -1,6 +1,4 @@
-<title>kakoi</title>
-
-# kakoi - software for surrounding #
+% kakoi - software for surrounding
   
 -------------------------------------------------------------------------------
 

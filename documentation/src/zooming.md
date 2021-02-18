@@ -1,4 +1,4 @@
-# kakoi - implementation: zooming #
+% kakoi - implementation: zooming
 
 [kakoi](kakoi.html) makes liberal use of *zooming* in and out. Everything drawn
 in kakoi should be scalable, meaning that it can be viewed up close without

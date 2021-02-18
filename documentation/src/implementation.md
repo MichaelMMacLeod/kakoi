@@ -1,4 +1,4 @@
-# kakoi - implementation #
+% kakoi - implementation
 
 ## [main data structure](graph.html) ##
 

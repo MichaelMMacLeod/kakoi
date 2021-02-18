@@ -1,4 +1,4 @@
-# kakoi - design goals #
+% kakoi - design goals
 
 ## [allow the presentation of any kind of data](any-data.html) ##
 

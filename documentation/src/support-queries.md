@@ -1,4 +1,4 @@
-# kakoi - design goal: support queries #
+% kakoi - design goal: support queries
 
 [kakoi](kakoi.html) must allow its users to use search functionality to locate
 specific groups.
