@@ -5,31 +5,43 @@ include config.mk
 MD_FILES=$(wildcard src/*.md)
 HTML_FILES=$(MD_FILES:src/%.md=build/%.html)
 
-INDEX_HTML=build/kakoi.html
+INDEX_HTML=$(realpath .)/build/kakoi.html
 
 SVG_IMAGES_SRC=$(wildcard src/images/*.svg)
 SVG_IMAGES=$(SVG_IMAGES_SRC:src/images/%=build/images/%)
 
-open_and_watch: compile open watch
+CSS_FILES_SRC=$(wildcard src/*.css)
+CSS_FILES=$(CSS_FILES_SRC:src/%=build/%)
 
-setup:
-	mkdir -p build/
-	mkdir -p build/images
+open_and_watch: compile | open watch
 
-open: setup
+build:
+	mkdir -p $@
+
+build/images:
+	mkdir -p $@
+
+setup: build build/images
+
+open: | setup
 	$(BROWSER) $(INDEX_HTML)
 
-build/images/%.svg: src/images/%.svg
+build/images/%.svg: src/images/%.svg | setup
 	cp $< $@
 
-build/%.html: src/%.md
+build/%.css: src/%.css | setup
+	cp $< $@
+
+build/%.html: src/%.md | setup
 	pandoc \
 		--from markdown \
 		--to html \
 		--output $@ \
+		--css=stylesheet.css \
+		--standalone \
 		$<
 
-compile: setup $(SVG_IMAGES) $(HTML_FILES)
+compile: $(SVG_IMAGES) $(HTML_FILES) $(CSS_FILES)
 
 reload: compile
 	env \
@@ -38,7 +50,7 @@ reload: compile
 		./reload-browser.sh
 
 watch:
-	ls -d src/* src/images/* | entr sh -c 'make reload'
+	ls -d src/* src/images/* | entr sh -cp 'make reload'
 
 clean:
 	rm -rf build/

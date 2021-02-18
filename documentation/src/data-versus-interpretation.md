@@ -1,4 +1,4 @@
-# kakoi - design goal: appreciate the distinction between data and its interpretation #
+% kakoi - design goal: appreciate the distinction between data and its interpretation
 
 [kakoi](kakoi.html) separates the interpretation of data from the data itself.
 This may be implemented by storing exactly two different types of data: binary

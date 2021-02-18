@@ -1,4 +1,4 @@
-# kakoi - design goal: allow the presentation of any kind of data #
+% kakoi - design goal: allow the presentation of any kind of data
 
 [kakoi](kakoi.html) is like a notebook or journal in that it should allow users
 to express just about any idea they please. Such expressions need not be limited
