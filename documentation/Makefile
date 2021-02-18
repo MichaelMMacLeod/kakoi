@@ -7,8 +7,8 @@ HTML_FILES=$(MD_FILES:src/%.md=build/%.html)
 
 INDEX_HTML=build/kakoi.html
 
-SVG_IMAGES=$(wildcard src/images/*.svg)
-PNG_IMAGES=$(SVG_IMAGES:src/images/%.svg=build/images/%.png)
+SVG_IMAGES_SRC=$(wildcard src/images/*.svg)
+SVG_IMAGES=$(SVG_IMAGES_SRC:src/images/%=build/images/%)
 
 open_and_watch: compile open watch
 
@@ -19,10 +19,8 @@ setup:
 open: setup
 	$(BROWSER) $(INDEX_HTML)
 
-build/images/%.png: src/images/%.svg
-	inkscape $< \
-		--export-filename $@ \
-		--export-dpi 96
+build/images/%.svg: src/images/%.svg
+	cp $< $@
 
 build/%.html: src/%.md
 	pandoc \
@@ -31,7 +29,7 @@ build/%.html: src/%.md
 		--output $@ \
 		$<
 
-compile: setup $(PNG_IMAGES) $(HTML_FILES)
+compile: setup $(SVG_IMAGES) $(HTML_FILES)
 
 reload: compile
 	env \
