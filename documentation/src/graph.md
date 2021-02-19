@@ -86,6 +86,10 @@ Repeat this process until every node has at least one incoming edge (or possibly
 zero incoming edges, for the green node). Next, condense the remaining blue
 nodes.
 
+Let `n` be the number of nodes in the tree of green edges in a red-blue-green
+graph. There are exactly `n` red graphs that can be built from that single
+red-blue-green graph: one for each of the nodes in the green tree.
+
 The red-blue-green graph below seems quite complicated because it is the result
 of exactly eight editing actions (one editing action for each green arrow).
 
