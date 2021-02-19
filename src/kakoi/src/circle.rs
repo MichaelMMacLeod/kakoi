@@ -369,7 +369,7 @@ fn make_circle_layout(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -
     }
 }
 
-pub fn calculate_zoomed_radius(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> f64 {
+fn calculate_zoomed_radius(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> f64 {
     let zoom = zoom.abs();
     let zoom = if zoom > 1.0 { 1.0 } else { zoom };
     let (radius, _) = fit_equal_circles(enclosing_radius, enclosed_circles);
@@ -377,7 +377,7 @@ pub fn calculate_zoomed_radius(enclosing_radius: f64, enclosed_circles: u64, zoo
 }
 
 // See https://math.stackexchange.com/questions/4022525/placing-smaller_circle_count-equally-sized-circles-and-one-larger-circle-inside-the-circumference-o/4023200?noredirect=1#comment8307078_4023200
-pub fn find_r_theta(
+fn find_r_theta(
     enclosing_radius: f64,
     zoomed_radius: f64,
     smaller_circle_count: u64,
@@ -436,7 +436,7 @@ pub fn find_r_theta(
 //
 // See
 // https://math.stackexchange.com/questions/3984340/formula-for-radius-of-circles-on-vertices-of-regular-polygon/3990915#3990915
-pub fn fit_equal_circles(outer_radius: f64, inner_circle_count: u64) -> (f64, f64) {
+fn fit_equal_circles(outer_radius: f64, inner_circle_count: u64) -> (f64, f64) {
     if outer_radius <= 0.0 || inner_circle_count == 0 {
         (0.0, 0.0)
     } else if inner_circle_count == 1 {
