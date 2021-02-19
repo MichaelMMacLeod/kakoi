@@ -76,6 +76,12 @@ green edges as more like the structure enabling `git checkout` as opposed to the
 structure enabling textual undo or redo. In particular, when kakoi is closed,
 the entire history is written to disk---not lost.
 
+Another use of the green tree is finding the most well-developed representation
+of a certain idea. To do so, start at any node in the green tree. Traverse back
+up the tree until you hit a node that has more than one incoming green arrows.
+This node represents a representation of an idea that has been interpreted in
+two different ways, hence the two different green arrows coming into it.
+
 The red-blue graph is useful mostly as an explanatory tool. In the software
 itself, we only ever build the red graph (for rendering), and the red-blue-green
 graph (for editing and production of the red graph).
