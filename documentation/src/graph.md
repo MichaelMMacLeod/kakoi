@@ -94,3 +94,7 @@ The red-blue-green graph below seems quite complicated because it is the result
 of exactly eight editing actions (one editing action for each green arrow).
 
 ![](images/red-blue-green-graph-0.svg)
+
+Some initial runtime analysis of inserting a node in a group follows:
+
+![](images/performance-info-0.svg)
