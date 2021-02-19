@@ -206,9 +206,6 @@ fn position_zoomed_large_circle(
     center: Point,
     focus_angle: f64,
 ) -> Circle {
-    let x = center.x - enclosing_radius + radius;
-    let y = center.y;
-
     let p = rotate(
         Point {
             x: radius - enclosing_radius,
