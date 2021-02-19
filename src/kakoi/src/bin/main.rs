@@ -13,5 +13,5 @@ fn main() {
     let zoom = args[3].parse::<f64>().unwrap();
     let angle = args[4].parse::<f64>().unwrap();
 
-    kakoi::circle::print_circle_svg(std::io::stdout(), radius, count, zoom, angle);
+    kakoi::svg::print_circle_svg(std::io::stdout(), radius, count, zoom, angle);
 }

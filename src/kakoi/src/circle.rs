@@ -1,8 +1,3 @@
-use std::io::Write;
-use svg::node::element::Circle as SVGCircle;
-use svg::node::element::Rectangle;
-use svg::Document;
-
 struct EqualConfig {
     radius: f64,
     angle: f64,
@@ -19,28 +14,17 @@ enum Layout {
     Zoomed(ZoomedConfig),
 }
 
-pub fn print_circle_svg<W: Write>(
-    out: W,
-    enclosing_radius: f64,
-    enclosed_circles: u64,
-    zoom: f64,
-    focus_angle: f64,
-) {
-    let document = make_document(enclosing_radius, enclosed_circles, zoom, focus_angle);
-    svg::write(out, &document).unwrap();
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
 }
 
-struct Point {
-    x: f64,
-    y: f64,
+pub struct Circle {
+    pub center: Point,
+    pub radius: f64,
 }
 
-struct Circle {
-    center: Point,
-    radius: f64,
-}
-
-struct CirclePositioner {
+pub struct CirclePositioner {
     layout: Layout,
     current: u64,
     center: Point,
@@ -50,7 +34,7 @@ struct CirclePositioner {
 }
 
 impl CirclePositioner {
-    fn new(
+    pub fn new(
         enclosing_radius: f64,
         enclosed_circles: u64,
         zoom: f64,
@@ -299,59 +283,6 @@ impl Iterator for CirclePositioner {
             None
         }
     }
-}
-
-fn make_document(
-    enclosing_radius: f64,
-    enclosed_circles: u64,
-    zoom: f64,
-    focus_angle: f64,
-) -> Document {
-    let center = enclosing_radius;
-
-    let mut document = Document::new().set("viewBox", (0, 0, center * 2.0, center * 2.0));
-
-    let bg = Rectangle::new()
-        .set("fill", "none")
-        .set("stroke", "#000000")
-        .set("x", 0)
-        .set("y", 0)
-        .set("width", center * 2.0)
-        .set("height", center * 2.0);
-
-    let enclosing_circle = SVGCircle::new()
-        .set("fill", "none")
-        .set("stroke", "#000000")
-        .set("cx", center)
-        .set("cy", center)
-        .set("r", enclosing_radius);
-
-    document = document.add(bg).add(enclosing_circle);
-
-    for Circle {
-        center: Point { x, y },
-        radius,
-    } in CirclePositioner::new(
-        enclosing_radius,
-        enclosed_circles,
-        zoom,
-        Point {
-            x: center,
-            y: center,
-        },
-        focus_angle,
-    ) {
-        document = document.add(
-            SVGCircle::new()
-                .set("fill", "none")
-                .set("stroke", "#000000")
-                .set("cx", x)
-                .set("cy", y)
-                .set("r", radius),
-        );
-    }
-
-    document
 }
 
 fn make_circle_layout(enclosing_radius: f64, enclosed_circles: u64, zoom: f64) -> Layout {
