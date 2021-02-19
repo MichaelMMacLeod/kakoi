@@ -98,3 +98,7 @@ of exactly eight editing actions (one editing action for each green arrow).
 Some initial runtime analysis of inserting a node in a group follows:
 
 ![](images/performance-info-0.svg)
+
+Thoughts on improving performance:
+
+![](images/performance-improvements-maybe-0.svg)
