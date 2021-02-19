@@ -7648,9 +7648,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.04375"
-     inkscape:cx="3595.5071"
-     inkscape:cy="3381.8115"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="1361.001"
+     inkscape:cy="2859.9739"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -7672,7 +7672,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -8241,11 +8241,6 @@
        d="m 2042.5633,294.81496 28.1435,-12.9893"
        id="path112838-2-3-0-24-7-3-4-2"
        sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-8-4-2-7-22);paint-order:stroke fill markers"
-       d="m 2038.2014,290.6025 15.3947,-28.38402"
-       id="path112838-2-3-0-1-1-1-1-7"
-       sodipodi:nodetypes="cc" />
     <circle
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="path112764-3-9-7-4-8-8-3-7"
@@ -8459,11 +8454,6 @@
        style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-20-0-8-5-0-0);paint-order:stroke fill markers"
        d="m 2180.678,290.25912 28.1435,-12.9893"
        id="path112838-2-3-0-24-7-3-4-2-0"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-8-4-2-7-22-7);paint-order:stroke fill markers"
-       d="m 2176.3161,286.04666 15.3947,-28.38402"
-       id="path112838-2-3-0-1-1-1-1-7-0"
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-8-4-2-7-22-4);paint-order:stroke fill markers"
@@ -8745,11 +8735,6 @@
        style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-20-0-8-5-0-0-4);paint-order:stroke fill markers"
        d="m 2334.3413,293.12517 28.1435,-12.9893"
        id="path112838-2-3-0-24-7-3-4-2-0-7"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-8-4-2-7-22-7-1);paint-order:stroke fill markers"
-       d="m 2329.9794,288.91271 15.3947,-28.38402"
-       id="path112838-2-3-0-1-1-1-1-7-0-6"
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.6;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-7-2-2-8-4-2-7-22-4-3-1);paint-order:stroke fill markers"
@@ -10517,7 +10502,7 @@
        style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect112808-0-0-90-1-6-8-3-66-2-6);"
        transform="matrix(2.7618745,0,0,2.7618745,939.11432,159.01968)"><tspan
          x="371.50391"
-         y="62.443818"><tspan>+5n/+9e</tspan></tspan></text>
+         y="62.443818"><tspan>+5n/+8e</tspan></tspan></text>
     <text
        xml:space="preserve"
        id="text112806-5-4-2-3-1-2-2-1-9-5-7"
