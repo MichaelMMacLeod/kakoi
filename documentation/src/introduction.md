@@ -50,14 +50,15 @@ not compatible.
 Here is a Bongard problem:
 
 ![](images/Bongard_problem_convex_polygons.svg)
+
 Image created by Wikipedia
 [User:Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), licensed under
-[CC-BY-SA](https://creativecommons.org/licenses/by-sa/4.0/).
+[CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/) (image shrunk to fit
+on this page).
 
 We see two sides: a left side and a right side, each containing shapes. The
 puzzle creator asserts that these shapes deserved to be grouped in this
-way---it's our job to determine why. [Answer, for the
-rushed](bongard-problem-answer.html).
+way---it's our job to determine why. [[answer](bongard-problem-answer.html)].
 
 There is an [online list of Bongard
 problems](https://www.foundalis.com/res/bps/bpidx.htm). Interestingly enough,
