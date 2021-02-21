@@ -967,8 +967,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.45254834"
-     inkscape:cx="1205.1448"
-     inkscape:cy="653.14552"
+     inkscape:cx="1229.8751"
+     inkscape:cy="796.36557"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
      inkscape:document-rotation="0"
@@ -1198,7 +1198,13 @@
          x="295.11914"
          y="325.90402"><tspan>Moreover, no algorithm should ever remove a node or edge that is reachable </tspan></tspan><tspan
          x="295.11914"
-         y="339.13315"><tspan>from any node on the tree of green edges.</tspan></tspan></text>
+         y="339.13315"><tspan>from any node on the tree of green edges.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="352.36227"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="365.5914"><tspan>RUNTIME: O(1)</tspan></tspan></text>
     <circle
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.361677;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
        id="path28-5-5-0-55-8-8-8"
