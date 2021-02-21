@@ -26,13 +26,13 @@ fn make_document(
 
     let mut document = Document::new().set("viewBox", (0, 0, center * 2.0, center * 2.0));
 
-    let bg = Rectangle::new()
-        .set("fill", "none")
-        .set("stroke", "#000000")
-        .set("x", 0)
-        .set("y", 0)
-        .set("width", center * 2.0)
-        .set("height", center * 2.0);
+    // let bg = Rectangle::new()
+    //     .set("fill", "none")
+    //     .set("stroke", "#000000")
+    //     .set("x", 0)
+    //     .set("y", 0)
+    //     .set("width", center * 2.0)
+    //     .set("height", center * 2.0);
 
     let enclosing_circle = SVGCircle::new()
         .set("fill", "none")
