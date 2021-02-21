@@ -1,5 +1,7 @@
 % kakoi - implementation: algorithms
 
+- [`commit_transaction(N,M)`: Algorithm for ensuring atomicity](algorithm-commit-transaction.html)
+
 - [`extend_leaf(G,L)`: Algorithm for extending a group `G` with a leaf `L`](algorithm-extend-leaf.html)
 
 - [Algorithm for adding a new leaf to the top level of the group drawn from the
