@@ -8,8 +8,8 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    width="653.1059mm"
-   height="239.07471mm"
-   viewBox="0 0 653.10589 239.0747"
+   height="265.53296mm"
+   viewBox="0 0 653.10589 265.53295"
    version="1.1"
    id="svg8"
    inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
@@ -130,9 +130,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.45254834"
-     inkscape:cx="1271.1546"
-     inkscape:cy="544.85398"
+     inkscape:zoom="0.32"
+     inkscape:cx="1660.9608"
+     inkscape:cy="599.95174"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
      inkscape:document-rotation="0"
@@ -142,7 +142,7 @@
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:snap-global="false"
+     inkscape:snap-global="true"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
@@ -177,6 +177,13 @@
      id="layer2"
      inkscape:label="Layer 2"
      transform="translate(93.742763,63.546492)">
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:1.4;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+       id="rect54530-0"
+       width="11.906245"
+       height="11.906245"
+       x="49.599483"
+       y="-1.040925" />
     <text
        xml:space="preserve"
        style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
@@ -239,10 +246,16 @@
          y="286.21664"><tspan>tree.
 </tspan></tspan><tspan
          x="295.11914"
-         y="299.44577"><tspan>
+         y="299.44577"><tspan>- The blue box indicates N.
 </tspan></tspan><tspan
          x="295.11914"
-         y="312.6749"><tspan>Runtime: O(1)</tspan></tspan></text>
+         y="312.6749"><tspan>- The orange box indicates M.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="325.90402"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="339.13315"><tspan>Runtime: O(1)</tspan></tspan></text>
     <circle
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.361677;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
        id="path28-5-5-0-55-8-8-8-1-6-7"
@@ -348,5 +361,26 @@
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.3;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-6-1-0-0-7-8-5-2-5-5);paint-order:stroke fill markers"
        d="m 52.185733,3.4347948 h -13.4371"
        id="path54-5-7-3-7-4-6-2-2-3-7" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#00ffff;stroke-width:1.4;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+       id="rect54530"
+       width="11.906245"
+       height="11.906245"
+       x="28.896875"
+       y="-1.2042246" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#00ffff;stroke-width:1.4;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+       id="rect54530-1"
+       width="11.906245"
+       height="11.906245"
+       x="76.70285"
+       y="-0.0093818307" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:1.4;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+       id="rect54530-2"
+       width="11.906245"
+       height="11.906245"
+       x="97.405464"
+       y="0.15391779" />
   </g>
 </svg>
