@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="649.02747mm"
+   height="186.1582mm"
+   viewBox="0 0 649.02746 186.1582"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
+   sodipodi:docname="algorithm-init.svg">
+  <defs
+     id="defs2">
+    <rect
+       x="-112.01555"
+       y="-19.724876"
+       width="63.996101"
+       height="49.113277"
+       id="rect385386" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="432.15659"
+       height="385.62692"
+       id="rect50-3-6-8-2-4-44-7-3-0-9-7" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-2" />
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-6-6-4-55-5-2-7-8-6-9"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#ff0000;fill-opacity:1;fill-rule:evenodd;stroke:#ff0000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path882-7-1-5-0-5-3-0-7-0-5" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-6-1-0-0-7-8-5-2-5"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#0000ff;fill-opacity:1;fill-rule:evenodd;stroke:#0000ff;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path882-7-2-9-2-4-4-04-2-07" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-6-1-0-6-3-4-9-9-8-28"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#00ff00;fill-opacity:1;fill-rule:evenodd;stroke:#00ff00;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path882-7-2-9-0-7-3-83-6-9-0" />
+    </marker>
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-2-8" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="432.15659"
+       height="385.62692"
+       id="rect50-3-6-8-2-4-44-7-3-0-9-7-7" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="432.15659"
+       height="385.62692"
+       id="rect50-3-6-8-2-4-44-7-3-0-9-7-7-4" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-2-6" />
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-6-6-4-55-5-2-7-8-6-9-0"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#ff0000;fill-opacity:1;fill-rule:evenodd;stroke:#ff0000;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path882-7-1-5-0-5-3-0-7-0-5-8" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-6-1-0-0-7-8-5-2-5-5"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:#0000ff;fill-opacity:1;fill-rule:evenodd;stroke:#0000ff;stroke-width:1pt;stroke-opacity:1"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path882-7-2-9-2-4-4-04-2-07-0" />
+    </marker>
+    <rect
+       x="-112.01555"
+       y="-19.724876"
+       width="63.996101"
+       height="49.113277"
+       id="rect385386-5" />
+    <rect
+       x="-112.01555"
+       y="-19.724876"
+       width="63.996101"
+       height="49.113277"
+       id="rect385399" />
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.45254834"
+     inkscape:cx="1539.0065"
+     inkscape:cy="442.7643"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer2"
+     inkscape:document-rotation="0"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1044"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:snap-global="true"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     inkscape:snap-bbox="true"
+     inkscape:snap-smooth-nodes="true"
+     inkscape:snap-object-midpoints="true"
+     inkscape:bbox-paths="true"
+     inkscape:bbox-nodes="true"
+     inkscape:snap-bbox-edge-midpoints="true"
+     inkscape:object-paths="true"
+     inkscape:snap-intersection-paths="true"
+     inkscape:snap-bbox-midpoints="true"
+     inkscape:snap-midpoints="true"
+     inkscape:snap-center="true"
+     showguides="true"
+     inkscape:guide-bbox="true" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Layer 2"
+     transform="translate(102.44386,63.546492)">
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;stroke-width:0.264583"
+       x="993.32391"
+       y="104.41887"
+       id="text252020"><tspan
+         sodipodi:role="line"
+         id="tspan252018"
+         x="993.32391"
+         y="104.41887"
+         style="stroke-width:0.264583" /></text>
+    <text
+       xml:space="preserve"
+       id="text48-3-2-2-6-9-2-1-6-4-9-0"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7);display:inline;"
+       transform="translate(-163.42364,-138.54194)"><tspan
+         x="295.11914"
+         y="87.779755"><tspan>init(): Algorithm for initializing an empty graph.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="101.00888"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="114.23801"><tspan>No input.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="127.46713"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="140.69626"><tspan>Output:
+</tspan></tspan><tspan
+         x="295.11914"
+         y="153.92539"><tspan>- (G,N): a pair of (the initialized empty graph, the non-leaf node in the graph)..
+</tspan></tspan><tspan
+         x="295.11914"
+         y="167.15451"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="180.38364"><tspan>(logical dependencies:algorithm step label) algorithm step description
+</tspan></tspan><tspan
+         x="295.11914"
+         y="193.61276"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="206.84189"><tspan>(a) Create an empty graph. Call the graph G.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="220.07102"><tspan>(a:b) Insert a non-leaf node into G. Call the node N.
+</tspan></tspan><tspan
+         x="295.11914"
+         y="233.30014"><tspan>(b:c) Return (G,N).
+</tspan></tspan><tspan
+         x="295.11914"
+         y="246.52927"><tspan>
+</tspan></tspan><tspan
+         x="295.11914"
+         y="259.75839"><tspan>Runtime: O(1)</tspan></tspan></text>
+    <circle
+       cx="-13.970887"
+       cy="-4.014935"
+       fill="none"
+       r="26.458334"
+       stroke="#000000"
+       id="circle312930-8"
+       style="stroke-width:0.264583" />
+    <text
+       xml:space="preserve"
+       id="text48-3-2-2-6-9-2-1-6-4-9-0-1"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7);display:inline;"
+       transform="translate(-385.44131,-142.91606)"><tspan
+         x="295.11914"
+         y="87.779755"><tspan
+           style="shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7);display:inline">Visualization
+</tspan></tspan><tspan
+         x="295.11914"
+         y="101.00888"><tspan
+           style="shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7);display:inline">Before / After</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       id="text48-3-2-2-6-9-2-1-6-4-9-0-1-4"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7-4);display:inline;"
+       transform="translate(-267.48144,-143.28542)"><tspan
+         x="295.11914"
+         y="87.779755"><tspan
+           style="shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7-4);display:inline">Graph
+</tspan></tspan><tspan
+         x="295.11914"
+         y="101.00888"><tspan
+           style="shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7-7-4);display:inline">Before / After</tspan></tspan></text>
+    <circle
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.361677;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+       id="path28-5-5-0-55-8-8-2-7"
+       cx="96.985748"
+       cy="-3.8087115"
+       r="3.6910412" />
+    <text
+       xml:space="preserve"
+       id="text385384"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect385386);"
+       transform="translate(8.6622642,10.040786)"><tspan
+         x="-112.01562"
+         y="-10.36087"><tspan>(no before)</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       id="text385384-0"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect385386-5);"
+       transform="translate(137.17267,8.5935517)"><tspan
+         x="-112.01562"
+         y="-10.36087"><tspan>(no before)</tspan></tspan></text>
+  </g>
+</svg>
