@@ -41,7 +41,8 @@ fn make_document(
         .set("cy", center)
         .set("r", enclosing_radius);
 
-    document = document.add(bg).add(enclosing_circle);
+    document = document /*.add(bg)*/
+        .add(enclosing_circle);
 
     for Circle {
         center: Point { x, y },
