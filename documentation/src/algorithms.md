@@ -12,5 +12,3 @@
 
 - [Algorithm for removing the last N toplevel nodes of the group drawn from the
   green node](algo-remove-n-toplevel.html)
-
-- [Algorithm for committing a transaction](algo-commit-transaction.html)
