@@ -157,7 +157,36 @@
     }
   ```
 
-  ![](images/algorithm-extend-except.svg)
+![](images/algorithm-extend-except.svg)
+
+- `extend_replace(M,N,O)`: Creates an extension of M that includes every node it indicates except for N, which is replaced with O.
+
+  ```
+  Input:
+    M: Branch
+    N: Node
+    O: Node
+  Output:
+    Branch
+  Algorithm:
+    let (V,B,R) = extend_until(M,N)
+    let P = B
+    if P == V {
+      insert_red_edge(B,O)
+    } else {
+      P = insert_branch()
+      insert_blue_edge(B,P)
+      insert_red_edge(P,O)
+    }
+    if let Some(R2) = reduction_of(R) {
+      insert_blue_edge(P,R2)
+      return V
+    } else {
+      PANIC
+    }
+  ```
+  
+  ![](images/algorithm-extend-replace.svg)
 
 - [Algorithm for adding an existing leaf to the top level of the group drawn
   from the green node](algo-existing-leaf-toplevel.html)
