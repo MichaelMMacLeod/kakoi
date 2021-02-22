@@ -13,7 +13,7 @@
    version="1.1"
    id="svg8"
    inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
-   sodipodi:docname="algorithm-extend-leaf.svg">
+   sodipodi:docname="algorithm-new-leaf.svg">
   <defs
      id="defs2">
     <rect
@@ -1169,6 +1169,24 @@
        y="78.416878"
        width="33.675961"
        height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-22-1-2-8-6-5" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-22-1-2-3-0-7-6" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect50-3-2-7-0-0-0-64-6-9-22-1-2-0-4-6-5" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
        id="rect50-3-2-7-0-0-0-64-6-9-22-1-2-8-6-5-5" />
     <rect
        x="295.11902"
@@ -1593,7 +1611,19 @@
        y="78.416878"
        width="33.675961"
        height="24.054256"
+       id="rect53170" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
        id="rect50-3-2-7-0-0-0-64-6-9-22-1-3-0-1-9" />
+    <rect
+       x="295.11902"
+       y="78.416878"
+       width="33.675961"
+       height="24.054256"
+       id="rect53173" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -1602,9 +1632,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.51572554"
-     inkscape:cx="2158.9728"
-     inkscape:cy="746.6641"
+     inkscape:zoom="0.45254834"
+     inkscape:cx="1397.33"
+     inkscape:cy="1055.0919"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
      inkscape:document-rotation="0"
@@ -1653,7 +1683,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1679,7 +1709,7 @@
        style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect50-3-6-8-2-4-44-7-3-0-9-7);display:inline;"
        transform="translate(-30.80414,-183.19566)"><tspan
          x="295.11914"
-         y="87.779755"><tspan>extend_leaf(G,S,L): Algorithm for extending a group S with a node N.
+         y="87.779755"><tspan>extend_leaf(G,L): Algorithm for extending a group G with a leaf L.
 </tspan></tspan><tspan
          x="295.11914"
          y="101.00888"><tspan>
@@ -1688,10 +1718,10 @@
          y="114.23801"><tspan>Input:
 </tspan></tspan><tspan
          x="295.11914"
-         y="127.46713"><tspan>- S: a non-leaf node.
+         y="127.46713"><tspan>- G: a non-leaf node.
 </tspan></tspan><tspan
          x="295.11914"
-         y="140.69626"><tspan>- N: a node.
+         y="140.69626"><tspan>- L: a leaf node.
 </tspan></tspan><tspan
          x="295.11914"
          y="153.92539"><tspan>
@@ -1700,7 +1730,7 @@
          y="167.15451"><tspan>Output:
 </tspan></tspan><tspan
          x="295.11914"
-         y="180.38364"><tspan>- N: a non-leaf node representing an extension of S that includes L.
+         y="180.38364"><tspan>- N: a non-leaf node representing an extension of G that includes L.
 </tspan></tspan><tspan
          x="295.11914"
          y="193.61276"><tspan>
@@ -1712,13 +1742,13 @@
          y="220.07102"><tspan>
 </tspan></tspan><tspan
          x="295.11914"
-         y="233.30014"><tspan>(a) N = extend(S).
+         y="233.30014"><tspan>(a) Insert a non-leaf node. Call the node N.
 </tspan></tspan><tspan
          x="295.11914"
          y="246.52927"><tspan>(a:b) Insert a red edge from N to L.
 </tspan></tspan><tspan
          x="295.11914"
-         y="259.75839"><tspan>(a:c) Insert a blue edge from N to S.
+         y="259.75839"><tspan>(a:c) Insert a blue edge from N to G.
 </tspan></tspan><tspan
          x="295.11914"
          y="272.98752"><tspan>(bc:d) Return N.
@@ -1727,7 +1757,7 @@
          y="286.21664"><tspan>
 </tspan></tspan><tspan
          x="295.11914"
-         y="299.44577"><tspan>Runtime: O(InsertNode(1)+InsertEdge(2))
+         y="299.44577"><tspan>Runtime: O(1)
 </tspan></tspan><tspan
          x="295.11914"
          y="312.6749"><tspan>
