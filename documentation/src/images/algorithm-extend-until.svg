@@ -7,9 +7,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="380.62177mm"
+   width="400.55154mm"
    height="367.70935mm"
-   viewBox="0 0 380.62177 367.70935"
+   viewBox="0 0 400.55155 367.70935"
    version="1.1"
    id="svg11104"
    inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
@@ -25,8 +25,8 @@
     <rect
        x="6.8035712"
        y="2.9860125"
-       width="142.53482"
-       height="25.853573"
+       width="197.37851"
+       height="28.740082"
        id="rect12466" />
     <rect
        x="295.11902"
@@ -2067,27 +2067,27 @@
     <rect
        x="6.8035712"
        y="2.9860125"
-       width="142.53482"
-       height="25.853573"
-       id="rect12466-5" />
+       width="197.37851"
+       height="28.740082"
+       id="rect12466-54" />
     <rect
        x="6.8035712"
        y="2.9860125"
-       width="142.53482"
-       height="25.853573"
-       id="rect12466-9" />
+       width="197.37851"
+       height="28.740082"
+       id="rect12466-7" />
     <rect
        x="6.8035712"
        y="2.9860125"
-       width="142.53482"
-       height="25.853573"
-       id="rect12466-93" />
+       width="197.37851"
+       height="28.740082"
+       id="rect12466-78" />
     <rect
        x="6.8035712"
        y="2.9860125"
-       width="142.53482"
-       height="25.853573"
-       id="rect12466-03" />
+       width="197.37851"
+       height="28.740082"
+       id="rect12466-2" />
   </defs>
   <sodipodi:namedview
      id="base"
@@ -2097,17 +2097,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.49497475"
-     inkscape:cx="689.336"
-     inkscape:cy="956.79221"
+     inkscape:cx="1083.448"
+     inkscape:cy="923.13569"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
-     inkscape:window-width="960"
-     inkscape:window-height="1007"
+     inkscape:window-width="1920"
+     inkscape:window-height="1044"
      inkscape:window-x="0"
      inkscape:window-y="0"
-     inkscape:window-maximized="0"
+     inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
      inkscape:snap-bbox="true"
@@ -2127,39 +2127,39 @@
      fit-margin-right="0"
      fit-margin-bottom="0">
     <sodipodi:guide
-       position="5.8137438e-06,340.19494"
+       position="1.6450051e-07,270.2671"
        orientation="1,0"
        id="guide13900" />
     <sodipodi:guide
-       position="149.67858,320.54018"
+       position="167.44346,320.54018"
        orientation="1,0"
        id="guide13902" />
     <sodipodi:guide
-       position="223.32017,359.51867"
+       position="241.08505,359.51866"
        orientation="0,-1"
        id="guide13976" />
     <sodipodi:guide
-       position="285.00597,278.37565"
+       position="302.77085,278.37565"
        orientation="1,0"
        id="guide18312" />
     <sodipodi:guide
-       position="231.32143,298.99553"
+       position="249.08631,298.99553"
        orientation="0,-1"
        id="guide37990" />
     <sodipodi:guide
-       position="384.8846,229.51878"
+       position="402.64948,229.51878"
        orientation="0,-1"
        id="guide38142" />
     <sodipodi:guide
-       position="391.58334,153.09672"
+       position="409.34822,153.09672"
        orientation="0,-1"
        id="guide38300" />
     <sodipodi:guide
-       position="401.00094,76.319877"
+       position="418.76582,76.319876"
        orientation="0,-1"
        id="guide38482" />
     <sodipodi:guide
-       position="310.00519,2.3181531"
+       position="327.77007,2.3181531"
        orientation="0,-1"
        id="guide38634" />
   </sodipodi:namedview>
@@ -2179,7 +2179,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(201.08333,-44.301053)">
+     transform="translate(218.84821,-44.301053)">
     <circle
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.361677;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
        id="path28-5-5-0-55-8-8-8"
@@ -2290,9 +2290,9 @@
        xml:space="preserve"
        id="text12464"
        style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466);"
-       transform="translate(-207.16203,99.688054)"><tspan
+       transform="translate(-226.56045,98.16885)"><tspan
          x="6.8027344"
-         y="12.350068"><tspan>   = extend_until(   ,   )</tspan></tspan></text>
+         y="12.350068"><tspan>(   ,   ,   ) = extend_until(   ,   )</tspan></tspan></text>
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470"
@@ -2305,8 +2305,8 @@
        id="rect12470-1"
        width="9.6217022"
        height="9.6217022"
-       x="-108.50019"
-       y="103.39318" />
+       x="-89.306137"
+       y="102.9281" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470-5"
@@ -2319,8 +2319,8 @@
        id="rect12470-5-5"
        width="9.6217022"
        height="9.6217022"
-       x="-94.576698"
-       y="103.39318" />
+       x="-75.547722"
+       y="102.93564" />
     <circle
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.361677;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
        id="path28-5-5-0-55-8-8-8-2"
@@ -2473,8 +2473,8 @@
        id="rect12470-1-7"
        width="9.6217022"
        height="9.6217022"
-       x="-200.63333"
-       y="102.94318" />
+       x="-215.96741"
+       y="102.9281" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470-1-7-7"
@@ -3538,117 +3538,257 @@
        style="display:inline;fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.3;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;marker-end:url(#Arrow1Lend-6-1-7-5-60-6-8-9-1-8-87-8-0-2);paint-order:stroke fill markers"
        d="m 152.11254,365.55834 v 13.43707"
        id="path54-5-7-9-8-7-9-6-9-36-17-1-9-9-4" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20"
+       width="9.6217022"
+       height="9.6217022"
+       x="-201.55627"
+       y="102.93564" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6"
+       width="9.6217022"
+       height="9.6217022"
+       x="-188.78955"
+       y="102.93564" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:1.27036;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-1"
+       width="13.581114"
+       height="13.581114"
+       x="167.48703"
+       y="56.474514" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:1.17777;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-5"
+       width="12.591257"
+       height="12.591257"
+       x="167.85889"
+       y="103.85075" />
     <text
        xml:space="preserve"
-       id="text12464-9"
-       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-5);"
-       transform="translate(-207.16202,169.16481)"><tspan
+       id="text12464-7"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-54);"
+       transform="translate(-226.56045,167.6456)"><tspan
          x="6.8027344"
-         y="12.350068"><tspan>   = extend_until(   ,   )</tspan></tspan></text>
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-2"
-       width="9.6217022"
-       height="9.6217022"
-       x="-108.50018"
-       y="172.86993" />
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-5-5-2"
-       width="9.6217022"
-       height="9.6217022"
-       x="-94.576691"
-       y="172.86993" />
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-7-8"
-       width="9.6217022"
-       height="9.6217022"
-       x="-200.63333"
-       y="172.41992" />
-    <text
-       xml:space="preserve"
-       id="text12464-3"
-       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-9);"
-       transform="translate(-207.16203,245.58685)"><tspan
-         x="6.8027344"
-         y="12.350068"><tspan>   = extend_until(   ,   )</tspan></tspan></text>
+         y="12.350068"><tspan>(   ,   ,   ) = extend_until(   ,   )</tspan></tspan></text>
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470-1-6"
        width="9.6217022"
        height="9.6217022"
-       x="-108.50019"
-       y="249.29196" />
+       x="-89.306145"
+       y="172.40485" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-5-5-1"
+       id="rect12470-5-5-5"
        width="9.6217022"
        height="9.6217022"
-       x="-94.576698"
-       y="249.29196" />
+       x="-75.547729"
+       y="172.41238" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-7-2"
+       id="rect12470-1-7-6"
        width="9.6217022"
        height="9.6217022"
-       x="-200.63333"
-       y="248.84198" />
+       x="-215.96741"
+       y="172.40485" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-9"
+       width="9.6217022"
+       height="9.6217022"
+       x="-201.55627"
+       y="172.41238" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-3"
+       width="9.6217022"
+       height="9.6217022"
+       x="-188.78955"
+       y="172.41238" />
     <text
        xml:space="preserve"
-       id="text12464-94"
-       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-93);"
-       transform="translate(-207.16202,322.36371)"><tspan
+       id="text12464-5"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-7);"
+       transform="translate(-226.56045,244.06766)"><tspan
          x="6.8027344"
-         y="12.350068"><tspan>   = extend_until(   ,   )</tspan></tspan></text>
+         y="12.350068"><tspan>(   ,   ,   ) = extend_until(   ,   )</tspan></tspan></text>
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-78"
+       id="rect12470-1-2"
        width="9.6217022"
        height="9.6217022"
-       x="-108.50018"
-       y="326.06885" />
+       x="-89.306137"
+       y="248.82692" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-5-5-54"
+       width="9.6217022"
+       height="9.6217022"
+       x="-75.547722"
+       y="248.83446" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-74"
+       width="9.6217022"
+       height="9.6217022"
+       x="-215.96741"
+       y="248.82692" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-4"
+       width="9.6217022"
+       height="9.6217022"
+       x="-201.55627"
+       y="248.83446" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-30"
+       width="9.6217022"
+       height="9.6217022"
+       x="-188.78955"
+       y="248.83446" />
+    <text
+       xml:space="preserve"
+       id="text12464-8"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-78);"
+       transform="translate(-226.56045,320.8445)"><tspan
+         x="6.8027344"
+         y="12.350068"><tspan>(   ,   ,   ) = extend_until(   ,   )</tspan></tspan></text>
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-8"
+       width="9.6217022"
+       height="9.6217022"
+       x="-89.306129"
+       y="325.60376" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470-5-5-4"
        width="9.6217022"
        height="9.6217022"
-       x="-94.576683"
-       y="326.06885" />
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-7-5"
-       width="9.6217022"
-       height="9.6217022"
-       x="-200.63333"
-       y="325.61884" />
-    <text
-       xml:space="preserve"
-       id="text12464-1"
-       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-03);"
-       transform="translate(-207.16202,396.36541)"><tspan
-         x="6.8027344"
-         y="12.350068"><tspan>   = extend_until(   ,   )</tspan></tspan></text>
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-1-0"
-       width="9.6217022"
-       height="9.6217022"
-       x="-108.50018"
-       y="400.07053" />
-    <rect
-       style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
-       id="rect12470-5-5-6"
-       width="9.6217022"
-       height="9.6217022"
-       x="-94.576691"
-       y="400.07053" />
+       x="-75.547714"
+       y="325.6113" />
     <rect
        style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
        id="rect12470-1-7-3"
        width="9.6217022"
        height="9.6217022"
-       x="-200.63333"
-       y="399.62054" />
+       x="-215.96741"
+       y="325.60376" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-14"
+       width="9.6217022"
+       height="9.6217022"
+       x="-201.55627"
+       y="325.6113" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-9"
+       width="9.6217022"
+       height="9.6217022"
+       x="-188.78955"
+       y="325.6113" />
+    <text
+       xml:space="preserve"
+       id="text12464-68"
+       style="font-size:10.5833px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect12466-2);"
+       transform="translate(-226.56045,394.84622)"><tspan
+         x="6.8027344"
+         y="12.350068"><tspan>(   ,   ,   ) = extend_until(   ,   )</tspan></tspan></text>
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-9"
+       width="9.6217022"
+       height="9.6217022"
+       x="-89.306145"
+       y="399.60547" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#0000ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-5-5-2"
+       width="9.6217022"
+       height="9.6217022"
+       x="-75.547729"
+       y="399.61301" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#00ff00;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-66"
+       width="9.6217022"
+       height="9.6217022"
+       x="-215.96741"
+       y="399.60547" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-49"
+       width="9.6217022"
+       height="9.6217022"
+       x="-201.55627"
+       y="399.61301" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-50"
+       width="9.6217022"
+       height="9.6217022"
+       x="-188.78955"
+       y="399.61301" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:1.22921;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-9-4"
+       width="13.141175"
+       height="13.141175"
+       x="167.3403"
+       y="124.67391" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-3-8"
+       width="9.6217022"
+       height="9.6217022"
+       x="147.6577"
+       y="174.73808" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-4-7"
+       width="9.6217022"
+       height="9.6217022"
+       x="125.62381"
+       y="206.05568" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-30-1"
+       width="9.6217022"
+       height="9.6217022"
+       x="104.10685"
+       y="250.55252" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:1.18806;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-14-7"
+       width="12.701241"
+       height="12.701241"
+       x="145.7619"
+       y="280.88309" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:1.17643;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-9-2"
+       width="12.576963"
+       height="12.576963"
+       x="146.18008"
+       y="326.45932" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff00ff;stroke-width:1.17777;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-49-7"
+       width="12.591257"
+       height="12.591257"
+       x="145.81691"
+       y="355.24084" />
+    <rect
+       style="fill:none;fill-rule:evenodd;stroke:#ff6600;stroke-width:0.9;stroke-linecap:square;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;paint-order:stroke fill markers"
+       id="rect12470-1-7-20-6-50-2"
+       width="9.6217022"
+       height="9.6217022"
+       x="125.47009"
+       y="401.75119" />
   </g>
 </svg>
