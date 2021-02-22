@@ -95,6 +95,48 @@
   Call the node on the incoming side of the outgoing red edge from N M.
   Return Some(M).
   ```
+- `extend_until(M,N)`: Creates a branch that indicates every node M indicates except for N and all of the nodes that come after N
+
+  ![](images/algorithm-extend-until.svg)
+
+  ```
+  Input:
+    M: Branch
+    N: Node
+  Output:
+    Branch, the extension
+  Algorithm:
+  let V = insert_branch()
+  let B = V
+  let b_has_indication = false
+  let R = M
+  loop {
+    if let Some(I) = indication_of(R) {
+      if I == N {
+        Return V
+      } else {
+        if b_has_indication {
+          let B2 = insert_branch()
+          insert_blue_edge(B,B2)
+          B = B2
+        }
+        insert_red_edge(B,I)
+        b_has_indication = true
+      }
+    } else {
+      // TODO: I think this is a valid state to be in, so we 
+      //       should probably do nothing here. Is this actually 
+      //       true?
+    }
+    
+    if let Some(R2) = reduction_of(R) {
+      R = R2
+    } else {
+      PANIC
+    }
+  }
+  ```
+  
 - `extend_except(N,M)`: Creates an extension of N that includes every node it indicates except for M.
   ```
   Input:
