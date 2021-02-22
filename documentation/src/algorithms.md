@@ -148,50 +148,13 @@
   Output:
     Branch, the extension
   Algorithm
-    let V = extend_until(M,N)
-  ```
-
-  ```
-  Input:
-    N: Branch
-    M: Node
-  Output:
-    Branch, the extension.
-  Algorithm:
-  let V = insert_branch()
-  let B = V
-  let b_has_indication = false
-  let R = N
-  loop {
-    if let Some(I) = indication_of(R) {
-      if I == M {
-        if let Some(R2) = reduction_of(R) {
-          insert_blue_edge(B,R2)
-          return V
-        } else {
-          PANIC
-        }
-      } else {
-        if b_has_indication {
-          let B2 = insert_branch()
-          insert_blue_edge(B,B2)
-          B = B2
-        }
-        insert_red_edge(B,I)
-        b_has_indication = true
-      }
-    } else {
-      // TODO: I think this is a valid state to be in, so we 
-      //       should probably do nothing here. Is this actually 
-      //       true?
-    }
-    
+    let (V,B,R) = extend_until(M,N)
     if let Some(R2) = reduction_of(R) {
-      R = R2
+      insert_blue_edge(B,R2)
+      return V
     } else {
       PANIC
     }
-  }
   ```
 
   ![](images/algorithm-extend-except.svg)
