@@ -97,8 +97,6 @@
   ```
 - `extend_until(M,N)`: Creates a branch that indicates every node M indicates except for N and all of the nodes that come after N
 
-  ![](images/algorithm-extend-until.svg)
-
   ```
   Input:
     M: Branch
@@ -138,6 +136,8 @@
       }
     }
   ```
+
+  ![](images/algorithm-extend-until.svg)
   
 - `extend_except(M,N)`: Creates an extension of N that includes every node it indicates except for M.
 
@@ -187,9 +187,3 @@
   ```
   
   ![](images/algorithm-extend-replace.svg)
-
-- [Algorithm for adding an existing leaf to the top level of the group drawn
-  from the green node](algo-existing-leaf-toplevel.html)
-
-- [Algorithm for removing the last N toplevel nodes of the group drawn from the
-  green node](algo-remove-n-toplevel.html)
