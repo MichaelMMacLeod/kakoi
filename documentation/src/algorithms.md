@@ -83,7 +83,7 @@
   Call the node on the incoming side of the outgoing blue edge from N M.
   Return Some(M).
   ```
-- `indication_of(N)`: Returns the node that N indicates (if any).
+- `indication_of(N)`: Returns the node that N directly indicates (if any).
   ```
   Input:
   - N: Branch
@@ -95,6 +95,29 @@
   Call the node on the incoming side of the outgoing red edge from N M.
   Return Some(M).
   ```
+- `indications_of(M)`: Returns the nodes that N both directly and indirectly indicates (if any)
+
+  ```
+  Input:
+    M: Branch
+  Output:
+    Vector<Node>
+  Algorithm:
+    let V = new_vector()
+    let CM = M
+    loop {
+      if let Some(I) = indication_of(CM) {
+        V.push(I)
+      }
+      
+      if let Some(R) = reduction_of(CM) {
+        CM = R
+      } else {
+        return V
+      }
+    }
+  ```
+
 - `extend_until(M,N)`: Creates a branch that indicates every node M indicates except for N and all of the nodes that come after N
 
   ```
@@ -187,3 +210,29 @@
   ```
   
   ![](images/algorithm-extend-replace.svg)
+
+- `extend_subtract(M,N)`: Creates an extension of M that includes every node it indicates except for the nodes that N indicates.
+
+  ```
+  Input:
+    M: Branch
+    N: Branch
+  Output:
+    Branch
+  Algorithm:
+    if M == N {
+      Call the node with no outgoing edges Z.
+      return Z
+    } else {
+      let CM = M
+      let CN = N
+      
+      if let Some(CMI) = indication_of(M) {
+        if let Some(CNI) = indication_of(N) {
+          
+        } else {
+        }
+      } else {
+      }
+    }
+  ```
