@@ -1,6 +1,5 @@
 use std::io::Write;
 use svg::node::element::Circle as SVGCircle;
-use svg::node::element::Rectangle;
 use svg::Document;
 
 use crate::circle::{Circle, CirclePositioner, Point};
