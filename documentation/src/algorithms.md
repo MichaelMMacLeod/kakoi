@@ -210,8 +210,10 @@
   ```
   
   ![](images/algorithm-extend-replace.svg)
+  
+- `extend_subtract(M,N)`: Creates an extension of M that includes every node it indicates, except for those indicated by N.
 
-- `extend_subtract(M,N)`: Creates an extension of M that includes every node it indicates except for the nodes that N indicates.
+  I haven't convinced myself this works yet:
 
   ```
   Input:
@@ -224,15 +226,59 @@
       Call the node with no outgoing edges Z.
       return Z
     } else {
-      let CM = M
-      let CN = N
-      
-      if let Some(CMI) = indication_of(M) {
-        if let Some(CNI) = indication_of(N) {
-          
+      let start = M
+      let end = M
+      let B_op = None
+      let indications = indications_of(N)
+      let inside = false
+      loop {
+        if let Some(I) = indication_of(end) {
+          if inside {
+            if indications.contains(I) {
+              if let Some(R) = reduction_of(end) {
+                end = R
+              } else {
+                PANIC
+              }
+
+              start = end;
+            } else {
+              start = end
+              inside = false
+            }
+          } else {
+            if indications.contains(I) {
+              let (V,B2,R) = extend_until(start,I)
+              
+              if let Some(B) = B_op {
+                insert_blue_edge(B,V)
+              }
+              
+              B_op = Some(B2)
+              
+              inside = true
+            } else {
+              if let Some(R) = reduction_of(end) {
+                end = R
+              } else {
+                PANIC
+              }
+            }
+          }
         } else {
+          if let Some(R) = reduction_of(end) {
+            end = R
+          } else {
+            if let Some(B) = B_op {
+              insert_blue_edge(B,start)
+              return 
+            } else {
+              return start
+            }
+          }
         }
-      } else {
       }
     }
   ```
+  
+  ![](images/algorithm-extend-subtract.svg)
