@@ -282,3 +282,9 @@
   ```
   
   ![](images/algorithm-extend-subtract.svg)
+
+- `select(), group(), and extend()`
+
+  Not aware of how these work yet. Here's a diagram to get us started, though.
+
+  ![](images/algorithm-select-group-extend.svg)
