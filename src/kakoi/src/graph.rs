@@ -1,11 +1,13 @@
 #![allow(unused)]
 
+use petgraph::data::DataMap;
 use petgraph::graph::Graph as GraphImpl;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use petgraph::Directed;
 use petgraph::Direction;
 
+#[derive(Debug)]
 enum Node {
     Leaf(String), // We're only going to support string leafs for the time being
     Branch,
@@ -20,6 +22,100 @@ enum Edge {
 struct Graph {
     g: GraphImpl<Node, Edge, Directed, u32>,
     void: NodeIndex<u32>, // the first node; all distinctions are extensions of it
+}
+
+struct ReductionIterator<'a> {
+    graph: &'a Graph,
+    node: NodeIndex<u32>,
+    first_reduction: bool,
+}
+
+impl<'a> ReductionIterator<'a> {
+    fn new(graph: &'a Graph, node: NodeIndex<u32>) -> Self {
+        Self {
+            graph,
+            node,
+            first_reduction: true,
+        }
+    }
+}
+
+impl<'a> Iterator for ReductionIterator<'a> {
+    type Item = NodeIndex<u32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.first_reduction {
+            self.first_reduction = false;
+            Some(self.node)
+        } else {
+            if let Some(reduction) = self.graph.reduction_of(self.node) {
+                self.node = reduction;
+                Some(self.node)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+struct IndicationIterator<'a> {
+    graph: &'a Graph,
+    reduction_iterator: ReductionIterator<'a>,
+}
+
+impl<'a> IndicationIterator<'a> {
+    fn new(graph: &'a Graph, node: NodeIndex<u32>) -> Self {
+        Self {
+            graph,
+            reduction_iterator: ReductionIterator::new(graph, node),
+        }
+    }
+}
+
+impl<'a> Iterator for IndicationIterator<'a> {
+    type Item = NodeIndex<u32>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(reduction) = self.reduction_iterator.next() {
+                if let Some(indication) = self.graph.indication_of(reduction) {
+                    break Some(indication);
+                }
+            } else {
+                break None;
+            }
+        }
+    }
+}
+
+struct GroupIterator<'a> {
+    graph: &'a Graph,
+    reduction_iterator: ReductionIterator<'a>,
+}
+
+impl<'a> GroupIterator<'a> {
+    fn new(graph: &'a Graph, node: NodeIndex<u32>) -> Self {
+        Self {
+            graph,
+            reduction_iterator: ReductionIterator::new(graph, node),
+        }
+    }
+}
+
+impl<'a> Iterator for GroupIterator<'a> {
+    type Item = (NodeIndex<u32>, NodeIndex<u32>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(reduction) = self.reduction_iterator.next() {
+                if let Some(indication) = self.graph.indication_of(reduction) {
+                    break Some((reduction, indication));
+                }
+            } else {
+                break None;
+            }
+        }
+    }
 }
 
 impl Graph {
@@ -81,20 +177,7 @@ impl Graph {
     }
 
     fn indications_of(&self, group: NodeIndex<u32>) -> Vec<NodeIndex<u32>> {
-        let mut result = Vec::new();
-        let mut current_group = group;
-
-        loop {
-            if let Some(i) = self.indication_of(current_group) {
-                result.push(i);
-            }
-
-            if let Some(r) = self.reduction_of(current_group) {
-                current_group = r;
-            } else {
-                break result;
-            }
-        }
+        IndicationIterator::new(&self, group).collect::<Vec<_>>()
     }
 
     fn extend_until(
@@ -125,6 +208,45 @@ impl Graph {
                 r = r2;
             } else {
                 panic!("n is not indicated from m");
+            }
+        }
+    }
+
+    fn extend_replace_indices(
+        &mut self,
+        m: NodeIndex<u32>,
+        replacements: Vec<(usize, NodeIndex<u32>)>,
+    ) -> NodeIndex<u32> {
+        let mut groups = GroupIterator::new(&self, m).collect::<Vec<_>>();
+        let mut last_update = None;
+
+        for (indication, replacement) in replacements {
+            dbg!(groups[indication].1, replacement);
+            if groups[indication].1 != replacement {
+                groups[indication].1 = replacement;
+
+                last_update = Some(indication);
+            }
+        }
+
+        match last_update {
+            None => m,
+            Some(last_update) => {
+                let new_m = self.g.add_node(Node::Branch);
+                self.g.add_edge(new_m, groups[0].1, Edge::Indication);
+                let mut current = new_m;
+
+                for (_, indication) in &groups[1..=last_update] {
+                    let next = self.g.add_node(Node::Branch);
+                    self.g.add_edge(next, *indication, Edge::Indication);
+                    self.g.add_edge(current, next, Edge::Extension);
+                    current = next;
+                }
+
+                dbg!(last_update);
+                self.g
+                    .add_edge(current, groups[last_update + 1].0, Edge::Extension);
+                new_m
             }
         }
     }
@@ -165,9 +287,32 @@ mod tests {
         let n2 = g.extend_with_leaf(n1, "b".to_string());
         let n3 = g.extend_with_leaf(n2, "c".to_string());
         let v = g.indications_of(n3);
+        //dbg!(g.g.node_weight(v[0]));
+        //dbg!(g.g.node_weight(v[1]));
+        //panic!();
         assert_eq!(v[0], g.indication_of(n3).unwrap());
         assert_eq!(v[1], g.indication_of(n2).unwrap());
         assert_eq!(v[2], g.indication_of(n1).unwrap());
+    }
+
+    #[test]
+    fn group_iterator_of_three() {
+        let mut g = Graph::new();
+        let n1 = g.extend_with_leaf(g.void(), "a".to_string());
+        let n2 = g.extend_with_leaf(n1, "b".to_string());
+        let n3 = g.extend_with_leaf(n2, "c".to_string());
+        let mut i = GroupIterator::new(&g, n3);
+        assert_eq!(i.next(), Some((n3, g.indication_of(n3).unwrap())));
+        assert_eq!(i.next(), Some((n2, g.indication_of(n2).unwrap())));
+        assert_eq!(i.next(), Some((n1, g.indication_of(n1).unwrap())));
+        assert_eq!(i.next(), None);
+    }
+
+    #[test]
+    fn group_iterator_immediate_end() {
+        let mut g = Graph::new();
+        let mut i = GroupIterator::new(&g, g.void());
+        assert_eq!(i.next(), None);
     }
 
     #[test]
@@ -250,5 +395,66 @@ mod tests {
         assert_eq!(g.leaf_value(g.indication_of(v).unwrap()).unwrap(), "2");
         assert!(g.reduction_of(v).is_none());
         assert_eq!(n1, r);
+    }
+
+    #[test]
+    fn extend_replace_indices_no_changes() {
+        let mut g = Graph::new();
+        let n0 = g.extend_with_leaf(g.void(), "a".to_string());
+        let n1 = g.extend_with_leaf(n0, "b".to_string());
+        let n2 = g.extend_with_leaf(n1, "c".to_string());
+        let n3 = g.extend_with_leaf(n2, "d".to_string());
+        let replacements = vec![];
+        let result = g.extend_replace_indices(n3, replacements);
+        assert_eq!(result, n3)
+    }
+
+    #[test]
+    fn extend_replace_indices_change_0_to_1() {
+        let mut g = Graph::new();
+        let n0 = g.extend_with_leaf(g.void(), "a".to_string());
+        let n1 = g.extend_with_leaf(n0, "b".to_string());
+        let n2 = g.extend_with_leaf(n1, "c".to_string());
+        let n3 = g.extend_with_leaf(n2, "d".to_string());
+        let replacements = vec![(0, g.indication_of(n2).unwrap())];
+        let result = g.extend_replace_indices(n3, replacements);
+        let mut i = IndicationIterator::new(&g, result);
+        dbg!(g.indication_of(i.next().unwrap()));
+        assert_ne!(result, n3);
+        assert_eq!(
+            g.indication_of(result).unwrap(),
+            g.indication_of(n2).unwrap()
+        );
+        assert_eq!(n2, g.reduction_of(result).unwrap());
+    }
+
+    #[test]
+    fn extend_replace_indices_change_two_useless_changes() {
+        let mut g = Graph::new();
+        let n0 = g.extend_with_leaf(g.void(), "a".to_string());
+        let n1 = g.extend_with_leaf(n0, "b".to_string());
+        let n2 = g.extend_with_leaf(n1, "c".to_string());
+        let n3 = g.extend_with_leaf(n2, "d".to_string());
+        let replacements = vec![
+            (1, g.indication_of(n2).unwrap()),
+            (3, g.indication_of(n0).unwrap()),
+        ];
+        let result = g.extend_replace_indices(n3, replacements);
+        assert_eq!(result, n3)
+    }
+
+    #[test]
+    fn extend_replace_indices_change_1_to_3_and_3_to_1() {
+        let mut g = Graph::new();
+        let n0 = g.extend_with_leaf(g.void(), "a".to_string());
+        let n1 = g.extend_with_leaf(n0, "b".to_string());
+        let n2 = g.extend_with_leaf(n1, "c".to_string());
+        let n3 = g.extend_with_leaf(n2, "d".to_string());
+        let replacements = vec![
+            (1, g.indication_of(n0).unwrap()),
+            (3, g.indication_of(n2).unwrap()),
+        ];
+        let result = g.extend_replace_indices(n3, replacements);
+        assert_ne!(result, n3)
     }
 }

@@ -226,9 +226,7 @@
       if indications[i] != r {
         indications[i] = r
         
-        if let None = last_update {
-          last_update = Some(i)
-        }
+        last_update = Some(i)
       }
     }
     if let None = last_update {
@@ -237,13 +235,13 @@
       let M' = insert_node()
       insert_red_edge(M',indications[0])
       let mut C = M'
-      for (indication,_) in indications.drop(1).zip(0..last_update)
+      for (indication,_) in indications.drop(1).zip(0..n)
         let C' = insert_node()
         insert_red_edge(C',indication)
         insert_blue_edge(C,C')
         C = C'
       }
-      if let Some(CR) = reduction_of(indications[last_update]) {
+      if let Some(CR) = reduction_of(indications[n]) {
         insert_blue_edge(C,CR)
       } else {
         PANIC
