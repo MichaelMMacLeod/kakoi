@@ -211,6 +211,49 @@
   
   ![](images/algorithm-extend-replace.svg)
   
+- `extend_replace_indices(M,[(I,R), ...])`: Creates an extension of M where each circle at index I is replaced with a circle specified by R
+
+  ```
+  Input:
+    M: Branch
+    [(I,R), ...]: Possibly empty list of (index,Branch) pairs.
+  Output:
+    Branch
+  Algorithm:
+    let mut indications = indications_of(M)
+    let mut last_update = None
+    for (i,r) in [(I,R), ...] {
+      if indications[i] != r {
+        indications[i] = r
+        
+        if let None = last_update {
+          last_update = Some(i)
+        }
+      }
+    }
+    if let None = last_update {
+      return M
+    } else if let Some(n) = last_update {
+      let M' = insert_node()
+      insert_red_edge(M',indications[0])
+      let mut C = M'
+      for (indication,_) in indications.drop(1).zip(0..last_update)
+        let C' = insert_node()
+        insert_red_edge(C',indication)
+        insert_blue_edge(C,C')
+        C = C'
+      }
+      if let Some(CR) = reduction_of(indications[last_update]) {
+        insert_blue_edge(C,CR)
+      } else {
+        PANIC
+      }
+      return M'
+    }
+  ```
+  
+  ![](images/algorithm-extend-replace-indices.svg)
+
 - `extend_subtract(M,N)`: Creates an extension of M that includes every node it indicates, except for those indicated by N.
 
   I haven't convinced myself this works yet:
@@ -288,3 +331,21 @@
   Not aware of how these work yet. Here's a diagram to get us started, though.
 
   ![](images/algorithm-select-group-extend.svg)
+
+- `group(C,M,N)`: In the context C, removes N from its parent and replaces M with a new group (N M).
+
+  ```
+  L = [1,3,3,3,3]
+  R = [1,3,1]
+  
+  T0 = extend(void(), R)
+  T1 = extend(T0, L)
+  
+  S0 = extend_except(L.parent(0), L)
+  S1 = extend_replace(L.parent(1), 3, S0)
+  S2 = extend_replace(L.parent(3), [(3, S0), (1, T1)])
+  S3 = extend_replace(L.parent(4), 1, S2)
+  
+  
+  G0 = extend(void(), )
+  ```
