@@ -3,9 +3,11 @@
 use petgraph::data::DataMap;
 use petgraph::graph::Graph as GraphImpl;
 use petgraph::graph::NodeIndex;
+use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use petgraph::Directed;
 use petgraph::Direction;
+use std::cmp::Ordering;
 
 #[derive(Debug)]
 enum Node {
@@ -251,6 +253,77 @@ impl Graph {
             }
         }
     }
+
+    fn sort_replacements(replacements: &mut Vec<(Vec<u32>, Option<NodeIndex<u32>>)>) -> () {
+        replacements.sort_unstable_by(|a, b| {
+            let mut a_iter = a.0.iter();
+            let mut b_iter = b.0.iter();
+
+            let result = loop {
+                let ai = a_iter.next();
+                let bi = b_iter.next();
+
+                if ai.is_none() || bi.is_none() {
+                    panic!("Un-sortable replacements"); // TODO: verify
+                } else {
+                    let a = ai.unwrap();
+                    let b = bi.unwrap();
+
+                    match a.cmp(b) {
+                        Ordering::Equal => continue,
+                        Ordering::Less => break Some(Ordering::Less),
+                        Ordering::Greater => break Some(Ordering::Greater),
+                    }
+                }
+            };
+
+            result.unwrap_or(Ordering::Equal)
+        });
+    }
+
+    fn copy_from_until(
+        &mut self,
+        copy: NodeIndex<u32>,
+        from: NodeIndex<u32>,
+        from_index: Vec<u32>,
+        until_index: Vec<u32>,
+    ) -> NodeIndex<u32> {
+        from
+    }
+
+    // fn extend_replace_nested_indices(
+    //     &mut self,
+    //     context: NodeIndex<u32>,
+    //     replacements: &mut Vec<(Vec<u32>, Option<NodeIndex<u32>>)>,
+    // ) -> NodeIndex<u32> {
+    //     if replacements.is_empty() {
+    //         context
+    //     } else {
+    //         Graph::sort_replacements(replacements);
+
+    //         let mut repl_it = replacements.iter();
+
+    //         let top = self.g.add_node(Node::Branch);
+    //         let mut last_node = top;
+
+    //         loop {
+    //             let mut current = repl_it.next();
+    //         }
+    //     }
+
+    //     context
+    // }
+
+    // we need something like
+    // CircleBFSExplorer(startNode: NodeIndex<u32>)
+    //   - &mut self, followIndication: bool, exploreRestOfCircle: bool -> { index: &Vec<u32>, node: NodeIndex<u32> }
+    //     - traverses the circle in a pseudo bfs/dfs manner:
+    //       - fully explores exactly one group (or until exploreRestOfCircle provided is false)
+    //       - when done exploring the circle, explore the circles indicated when followIndication was true.
+    //       - ... and so on.
+    //     - the index provided is relative to the start node.
+    //     - the start node is the first one returned, so its index is vec![0].
+    //     - idk how recursive groups should be handled. Probably just treated as non-recursive.
 }
 
 #[cfg(test)]
@@ -504,5 +577,29 @@ mod tests {
         let r3 = g.reduction_of(r2).unwrap();
         assert_eq!(g.leaf_value(g.indication_of(r3).unwrap()).unwrap(), "b");
         assert_eq!(None, g.reduction_of(r3));
+    }
+
+    #[test]
+    fn sort_replacements_1() {
+        let mut replacements = vec![(vec![0, 1, 2], None), (vec![1, 2, 0], None)];
+        let expected = vec![(vec![0, 1, 2], None), (vec![1, 2, 0], None)];
+        Graph::sort_replacements(&mut replacements);
+        assert_eq!(expected, replacements);
+    }
+
+    #[test]
+    fn sort_replacements_2() {
+        let mut replacements = vec![(vec![0, 1, 2], None), (vec![0, 2, 0], None)];
+        let expected = vec![(vec![0, 1, 2], None), (vec![0, 2, 0], None)];
+        Graph::sort_replacements(&mut replacements);
+        assert_eq!(expected, replacements);
+    }
+
+    #[test]
+    fn sort_replacements_3() {
+        let mut replacements = vec![(vec![0, 1, 2], None), (vec![0, 0, 0], None)];
+        let expected = vec![(vec![0, 0, 0], None), (vec![0, 1, 2], None)];
+        Graph::sort_replacements(&mut replacements);
+        assert_eq!(expected, replacements);
     }
 }
