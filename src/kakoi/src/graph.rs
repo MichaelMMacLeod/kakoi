@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use crate::index::Index;
 use petgraph::data::DataMap;
 use petgraph::graph::Graph as GraphImpl;
 use petgraph::graph::NodeIndex;
@@ -279,16 +280,6 @@ impl Graph {
 
             result.unwrap_or(Ordering::Equal)
         });
-    }
-
-    fn copy_from_until(
-        &mut self,
-        copy: NodeIndex<u32>,
-        from: NodeIndex<u32>,
-        from_index: Vec<u32>,
-        until_index: Vec<u32>,
-    ) -> NodeIndex<u32> {
-        from
     }
 
     // fn extend_replace_nested_indices(
