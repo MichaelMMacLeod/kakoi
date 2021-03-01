@@ -39,6 +39,12 @@ impl<T: IndexType> PartialEq for Index<T> {
     }
 }
 
+impl<T: IndexType> Index<T> {
+    fn indicates(&self, other: &Self) -> bool {
+        self.0.len() < other.0.len() && self.0.iter().zip(other.0.iter()).all(|(s, o)| s <= o)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +95,59 @@ mod tests {
         let i1 = Index::<u32>::from(vec![10, 10, 10, 10, 10]);
 
         assert_eq!(Ordering::Less, i0.cmp(&i1));
+    }
+
+    #[test]
+    fn index_indicates_0() {
+        let i0 = Index::<u32>::from(vec![1]);
+        let i1 = Index::<u32>::from(vec![1, 0]);
+
+        assert!(i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
+    }
+
+    #[test]
+    fn index_indicates_1() {
+        let i0 = Index::<u32>::from(vec![1]);
+        let i1 = Index::<u32>::from(vec![1, 1]);
+
+        assert!(i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
+    }
+
+    #[test]
+    fn index_indicates_2() {
+        let i0 = Index::<u32>::from(vec![0]);
+        let i1 = Index::<u32>::from(vec![1, 0]);
+
+        assert!(i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
+    }
+
+    #[test]
+    fn index_indicates_3() {
+        let i0 = Index::<u32>::from(vec![0]);
+        let i1 = Index::<u32>::from(vec![1, 0]);
+
+        assert!(i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
+    }
+
+    #[test]
+    fn index_indicates_4() {
+        let i0 = Index::<u32>::from(vec![0]);
+        let i1 = Index::<u32>::from(vec![1]);
+
+        assert!(!i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
+    }
+
+    #[test]
+    fn index_indicates_5() {
+        let i0 = Index::<u32>::from(vec![1, 0]);
+        let i1 = Index::<u32>::from(vec![1, 3, 1]);
+
+        assert!(i0.indicates(&i1));
+        assert!(!i1.indicates(&i0));
     }
 }
