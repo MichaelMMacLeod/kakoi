@@ -2,6 +2,7 @@
 
 use crate::graph::{Edge, Graph, GraphImpl, Node};
 use crate::index::Index;
+use crate::index::IndicationClass;
 use petgraph::data::DataMap;
 use petgraph::graph::IndexType;
 use petgraph::graph::NodeIndex;
@@ -9,6 +10,7 @@ use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 
 struct ReductionIterator<'a> {
     graph: &'a Graph,
@@ -264,6 +266,104 @@ impl Graph {
 
             result.unwrap_or(Ordering::Equal)
         });
+    }
+
+    // enum {
+    //     IndicateCopy,
+    //     IndicteOriginal,
+    // }
+
+    // // extend_queue: (index, original_node, copy_node)[]
+    // fn process_indication(
+    //     &mut self,
+    //     node: Index<u32>,
+    //     replacements: IntoIterator<Item = Index<u32>>,
+    // ) {
+    // }
+
+    fn extend_replace_nested_indices(
+        &mut self,
+        top: NodeIndex<u32>,
+        top_index: Index<u32>,
+        replacements: &mut Vec<(Index<u32>, NodeIndex<u32>)>,
+    ) -> NodeIndex<u32> {
+        todo!();
+        // let tightest_classification = |node: &Index<u32>| -> Option<IndicationClass> {};
+
+        // // let indicates_any =
+        // //     |node: &Index<u32>| -> bool { replacements.iter().any(|r| r.0.indicates(node)) };
+
+        // if replacements.is_empty() {
+        //     top
+        // } else {
+        //     let mut extend_queue = VecDeque::new();
+
+        //     extend_queue.push_back((top_index, top, None));
+
+        //     let mut return_value = None;
+
+        //     while !extend_queue.is_empty() {
+        //         let (index, node, previous) = extend_queue.pop_front().unwrap();
+
+        //         // let previous = previous_option.unwrap_or_else(|| self.g.add_node(Node::Branch));
+
+        //         if let Some(indication) = self.indication_of(node) {
+        //             let c_node = self.g.add_node(Node::Branch);
+
+        //             match self.g.node_weight(indication).unwrap() {
+        //                 Node::Leaf(_) => {
+        //                     self.g.add_edge(c_node, indication, Edge::Indication);
+        //                 }
+        //                 Node::Branch => {
+        //                     let c_index = index.indicate(0);
+
+        //                     match tightest_classification(&c_index) {
+        //                         Some(IndicationClass::Direct) => {
+        //                             self.g.add_edge(c_node, indication, Edge::Indication);
+        //                         }
+        //                         Some(IndicationClass::Indirect) => {
+        //                             let c_indication = self.g.add_node(Node::Branch);
+
+        //                             self.g.add_edge(c_node, c_indication, Edge::Indication);
+
+        //                             extend_queue.push_back((
+        //                                 c_index.clone(),
+        //                                 indication,
+        //                                 Some(c_indication),
+        //                             ));
+        //                         }
+        //                         None => {
+        //                             self.g.add_edge(c_node, indication, Edge::Indication);
+        //                         }
+        //                     }
+        //                 }
+        //             }
+
+        //             if let Some(p) = previous {
+        //                 self.g.add_edge(p, c_node, Edge::Extension);
+        //             } else {
+        //                 if let None = return_value {
+        //                     return_value = Some(c_node);
+        //                 }
+        //             }
+
+        //             if let Some(r) = self.reduction_of(node) {
+        //                 let r_index = index.reduce();
+
+        //                 match tightest_classification(&r_index) {
+        //                     Some(IndicationClass::Direct) | Some(IndicationClass::Indirect) => {
+        //                         extend_queue.push_back((r_index.clone(), r, Some(c_node)));
+        //                     }
+        //                     None => {
+        //                         self.g.add_edge(c_node, r, Edge::Extension);
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+
+        //     return_value.unwrap()
+        // }
     }
 
     // fn extend_replace_nested_indices(
@@ -587,5 +687,37 @@ mod tests {
         let expected = vec![(vec![0, 0, 0], None), (vec![0, 1, 2], None)];
         Graph::sort_replacements(&mut replacements);
         assert_eq!(expected, replacements);
+    }
+
+    // fn build_replace_nested_indices_test_graph_0() -> Graph {
+    // }
+
+    #[test]
+    fn extend_replace_nested_indices_0() {
+        let mut graph = Graph::new();
+        let n1 = graph.new_group_with_leaf("n1".to_string());
+        let n2 = graph.extend_with_leaf(n1, "n2".to_string());
+        let n3 = graph.extend_with_leaf(n2, "n3".to_string());
+        let n4 = graph.extend_with_leaf(n3, "n4".to_string());
+
+        let m1 = graph.new_group_with_leaf("m1".to_string());
+        let m1_leaf = graph.indication_of(m1).unwrap();
+
+        let result = graph.extend_replace_nested_indices(
+            n4,
+            Index::from(vec![0]),
+            &mut vec![(Index::from(vec![2]), m1_leaf)],
+        );
+
+        let vs = GroupIterator::new(&graph, result).collect::<Vec<_>>();
+
+        assert_eq!(vs.len(), 4);
+
+        let leaf_of = |n| graph.indication_of(n).unwrap();
+
+        assert_eq!(vs[0].1, leaf_of(n4));
+        assert_eq!(vs[1].1, leaf_of(n3));
+        assert_eq!(vs[2].1, leaf_of(m1));
+        assert_eq!(vs[3].1, leaf_of(n1));
     }
 }
