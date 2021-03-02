@@ -53,17 +53,19 @@ pub enum CopyInstruction {
 
 #[derive(Debug)]
 struct CopyInstructor<'a, T: IDX> {
-    index: Option<Index<T>>,
+    index: Index<T>,
     replacements: &'a Vec<Index<T>>,
     current_replacement: usize,
+    done: bool,
 }
 
 impl<'a, T: IDX> CopyInstructor<'a, T> {
     fn new(index: Index<T>, replacements: &'a Vec<Index<T>>, current_replacement: usize) -> Self {
         Self {
-            index: Some(index),
+            index: index,
             replacements,
             current_replacement,
+            done: false,
         }
     }
 }
@@ -75,36 +77,48 @@ impl<'a, T: IDX> Iterator for CopyInstructor<'a, T> {
         use CopyInstruction::*;
         use IndicationClass::*;
 
-        let replacement = self.replacements.get(self.current_replacement)?;
+        // if self.current_replacement == 1 {
+        //     dbg!(&self.index);
+        //     dbg!(self.replacements.get(self.current_replacement));
+        //     dbg!(self
+        //         .index
+        //         .classify(self.replacements.get(self.current_replacement).unwrap()));
+        //     panic!();
+        // }
 
-        dbg!(replacement);
+        match self.replacements.get(self.current_replacement) {
+            Some(replacement) => {
+                dbg!(replacement);
 
-        let instruction = self
-            .index
-            .as_ref()
-            .map(|index| match index.classify(replacement) {
-                Some(Direct) => (index.clone(), Replace),
-                Some(Indirect) => (index.clone(), Follow),
-                Some(Reduction) => (index.clone(), Indicate),
-                None => (index.clone(), Extend),
-            });
+                let instruction = match self.index.classify(replacement) {
+                    Some(Direct) => {
+                        self.current_replacement += 1;
+                        (self.index.clone(), Replace)
+                    }
+                    Some(Indirect) => {
+                        self.current_replacement += 1;
+                        (self.index.clone(), Follow)
+                    }
+                    Some(Reduction) => (self.index.clone(), Indicate),
+                    None => {
+                        self.done = true;
+                        (self.index.clone(), Extend)
+                    }
+                };
 
-        instruction.as_ref().map(|i| match i.1 {
-            Extend => {
-                self.index = None;
+                self.index.reduce_mut();
+
+                Some(instruction)
             }
-            Replace | Follow => {
-                self.current_replacement += 1;
+            None => {
+                if self.done {
+                    None
+                } else {
+                    self.done = true;
+                    Some((self.index.clone(), Extend))
+                }
             }
-            Indicate => {}
-        });
-
-        self.index.as_mut().map(|i: &mut Index<T>| {
-            i.reduce_mut();
-            i
-        });
-
-        instruction
+        }
     }
 }
 
@@ -119,7 +133,7 @@ impl Index<u32> {}
 
 impl<T: IDX> Index<T> {
     pub fn indicates(&self, other: &Self) -> bool {
-        self.0.len() < other.0.len() && self.0.iter().zip(other.0.iter()).all(|(s, o)| s <= o)
+        self.0.len() <= other.0.len() && self.0.iter().zip(other.0.iter()).all(|(s, o)| s <= o)
     }
 
     pub fn indicate_mut(&mut self, index: T) {
@@ -150,6 +164,19 @@ impl<T: IDX> Index<T> {
     }
 
     pub fn classify(&self, other: &Self) -> Option<IndicationClass> {
+        //if self.0.len() == other.0.len() {
+        //    if self
+        //        .0
+        //        .iter()
+        //        .zip(other.0.iter())
+        //        .take(self.0.len() - 1)
+        //        .all(|(s, o)| s == 0)
+        //    {
+        //        if self.0.last() == other.0.last() {
+        //            Some(IndicationClass::)
+        //        }
+        //    }
+        //}
         if self.indicates(other) {
             let sl = self.0.len();
             let ol = other.0.len();
@@ -363,7 +390,7 @@ mod tests {
         let i = Index::<u32>::from(vec![0]);
         let v = vec![vec![1, 1], vec![3, 2]];
         let vs = v.iter().map(|v| Index::<u32>::from(v.clone())).collect();
-        let instructions = dbg!(CopyInstructor::new(i, &vs, 0))
+        let instructions = CopyInstructor::new(i, &vs, 0)
             .into_iter()
             .collect::<Vec<_>>();
         let expected: Vec<(Index<u32>, CopyInstruction)> = vec![
@@ -371,6 +398,7 @@ mod tests {
             (vec![1], Follow),
             (vec![2], Indicate),
             (vec![3], Follow),
+            (vec![4], Extend),
         ]
         .iter()
         .map(|(v, i)| (Index::<u32>::from(v.clone()), *i))
@@ -384,7 +412,7 @@ mod tests {
         let i = Index::<u32>::from(vec![0]);
         let v = vec![vec![1, 1], vec![2, 0]];
         let vs = v.iter().map(|v| Index::<u32>::from(v.clone())).collect();
-        let instructions = dbg!(CopyInstructor::new(i, &vs, 0))
+        let instructions = CopyInstructor::new(i, &vs, 0)
             .into_iter()
             .collect::<Vec<_>>();
         let expected: Vec<(Index<u32>, CopyInstruction)> = vec![
@@ -392,6 +420,27 @@ mod tests {
             (vec![1], Follow),
             (vec![2], Replace),
             (vec![3], Extend),
+        ]
+        .iter()
+        .map(|(v, i)| (Index::<u32>::from(v.clone()), *i))
+        .collect();
+        assert_eq!(instructions, expected);
+    }
+
+    #[test]
+    fn copy_instructor_iterator_2() {
+        use CopyInstruction::*;
+        let i = Index::<u32>::from(vec![3, 0]);
+        let v = vec![vec![1, 1], vec![3, 2]];
+        let vs = v.iter().map(|v| Index::<u32>::from(v.clone())).collect();
+        let instructions = CopyInstructor::new(i, &vs, 1)
+            .into_iter()
+            .collect::<Vec<_>>();
+        let expected: Vec<(Index<u32>, CopyInstruction)> = vec![
+            (vec![3, 0], Indicate),
+            (vec![3, 1], Indicate),
+            (vec![3, 2], Replace),
+            (vec![3, 3], Extend),
         ]
         .iter()
         .map(|(v, i)| (Index::<u32>::from(v.clone()), *i))
