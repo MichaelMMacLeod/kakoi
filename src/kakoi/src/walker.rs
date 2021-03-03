@@ -18,7 +18,8 @@ where
     S: 'b + Copy,
     SI: Iterator<Item = &'b (S, S)>,
 {
-    current: I,
+    current_source: I,
+    current_copy: I,
     source: SI,
     actions: &'a [Action<I, S>],
     done: bool,
@@ -32,7 +33,8 @@ where
 {
     pub fn new(start: I, source: SI, actions: &'a [Action<I, S>]) -> Self {
         Self {
-            current: start,
+            current_source: start.clone(),
+            current_copy: start,
             source,
             actions,
             done: false,
@@ -46,9 +48,6 @@ where
     S: 'b + Copy,
     SI: Iterator<Item = &'b (S, S)>,
 {
-    // to fix this, try making CopyInstructor keep track of two different indices:
-    // - an index tracking the position in source
-    // - an index tracking the position in the copy
     fn process_action(&mut self) -> Option<Instruction<S, I>> {
         loop {
             match self.actions.split_first() {
@@ -58,7 +57,7 @@ where
                         Action::Remove(i) => i,
                     };
 
-                    if self.current.indicates(i) {
+                    if self.current_copy.indicates(i) {
                         break;
                     } else {
                         self.actions = rest;
@@ -68,26 +67,28 @@ where
             }
         }
 
-        let current = self.current.clone();
-
         let instruction = match self.actions.first() {
             Some(action) => match action {
                 Action::Insert(index, object) => {
-                    if self.current.directly_indicates(index) {
-                        self.current.reduce_mut();
+                    if self.current_copy.directly_indicates(index) {
+                        self.current_source.reduce_mut();
+                        self.current_copy.reduce_mut();
                         Some(Instruction::Indicate(*object))
-                    } else if self.current.indirectly_indicates(index) {
+                    } else if self.current_copy.indirectly_indicates(index) {
                         match self.source.next() {
                             Some((_, to)) => {
-                                self.current.reduce_mut();
-                                Some(Instruction::IndicateCopy(current, *to))
+                                let c_current_source = self.current_source.clone();
+                                self.current_source.reduce_mut();
+                                self.current_copy.reduce_mut();
+                                Some(Instruction::IndicateCopy(c_current_source, *to))
                             }
                             None => todo!(), // probably panic here
                         }
                     } else {
                         match self.source.next() {
                             Some((_, to)) => {
-                                self.current.reduce_mut();
+                                self.current_source.reduce_mut();
+                                self.current_copy.reduce_mut();
                                 Some(Instruction::Indicate(*to))
                             }
                             None => None,
@@ -95,23 +96,27 @@ where
                     }
                 }
                 Action::Remove(index) => {
-                    if self.current.directly_indicates(index) {
+                    if self.current_source.directly_indicates(index) {
                         self.source.next();
+                        self.current_source.reduce_mut();
                         self.actions = &self.actions[1..];
 
                         None
-                    } else if self.current.indirectly_indicates(index) {
+                    } else if self.current_source.indirectly_indicates(index) {
                         match self.source.next() {
                             Some((_, to)) => {
-                                self.current.reduce_mut();
-                                Some(Instruction::IndicateCopy(current, *to))
+                                let c_current_source = self.current_source.clone();
+                                self.current_source.reduce_mut();
+                                self.current_copy.reduce_mut();
+                                Some(Instruction::IndicateCopy(c_current_source, *to))
                             }
                             None => todo!(), // probably panic here
                         }
                     } else {
                         match self.source.next() {
                             Some((_, to)) => {
-                                self.current.reduce_mut();
+                                self.current_source.reduce_mut();
+                                self.current_copy.reduce_mut();
                                 Some(Instruction::Indicate(*to))
                             }
                             None => todo!(), // probably panic here
@@ -132,15 +137,6 @@ where
                 }
             }
         };
-
-        // match &instruction {
-        //     Some(i) => match i {
-        //         Instruction::Indicate(_) => self.current.reduce_mut(),
-        //         Instruction::IndicateCopy(_, _) => self.current.reduce_mut(),
-        //         Instruction::Extend(_) => {}
-        //     },
-        //     None => self.current.reduce_mut(),
-        // }
 
         instruction
     }
