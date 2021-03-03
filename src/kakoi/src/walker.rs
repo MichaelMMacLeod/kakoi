@@ -309,4 +309,97 @@ mod test {
         assert_eq!(Some(Instruction::Extend(3)), ci.next());
         assert_eq!(None, ci.next());
     }
+
+    #[test]
+    fn copy_instructor_12() {
+        let start = bitvec![];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Remove(bitvec![1, 1]),
+            Action::Insert(bitvec![1, 1], 6),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::IndicateCopy(bitvec![], 4)), ci.next());
+        assert_eq!(Some(Instruction::Extend(3)), ci.next());
+        assert_eq!(None, ci.next());
+    }
+
+    #[test]
+    fn copy_instructor_13() {
+        let start = bitvec![0];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Remove(bitvec![1, 1]),
+            Action::Insert(bitvec![1, 1], 6),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::Extend(5)), ci.next());
+        assert_eq!(None, ci.next());
+    }
+
+    #[test]
+    fn copy_instructor_14() {
+        let start = bitvec![];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Insert(bitvec![1], 6),
+            Action::Insert(bitvec![0, 1], 7),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::Indicate(6)), ci.next());
+        assert_eq!(Some(Instruction::Indicate(7)), ci.next());
+        assert_eq!(Some(Instruction::Extend(5)), ci.next());
+        assert_eq!(None, ci.next());
+    }
+
+    #[test]
+    fn copy_instructor_15() {
+        let start = bitvec![0];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Insert(bitvec![1], 6),
+            Action::Insert(bitvec![0, 1], 7),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::Indicate(7)), ci.next());
+        assert_eq!(Some(Instruction::Extend(5)), ci.next());
+        assert_eq!(None, ci.next());
+    }
+
+    #[test]
+    fn copy_instructor_16() {
+        let start = bitvec![];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Remove(bitvec![1]),
+            Action::Remove(bitvec![0, 1]),
+            Action::Remove(bitvec![0, 0, 1]),
+            Action::Insert(bitvec![1], 6),
+            Action::Insert(bitvec![0, 1], 7),
+            Action::Insert(bitvec![0, 0, 1], 8),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::Indicate(6)), ci.next());
+        assert_eq!(Some(Instruction::Indicate(7)), ci.next());
+        assert_eq!(Some(Instruction::Indicate(8)), ci.next());
+        assert_eq!(None, ci.next());
+    }
+
+    #[test]
+    fn copy_instructor_17() {
+        let start = bitvec![0, 0];
+        let source = [(5, 4), (3, 2), (1, 0)].iter();
+        let actions = &[
+            Action::Remove(bitvec![1]),
+            Action::Remove(bitvec![0, 1]),
+            Action::Remove(bitvec![0, 0, 1]),
+            Action::Insert(bitvec![1], 6),
+            Action::Insert(bitvec![0, 1], 7),
+            Action::Insert(bitvec![0, 0, 1], 8),
+        ][..];
+        let mut ci = CopyInstructor::new(start, source, actions);
+        assert_eq!(Some(Instruction::Indicate(8)), ci.next());
+        assert_eq!(Some(Instruction::Extend(3)), ci.next());
+        assert_eq!(None, ci.next());
+    }
 }
