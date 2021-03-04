@@ -74,13 +74,21 @@ impl Graph {
             })
     }
 
-    // pub fn process_actions<'a, AI>(&mut self, actions: AI)
-    // where
-    //     AI: IntoIterator<Item = &'a Action<BitVec, NodeIndex<u32>>>,
-    // {
-    //     if let Some(start) = self.focused {
-    //         let copy_instructor =
-    //             CopyInstructor::new(bitvec![], self.iterate_from(start), actions, self);
-    //     }
-    // }
+    pub fn process_actions<'a, AI>(&mut self, actions: AI)
+    where
+        AI: IntoIterator<Item = &'a Action<BitVec, NodeIndex<u32>>>,
+    {
+        if let Some(start) = self.focused {
+            // TODO: sort indices in increasing order
+            let actions = actions.into_iter().collect::<Vec<_>>();
+
+            // TODO: to avoid reference issues, I've collected this into a
+            // vector here. This really shouldn't be necessary.
+            let si = self.iterate_from(start).collect::<Vec<_>>();
+
+            let mut copy_instructor = CopyInstructor::new(bitvec![], si, actions, self);
+
+            while let Some(_) = copy_instructor.next() {}
+        }
+    }
 }
