@@ -76,13 +76,12 @@ where
     AI: IntoIterator<Item = &'a Action<I, S>>,
 {
     fn process_action(&mut self) -> Status<S, I> {
-        let current_copy = &self.current_copy;
         let action = loop {
             let action = self.actions.peek();
 
             match action {
                 Some(a) => {
-                    if !current_copy.indicates(a.index()) {
+                    if !self.current_copy.indicates(a.index()) {
                         self.actions.next();
                     } else {
                         break Some(a);
