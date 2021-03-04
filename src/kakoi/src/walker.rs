@@ -1,5 +1,6 @@
 use crate::action::Action;
 use crate::index::Index;
+use std::iter::Peekable;
 
 #[derive(PartialEq, Eq, Debug)]
 enum Instruction<S, I>
@@ -12,75 +13,101 @@ where
     Extend(S),
 }
 
-struct CopyInstructor<'a, 'b, I, S, SI>
+struct CopyInstructor<'a, 'b, I, S, SI, AI>
 where
-    I: Index,
-    S: 'b + Copy,
+    I: 'a + Index,
+    S: 'a + 'b + Copy,
     SI: Iterator<Item = &'b (S, S)>,
+    AI: IntoIterator<Item = &'a Action<I, S>>,
 {
     current_source: I,
     current_copy: I,
     source: SI,
-    actions: &'a [Action<I, S>],
+    actions: Peekable<AI::IntoIter>,
     done: bool,
 }
 
-impl<'a, 'b, I, S, SI> CopyInstructor<'a, 'b, I, S, SI>
+impl<'a, 'b, I, S, SI, AI> CopyInstructor<'a, 'b, I, S, SI, AI>
 where
-    I: Index,
-    S: 'b + Copy,
+    I: 'a + Index,
+    S: 'a + 'b + Copy,
     SI: Iterator<Item = &'b (S, S)>,
+    AI: IntoIterator<Item = &'a Action<I, S>>,
 {
-    pub fn new(start: I, source: SI, actions: &'a [Action<I, S>]) -> Self {
+    pub fn new(start: I, source: SI, actions: AI) -> Self {
         Self {
             current_source: start.clone(),
             current_copy: start,
             source,
-            actions,
+            actions: actions.into_iter().peekable(),
             done: false,
         }
     }
 }
 
-impl<'a, 'b, I, S, SI> CopyInstructor<'a, 'b, I, S, SI>
+enum Status<S, I>
+where
+    S: Copy,
+    I: Index,
+{
+    Done,
+    NotDone,
+    Processed(Instruction<S, I>),
+}
+
+impl<S, I> Status<S, I>
 where
     I: Index,
-    S: 'b + Copy,
-    SI: Iterator<Item = &'b (S, S)>,
+    S: Copy,
 {
-    fn process_action(&mut self) -> Option<Instruction<S, I>> {
-        loop {
-            match self.actions.split_first() {
-                Some((first, rest)) => {
-                    let i = match first {
-                        Action::Insert(i, _) => i,
-                        Action::Remove(i) => i,
-                    };
+    fn is_not_done(&self) -> bool {
+        match self {
+            Status::NotDone => true,
+            _ => false,
+        }
+    }
+}
 
-                    if self.current_copy.indicates(i) {
-                        break;
+impl<'a, 'b, I, S, SI, AI> CopyInstructor<'a, 'b, I, S, SI, AI>
+where
+    I: 'a + Index,
+    S: 'a + 'b + Copy,
+    SI: Iterator<Item = &'b (S, S)>,
+    AI: IntoIterator<Item = &'a Action<I, S>>,
+{
+    fn process_action(&mut self) -> Status<S, I> {
+        let current_copy = &self.current_copy;
+        let action = loop {
+            let action = self.actions.peek();
+
+            match action {
+                Some(a) => {
+                    if !current_copy.indicates(a.index()) {
+                        self.actions.next();
                     } else {
-                        self.actions = rest;
+                        break Some(a);
                     }
                 }
-                None => break,
+                None => break None,
             }
-        }
+        };
 
-        let instruction = match self.actions.first() {
+        let instruction = match action {
             Some(action) => match action {
                 Action::Insert(index, object) => {
                     if self.current_copy.directly_indicates(index) {
                         self.current_source.reduce_mut();
                         self.current_copy.reduce_mut();
-                        Some(Instruction::Indicate(*object))
+                        self.actions.next();
+                        Status::Processed(Instruction::Indicate(*object))
                     } else if self.current_copy.indirectly_indicates(index) {
                         match self.source.next() {
                             Some((_, to)) => {
                                 let c_current_source = self.current_source.clone();
                                 self.current_source.reduce_mut();
                                 self.current_copy.reduce_mut();
-                                Some(Instruction::IndicateCopy(c_current_source, *to))
+                                self.actions.next();
+                                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
                             }
                             None => todo!(), // probably panic here
                         }
@@ -89,9 +116,9 @@ where
                             Some((_, to)) => {
                                 self.current_source.reduce_mut();
                                 self.current_copy.reduce_mut();
-                                Some(Instruction::Indicate(*to))
+                                Status::Processed(Instruction::Indicate(*to))
                             }
-                            None => None,
+                            None => Status::Done,
                         }
                     }
                 }
@@ -99,16 +126,18 @@ where
                     if self.current_source.directly_indicates(index) {
                         self.source.next();
                         self.current_source.reduce_mut();
-                        self.actions = &self.actions[1..];
+                        self.actions.next();
+                        // self.actions = &self.actions[1..];
 
-                        None
+                        Status::NotDone
                     } else if self.current_source.indirectly_indicates(index) {
                         match self.source.next() {
                             Some((_, to)) => {
                                 let c_current_source = self.current_source.clone();
                                 self.current_source.reduce_mut();
                                 self.current_copy.reduce_mut();
-                                Some(Instruction::IndicateCopy(c_current_source, *to))
+                                self.actions.next();
+                                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
                             }
                             None => todo!(), // probably panic here
                         }
@@ -117,7 +146,7 @@ where
                             Some((_, to)) => {
                                 self.current_source.reduce_mut();
                                 self.current_copy.reduce_mut();
-                                Some(Instruction::Indicate(*to))
+                                Status::Processed(Instruction::Indicate(*to))
                             }
                             None => todo!(), // probably panic here
                         }
@@ -126,13 +155,13 @@ where
             },
             None => {
                 if self.done {
-                    None
+                    Status::Done
                 } else {
                     self.done = true;
 
                     match self.source.next() {
-                        Some((from, _)) => Some(Instruction::Extend(*from)),
-                        None => None,
+                        Some((from, _)) => Status::Processed(Instruction::Extend(*from)),
+                        None => Status::Done,
                     }
                 }
             }
@@ -142,29 +171,27 @@ where
     }
 }
 
-impl<'a, 'b, I, S, SI> Iterator for CopyInstructor<'a, 'b, I, S, SI>
+impl<'a, 'b, I, S, SI, AI> Iterator for CopyInstructor<'a, 'b, I, S, SI, AI>
 where
-    I: Index,
-    S: 'b + Copy,
+    I: 'a + Index,
+    S: 'a + 'b + Copy,
     SI: Iterator<Item = &'b (S, S)>,
+    AI: IntoIterator<Item = &'a Action<I, S>>,
 {
     type Item = Instruction<S, I>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut instruction = None;
-        let mut processed_len_0 = false;
+        let mut instruction = Status::NotDone;
 
-        while instruction.is_none() && !processed_len_0 {
-            let no_actions_before = self.actions.len() == 0;
-
+        while instruction.is_not_done() {
             instruction = self.process_action();
-
-            if instruction.is_none() && no_actions_before {
-                processed_len_0 = true;
-            }
         }
 
-        instruction
+        match instruction {
+            Status::NotDone => panic!("unreachable state"),
+            Status::Done => None,
+            Status::Processed(i) => Some(i),
+        }
     }
 }
 
