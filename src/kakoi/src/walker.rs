@@ -75,6 +75,76 @@ where
     SI: IntoIterator<Item = &'b (S, S)>,
     AI: IntoIterator<Item = &'a Action<I, S>>,
 {
+    fn process_immediate_direct_insertion(&mut self, object_to_insert: &S) -> Status<S, I> {
+        self.current_source.reduce_mut();
+        self.current_copy.reduce_mut();
+        self.actions.next();
+        Status::Processed(Instruction::Indicate(*object_to_insert))
+    }
+
+    fn process_immediate_indirect_insertion(&mut self) -> Status<S, I> {
+        match self.source.next() {
+            Some((_, to)) => {
+                let c_current_source = self.current_source.clone();
+                self.current_source.reduce_mut();
+                self.current_copy.reduce_mut();
+                self.actions.next();
+                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
+            }
+            None => todo!(), // probably panic here
+        }
+    }
+
+    fn process_delayed_insertion(&mut self) -> Status<S, I> {
+        match self.source.next() {
+            Some((_, to)) => {
+                self.current_source.reduce_mut();
+                self.current_copy.reduce_mut();
+                Status::Processed(Instruction::Indicate(*to))
+            }
+            None => Status::Done,
+        }
+    }
+
+    fn process_immediate_direct_removal(&mut self) -> Status<S, I> {
+        self.source.next();
+        self.current_source.reduce_mut();
+        self.actions.next();
+
+        Status::NotDone
+    }
+
+    fn process_immediate_indirect_removal(&mut self) -> Status<S, I> {
+        match self.source.next() {
+            Some((_, to)) => {
+                let c_current_source = self.current_source.clone();
+                self.current_source.reduce_mut();
+                self.current_copy.reduce_mut();
+                self.actions.next();
+                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
+            }
+            None => todo!(), // probably panic here
+        }
+    }
+
+    fn process_delayed_removal(&mut self) -> Status<S, I> {
+        match self.source.next() {
+            Some((_, to)) => {
+                self.current_source.reduce_mut();
+                self.current_copy.reduce_mut();
+                Status::Processed(Instruction::Indicate(*to))
+            }
+            None => todo!(), // probably panic here
+        }
+    }
+
+    fn process_extension(&mut self) -> Status<S, I> {
+        match self.source.next() {
+            Some((from, _)) => Status::Processed(Instruction::Extend(*from)),
+            None => Status::Done,
+        }
+    }
+
     fn process_action(&mut self) -> Status<S, I> {
         let action = loop {
             let action = self.actions.peek();
@@ -95,60 +165,20 @@ where
             Some(action) => match action {
                 Action::Insert(index, object) => {
                     if self.current_copy.directly_indicates(index) {
-                        self.current_source.reduce_mut();
-                        self.current_copy.reduce_mut();
-                        self.actions.next();
-                        Status::Processed(Instruction::Indicate(*object))
+                        self.process_immediate_direct_insertion(object)
                     } else if self.current_copy.indirectly_indicates(index) {
-                        match self.source.next() {
-                            Some((_, to)) => {
-                                let c_current_source = self.current_source.clone();
-                                self.current_source.reduce_mut();
-                                self.current_copy.reduce_mut();
-                                self.actions.next();
-                                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
-                            }
-                            None => todo!(), // probably panic here
-                        }
+                        self.process_immediate_indirect_insertion()
                     } else {
-                        match self.source.next() {
-                            Some((_, to)) => {
-                                self.current_source.reduce_mut();
-                                self.current_copy.reduce_mut();
-                                Status::Processed(Instruction::Indicate(*to))
-                            }
-                            None => Status::Done,
-                        }
+                        self.process_delayed_insertion()
                     }
                 }
                 Action::Remove(index) => {
                     if self.current_source.directly_indicates(index) {
-                        self.source.next();
-                        self.current_source.reduce_mut();
-                        self.actions.next();
-                        // self.actions = &self.actions[1..];
-
-                        Status::NotDone
+                        self.process_immediate_direct_removal()
                     } else if self.current_source.indirectly_indicates(index) {
-                        match self.source.next() {
-                            Some((_, to)) => {
-                                let c_current_source = self.current_source.clone();
-                                self.current_source.reduce_mut();
-                                self.current_copy.reduce_mut();
-                                self.actions.next();
-                                Status::Processed(Instruction::IndicateCopy(c_current_source, *to))
-                            }
-                            None => todo!(), // probably panic here
-                        }
+                        self.process_immediate_indirect_removal()
                     } else {
-                        match self.source.next() {
-                            Some((_, to)) => {
-                                self.current_source.reduce_mut();
-                                self.current_copy.reduce_mut();
-                                Status::Processed(Instruction::Indicate(*to))
-                            }
-                            None => todo!(), // probably panic here
-                        }
+                        self.process_delayed_removal()
                     }
                 }
             },
@@ -158,10 +188,7 @@ where
                 } else {
                     self.done = true;
 
-                    match self.source.next() {
-                        Some((from, _)) => Status::Processed(Instruction::Extend(*from)),
-                        None => Status::Done,
-                    }
+                    self.process_extension()
                 }
             }
         };
