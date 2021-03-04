@@ -1,78 +1,77 @@
 use crate::action::Action;
-use crate::adapter::Adapter;
 use crate::graph::{Edge, Graph, Node};
 use crate::index::Index;
+use petgraph::graph::NodeIndex;
 use std::iter::Peekable;
 
-pub struct CopyInstructor<'a, 'b, 'c, I, S, SI, AI, A>
+pub struct CopyInstructor<'a, 'c, I, SI, AI>
 where
     I: 'a + Index,
-    S: 'a + 'b + Copy,
-    SI: IntoIterator<Item = &'b (S, S)>,
-    AI: IntoIterator<Item = &'a Action<I, S>>,
-    A: Adapter<S>,
+    SI: IntoIterator<Item = (NodeIndex<u32>, NodeIndex<u32>)>,
+    AI: IntoIterator<Item = &'a Action<I, NodeIndex<u32>>>,
 {
     current_source: I,
     current_copy: I,
     source: SI::IntoIter,
     actions: Peekable<AI::IntoIter>,
-    adapter: &'c mut A,
+    graph: &'c mut Graph,
     done: bool,
-    previous: Option<S>,
+    previous: Option<NodeIndex<u32>>,
 }
 
-impl<'a, 'b, 'c, I, S, SI, AI, A> CopyInstructor<'a, 'b, 'c, I, S, SI, AI, A>
+impl<'a, 'c, I, SI, AI> CopyInstructor<'a, 'c, I, SI, AI>
 where
     I: 'a + Index,
-    S: 'a + 'b + Copy,
-    SI: IntoIterator<Item = &'b (S, S)>,
-    AI: IntoIterator<Item = &'a Action<I, S>>,
-    A: Adapter<S>,
+    SI: IntoIterator<Item = (NodeIndex<u32>, NodeIndex<u32>)>,
+    AI: IntoIterator<Item = &'a Action<I, NodeIndex<u32>>>,
 {
-    pub fn new(start: I, source: SI, actions: AI, adapter: &'c mut A) -> Self {
+    pub fn new(start: I, source: SI, actions: AI, graph: &'c mut Graph) -> Self {
         Self {
             current_source: start.clone(),
             current_copy: start,
             source: source.into_iter(),
             actions: actions.into_iter().peekable(),
             done: false,
-            adapter,
+            graph,
             previous: None,
         }
     }
 
-    fn process_immediate_direct_insertion(&mut self, object_to_insert: &S) -> Status<S> {
+    fn process_immediate_direct_insertion(
+        &mut self,
+        object_to_insert: &NodeIndex<u32>,
+    ) -> Status<NodeIndex<u32>> {
         self.current_source.reduce_mut();
         self.current_copy.reduce_mut();
         self.actions.next();
 
-        let n0 = self.adapter.insert();
+        let n0 = self.graph.insert();
         if let Some(p) = self.previous {
-            self.adapter.extend(p, n0);
+            self.graph.extend(p, n0);
         }
         self.previous = Some(n0);
-        self.adapter.indicate(n0, *object_to_insert);
+        self.graph.indicate(n0, *object_to_insert);
 
         Status::Processed(None)
     }
 
-    fn process_immediate_indirect_insertion(&mut self) -> Status<S> {
+    fn process_immediate_indirect_insertion(&mut self) -> Status<NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
                 self.actions.next();
 
-                let n0 = self.adapter.insert();
+                let n0 = self.graph.insert();
                 if let Some(p) = self.previous {
-                    self.adapter.extend(p, n0);
+                    self.graph.extend(p, n0);
                 }
                 self.previous = Some(n0);
-                let n1 = self.adapter.insert();
-                self.adapter.indicate(n0, n1);
+                let n1 = self.graph.insert();
+                self.graph.indicate(n0, n1);
 
                 Status::Processed(Some(Recurse {
-                    source: *to,
+                    source: to,
                     copy: n1,
                 }))
             }
@@ -80,18 +79,18 @@ where
         }
     }
 
-    fn process_delayed_insertion(&mut self) -> Status<S> {
+    fn process_delayed_insertion(&mut self) -> Status<NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
 
-                let n0 = self.adapter.insert();
+                let n0 = self.graph.insert();
                 if let Some(p) = self.previous {
-                    self.adapter.extend(p, n0);
+                    self.graph.extend(p, n0);
                 }
                 self.previous = Some(n0);
-                self.adapter.indicate(n0, *to);
+                self.graph.indicate(n0, to);
 
                 Status::Processed(None)
             }
@@ -99,7 +98,7 @@ where
         }
     }
 
-    fn process_immediate_direct_removal(&mut self) -> Status<S> {
+    fn process_immediate_direct_removal(&mut self) -> Status<NodeIndex<u32>> {
         self.source.next();
         self.current_source.reduce_mut();
         self.actions.next();
@@ -107,23 +106,23 @@ where
         Status::NotDone
     }
 
-    fn process_immediate_indirect_removal(&mut self) -> Status<S> {
+    fn process_immediate_indirect_removal(&mut self) -> Status<NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
                 self.actions.next();
 
-                let n0 = self.adapter.insert();
+                let n0 = self.graph.insert();
                 if let Some(p) = self.previous {
-                    self.adapter.extend(p, n0);
+                    self.graph.extend(p, n0);
                 }
                 self.previous = Some(n0);
-                let n1 = self.adapter.insert();
-                self.adapter.indicate(n0, n1);
+                let n1 = self.graph.insert();
+                self.graph.indicate(n0, n1);
 
                 Status::Processed(Some(Recurse {
-                    source: *to,
+                    source: to,
                     copy: n1,
                 }))
             }
@@ -131,18 +130,18 @@ where
         }
     }
 
-    fn process_delayed_removal(&mut self) -> Status<S> {
+    fn process_delayed_removal(&mut self) -> Status<NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
 
-                let n0 = self.adapter.insert();
+                let n0 = self.graph.insert();
                 if let Some(p) = self.previous {
-                    self.adapter.extend(p, n0);
+                    self.graph.extend(p, n0);
                 }
                 self.previous = Some(n0);
-                self.adapter.indicate(n0, *to);
+                self.graph.indicate(n0, to);
 
                 Status::Processed(None)
             }
@@ -150,11 +149,11 @@ where
         }
     }
 
-    fn process_extension(&mut self) -> Status<S> {
+    fn process_extension(&mut self) -> Status<NodeIndex<u32>> {
         match self.source.next() {
             Some((from, _)) => {
                 if let Some(p) = self.previous {
-                    self.adapter.extend(p, *from);
+                    self.graph.extend(p, from);
                 }
 
                 Status::Done
@@ -163,7 +162,7 @@ where
         }
     }
 
-    fn process_action(&mut self) -> Status<S> {
+    fn process_action(&mut self) -> Status<NodeIndex<u32>> {
         let action = loop {
             let action = self.actions.peek();
 
@@ -215,15 +214,13 @@ where
     }
 }
 
-impl<'a, 'b, 'c, I, S, SI, AI, A> Iterator for CopyInstructor<'a, 'b, 'c, I, S, SI, AI, A>
+impl<'a, 'c, I, SI, AI> Iterator for CopyInstructor<'a, 'c, I, SI, AI>
 where
     I: 'a + Index,
-    S: 'a + 'b + Copy,
-    SI: IntoIterator<Item = &'b (S, S)>,
-    AI: IntoIterator<Item = &'a Action<I, S>>,
-    A: Adapter<S>,
+    SI: IntoIterator<Item = (NodeIndex<u32>, NodeIndex<u32>)>,
+    AI: IntoIterator<Item = &'a Action<I, NodeIndex<u32>>>,
 {
-    type Item = Recurse<S>;
+    type Item = Recurse<NodeIndex<u32>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -273,83 +270,5 @@ where
             Status::NotDone => true,
             _ => false,
         }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use super::*;
-    use bitvec::prelude::*;
-
-    #[derive(Eq, PartialEq, Debug)]
-    enum TesterAction {
-        Insert { id: u32 },
-        Extend { from: u32, to: u32 },
-        Indicate { from: u32, to: u32 },
-    }
-
-    struct CopyInstructorTester {
-        current: u32,
-        actions: Vec<TesterAction>,
-    }
-
-    impl CopyInstructorTester {
-        fn new() -> Self {
-            Self {
-                current: 0,
-                actions: Vec::new(),
-            }
-        }
-    }
-
-    impl Adapter<u32> for CopyInstructorTester {
-        fn insert(&mut self) -> u32 {
-            let v = self.current;
-            self.current += 1;
-            self.actions.push(TesterAction::Insert { id: v });
-            v
-        }
-
-        fn extend(&mut self, from: u32, to: u32) {
-            self.actions.push(TesterAction::Extend { from, to });
-        }
-
-        fn indicate(&mut self, from: u32, to: u32) {
-            self.actions.push(TesterAction::Indicate { from, to });
-        }
-    }
-
-    #[test]
-    fn copy_instructor_0() {
-        let start = bitvec![];
-        let source = &[(105, 104), (103, 102), (101, 100)];
-        let actions = &[Action::Insert(bitvec![0, 1], 106)];
-        let mut tester = CopyInstructorTester::new();
-        let mut ci = CopyInstructor::new(start, source, actions, &mut tester);
-        // assert_eq!(
-        //     Some(Recurse {
-        //         source: 101,
-        //         copy: 1
-        //     }),
-        //     ci.next()
-        // );
-        assert!(ci.next().is_none());
-
-        let mut ti = tester.actions.iter();
-        assert_eq!(Some(&TesterAction::Insert { id: 0 }), ti.next());
-        assert_eq!(
-            Some(&TesterAction::Indicate { from: 0, to: 104 }),
-            ti.next()
-        );
-        assert_eq!(Some(&TesterAction::Insert { id: 1 }), ti.next());
-        assert_eq!(Some(&TesterAction::Extend { from: 0, to: 1 }), ti.next());
-        assert_eq!(
-            Some(&TesterAction::Indicate { from: 1, to: 106 }),
-            ti.next()
-        );
-        assert_eq!(Some(&TesterAction::Extend { from: 1, to: 103 }), ti.next());
-        assert!(ti.next().is_none());
-
-        dbg!(tester.actions);
     }
 }
