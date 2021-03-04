@@ -1,68 +1,10 @@
 use crate::action::Action;
+use crate::adapter::Adapter;
 use crate::graph::{Edge, Graph, Node};
 use crate::index::Index;
-use petgraph::graph::NodeIndex;
 use std::iter::Peekable;
 
-trait Adapter<S: Copy> {
-    fn insert(&mut self) -> S;
-    fn extend(&mut self, from: S, to: S);
-    fn indicate(&mut self, from: S, to: S);
-}
-
-impl Adapter<NodeIndex<u32>> for Graph {
-    fn insert(&mut self) -> NodeIndex<u32> {
-        self.g.add_node(Node::Branch)
-    }
-
-    fn extend(&mut self, from: NodeIndex<u32>, to: NodeIndex<u32>) {
-        self.g.add_edge(from, to, Edge::Extension);
-    }
-
-    fn indicate(&mut self, from: NodeIndex<u32>, to: NodeIndex<u32>) {
-        self.g.add_edge(from, to, Edge::Indication);
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
-enum TesterAction {
-    Insert { id: u32 },
-    Extend { from: u32, to: u32 },
-    Indicate { from: u32, to: u32 },
-}
-
-struct CopyInstructorTester {
-    current: u32,
-    actions: Vec<TesterAction>,
-}
-
-impl CopyInstructorTester {
-    fn new() -> Self {
-        Self {
-            current: 0,
-            actions: Vec::new(),
-        }
-    }
-}
-
-impl Adapter<u32> for CopyInstructorTester {
-    fn insert(&mut self) -> u32 {
-        let v = self.current;
-        self.current += 1;
-        self.actions.push(TesterAction::Insert { id: v });
-        v
-    }
-
-    fn extend(&mut self, from: u32, to: u32) {
-        self.actions.push(TesterAction::Extend { from, to });
-    }
-
-    fn indicate(&mut self, from: u32, to: u32) {
-        self.actions.push(TesterAction::Indicate { from, to });
-    }
-}
-
-struct CopyInstructor<'a, 'b, 'c, I, S, SI, AI, A>
+pub struct CopyInstructor<'a, 'b, 'c, I, S, SI, AI, A>
 where
     I: 'a + Index,
     S: 'a + 'b + Copy,
@@ -305,7 +247,7 @@ where
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct Recurse<S>
+pub struct Recurse<S>
 where
     S: Copy,
 {
@@ -338,6 +280,44 @@ where
 pub mod test {
     use super::*;
     use bitvec::prelude::*;
+
+    #[derive(Eq, PartialEq, Debug)]
+    enum TesterAction {
+        Insert { id: u32 },
+        Extend { from: u32, to: u32 },
+        Indicate { from: u32, to: u32 },
+    }
+
+    struct CopyInstructorTester {
+        current: u32,
+        actions: Vec<TesterAction>,
+    }
+
+    impl CopyInstructorTester {
+        fn new() -> Self {
+            Self {
+                current: 0,
+                actions: Vec::new(),
+            }
+        }
+    }
+
+    impl Adapter<u32> for CopyInstructorTester {
+        fn insert(&mut self) -> u32 {
+            let v = self.current;
+            self.current += 1;
+            self.actions.push(TesterAction::Insert { id: v });
+            v
+        }
+
+        fn extend(&mut self, from: u32, to: u32) {
+            self.actions.push(TesterAction::Extend { from, to });
+        }
+
+        fn indicate(&mut self, from: u32, to: u32) {
+            self.actions.push(TesterAction::Indicate { from, to });
+        }
+    }
 
     #[test]
     fn copy_instructor_0() {
