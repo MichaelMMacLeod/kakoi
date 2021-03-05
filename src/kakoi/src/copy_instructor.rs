@@ -40,7 +40,7 @@ where
     fn process_immediate_direct_insertion(
         &mut self,
         object_to_insert: &NodeIndex<u32>,
-    ) -> Status<NodeIndex<u32>> {
+    ) -> Status<I, NodeIndex<u32>> {
         self.current_source.reduce_mut();
         self.current_copy.reduce_mut();
         self.actions.next();
@@ -55,9 +55,11 @@ where
         Status::Processed(None)
     }
 
-    fn process_immediate_indirect_insertion(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_immediate_indirect_insertion(&mut self) -> Status<I, NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
+                let source_i = self.current_source.indicate();
+
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
                 self.actions.next();
@@ -71,6 +73,7 @@ where
                 self.graph.indicate(n0, n1);
 
                 Status::Processed(Some(Recurse {
+                    index: source_i,
                     source: to,
                     copy: n1,
                 }))
@@ -79,7 +82,7 @@ where
         }
     }
 
-    fn process_delayed_insertion(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_delayed_insertion(&mut self) -> Status<I, NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
@@ -98,7 +101,7 @@ where
         }
     }
 
-    fn process_immediate_direct_removal(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_immediate_direct_removal(&mut self) -> Status<I, NodeIndex<u32>> {
         self.source.next();
         self.current_source.reduce_mut();
         self.actions.next();
@@ -106,9 +109,11 @@ where
         Status::NotDone
     }
 
-    fn process_immediate_indirect_removal(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_immediate_indirect_removal(&mut self) -> Status<I, NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
+                let source_i = self.current_source.indicate();
+
                 self.current_source.reduce_mut();
                 self.current_copy.reduce_mut();
                 self.actions.next();
@@ -122,6 +127,7 @@ where
                 self.graph.indicate(n0, n1);
 
                 Status::Processed(Some(Recurse {
+                    index: source_i,
                     source: to,
                     copy: n1,
                 }))
@@ -130,7 +136,7 @@ where
         }
     }
 
-    fn process_delayed_removal(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_delayed_removal(&mut self) -> Status<I, NodeIndex<u32>> {
         match self.source.next() {
             Some((_, to)) => {
                 self.current_source.reduce_mut();
@@ -149,7 +155,7 @@ where
         }
     }
 
-    fn process_extension(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_extension(&mut self) -> Status<I, NodeIndex<u32>> {
         match self.source.next() {
             Some((from, _)) => {
                 if let Some(p) = self.previous {
@@ -162,7 +168,7 @@ where
         }
     }
 
-    fn process_action(&mut self) -> Status<NodeIndex<u32>> {
+    fn process_action(&mut self) -> Status<I, NodeIndex<u32>> {
         let action = loop {
             let action = self.actions.peek();
 
@@ -220,7 +226,7 @@ where
     SI: IntoIterator<Item = (NodeIndex<u32>, NodeIndex<u32>)>,
     AI: IntoIterator<Item = &'a Action<I, NodeIndex<u32>>>,
 {
-    type Item = Recurse<NodeIndex<u32>>;
+    type Item = Recurse<I, NodeIndex<u32>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -244,25 +250,29 @@ where
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct Recurse<S>
+pub struct Recurse<I, S>
 where
+    I: Index,
     S: Copy,
 {
+    index: I,
     source: S,
     copy: S,
 }
 
-enum Status<S>
+enum Status<I, S>
 where
+    I: Index,
     S: Copy,
 {
     Done,
     NotDone,
-    Processed(Option<Recurse<S>>),
+    Processed(Option<Recurse<I, S>>),
 }
 
-impl<S> Status<S>
+impl<I, S> Status<I, S>
 where
+    I: Index,
     S: Copy,
 {
     fn is_not_done(&self) -> bool {

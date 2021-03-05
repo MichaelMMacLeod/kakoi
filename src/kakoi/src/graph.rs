@@ -23,7 +23,7 @@ pub enum Edge {
 
 pub struct Graph {
     pub g: GraphImpl<Node, Edge, Directed, u32>,
-    focused: Option<NodeIndex<u32>>,
+    pub focused: Option<NodeIndex<u32>>,
 }
 
 // pub trait Consistent {
