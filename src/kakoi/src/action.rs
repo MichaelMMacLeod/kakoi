@@ -1,11 +1,12 @@
 use crate::index::Index;
+use petgraph::graph::NodeIndex;
 
-pub enum Action<I: Index, S> {
-    Insert(I, S),
+pub enum Action<I: Index> {
+    Insert(I, NodeIndex<u32>),
     Remove(I),
 }
 
-impl<I: Index, S> Action<I, S> {
+impl<I: Index> Action<I> {
     pub fn index(&self) -> &I {
         match self {
             Action::Insert(i, _) => i,

@@ -249,17 +249,6 @@ where
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
-pub struct Recurse<I, S>
-where
-    I: Index,
-    S: Copy,
-{
-    index: I,
-    source: S,
-    copy: S,
-}
-
 enum Status<I, S>
 where
     I: Index,
