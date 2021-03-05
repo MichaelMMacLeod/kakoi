@@ -31,14 +31,19 @@ pub struct Graph {
 struct CIState<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>> {
     current_source: I,
     current_copy: I,
-    source: NodeIndex<u32>,
+    source: Option<(NodeIndex<u32>, NodeIndex<u32>)>,
     actions: Peekable<AI::IntoIter>,
     previous: Option<NodeIndex<u32>>,
     queue: VecDeque<Recurse<I>>,
 }
 
 impl<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>> CIState<'a, I, AI> {
-    fn new(start: I, source: NodeIndex<u32>, actions: AI, queue: VecDeque<Recurse<I>>) -> Self {
+    fn new(
+        start: I,
+        source: Option<(NodeIndex<u32>, NodeIndex<u32>)>,
+        actions: AI,
+        queue: VecDeque<Recurse<I>>,
+    ) -> Self {
         CIState {
             current_source: start.clone(),
             current_copy: start,
@@ -48,6 +53,11 @@ impl<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>> CIState<'a, I, A
             queue,
         }
     }
+}
+
+enum Status {
+    Done,
+    Processed(Option<NodeIndex<u32>>),
 }
 
 impl Graph {
@@ -70,6 +80,10 @@ impl Graph {
 
     pub fn indicate(&mut self, from: NodeIndex<u32>, to: NodeIndex<u32>) {
         self.g.add_edge(from, to, Edge::Indication);
+    }
+
+    pub fn commit(&mut self, from: NodeIndex<u32>, to: NodeIndex<u32>) {
+        self.g.add_edge(from, to, Edge::Transaction);
     }
 
     pub fn indication_of(&self, group: NodeIndex<u32>) -> Option<NodeIndex<u32>> {
@@ -112,6 +126,26 @@ impl Graph {
         }
     }
 
+    fn reduce_until_indication(
+        &self,
+        node: NodeIndex<u32>,
+    ) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
+        if let Some(indication) = self.indication_of(node) {
+            Some((node, indication))
+        } else {
+            self.reduce(node)
+        }
+    }
+
+    fn next_source(
+        &self,
+        source: &mut Option<(NodeIndex<u32>, NodeIndex<u32>)>,
+    ) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
+        let result = (*source)?;
+        *source = self.reduce(result.0);
+        Some(result)
+    }
+
     fn reduce_mut(&self, node: &mut NodeIndex<u32>) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
         let result = self.reduce(*node);
         if let Some((from, _)) = result {
@@ -128,7 +162,7 @@ impl Graph {
         &mut self,
         state: &mut CIState<'a, I, AI>,
         object_to_insert: NodeIndex<u32>,
-    ) {
+    ) -> NodeIndex<u32> {
         state.current_source.reduce_mut();
         state.current_copy.reduce_mut();
         state.actions.next();
@@ -139,6 +173,8 @@ impl Graph {
         }
         state.previous = Some(n0);
         self.indicate(n0, object_to_insert);
+
+        n0
     }
 
     fn process_immediate_direct_removal<
@@ -149,7 +185,7 @@ impl Graph {
         &mut self,
         state: &mut CIState<'a, I, AI>,
     ) {
-        self.reduce_mut(&mut state.source);
+        self.next_source(&mut state.source);
         state.current_source.reduce_mut();
         state.actions.next();
     }
@@ -161,9 +197,9 @@ impl Graph {
     >(
         &mut self,
         state: &mut CIState<'a, I, AI>,
-    ) {
+    ) -> NodeIndex<u32> {
         // TODO: I think .unwrap() is safe here. Is it really?
-        let (_, to) = self.reduce_mut(&mut state.source).unwrap();
+        let (_, to) = self.next_source(&mut state.source).unwrap();
 
         let source_i = state.current_source.indicate();
         state.current_copy.reduce_mut();
@@ -182,13 +218,15 @@ impl Graph {
             source: to,
             copy: n1,
         });
+
+        n0
     }
 
     fn process_delayed_action<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>>(
         &mut self,
         state: &mut CIState<'a, I, AI>,
-    ) {
-        if let Some((_, to)) = self.reduce_mut(&mut state.source) {
+    ) -> Option<NodeIndex<u32>> {
+        if let Some((_, to)) = self.next_source(&mut state.source) {
             state.current_source.reduce_mut();
             state.current_copy.reduce_mut();
 
@@ -198,14 +236,19 @@ impl Graph {
             }
             state.previous = Some(n0);
             self.indicate(n0, to);
-        } // TODO: maybe we need to differentiate between insert / remove here
+
+            Some(n0)
+        } else {
+            // TODO: maybe we need to differentiate between insert / remove here
+            None
+        }
     }
 
     fn process_extension<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>>(
         &mut self,
         state: &mut CIState<'a, I, AI>,
     ) {
-        if let Some((from, _)) = self.reduce_mut(&mut state.source) {
+        if let Some((from, _)) = self.next_source(&mut state.source) {
             if let Some(p) = state.previous {
                 self.extend(p, from);
             }
@@ -215,7 +258,7 @@ impl Graph {
     fn process_action<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>>(
         &mut self,
         state: &mut CIState<'a, I, AI>,
-    ) -> bool {
+    ) -> Status {
         let action = loop {
             let action = state.actions.peek();
 
@@ -235,31 +278,29 @@ impl Graph {
             Some(action) => match action {
                 Action::Insert(index, object) => {
                     if state.current_copy.directly_indicates(index) {
-                        self.process_immediate_direct_insertion(state, *object);
+                        Status::Processed(Some(
+                            self.process_immediate_direct_insertion(state, *object),
+                        ))
                     } else if state.current_copy.indirectly_indicates(index) {
-                        self.process_immediate_indirect_action(state);
+                        Status::Processed(Some(self.process_immediate_indirect_action(state)))
                     } else {
-                        self.process_delayed_action(state);
+                        Status::Processed(self.process_delayed_action(state))
                     }
-
-                    true
                 }
                 Action::Remove(index) => {
                     if state.current_source.directly_indicates(index) {
                         self.process_immediate_direct_removal(state);
+                        Status::Processed(None)
                     } else if state.current_source.indirectly_indicates(index) {
-                        self.process_immediate_indirect_action(state);
+                        Status::Processed(Some(self.process_immediate_indirect_action(state)))
                     } else {
-                        self.process_delayed_action(state);
+                        Status::Processed(self.process_delayed_action(state))
                     }
-
-                    true
                 }
             },
             None => {
                 self.process_extension(state);
-
-                false
+                Status::Done
             }
         }
     }
@@ -267,8 +308,30 @@ impl Graph {
     fn process_actions<'a, I: 'a + Index, AI: IntoIterator<Item = &'a Action<I>>>(
         &mut self,
         state: &mut CIState<'a, I, AI>,
-    ) -> NodeIndex<u32> {
-        while self.process_action(state) {}
+    ) -> Option<NodeIndex<u32>> {
+        // Find the first node we insert
+        let result = loop {
+            match self.process_action(state) {
+                Status::Processed(Some(p)) => {
+                    break Some(p);
+                }
+
+                // We don't always return a node. For instance, when we process
+                // an action to remove a node.
+                Status::Processed(None) => {}
+
+                // If there were no applicable actions, there is nothing to do
+                Status::Done => break None,
+            }
+        };
+
+        if !result.is_none() {
+            // Process the rest of the actions. The body of this loop is
+            // intentionally empty.
+            while let Status::Processed(_) = self.process_action(state) {}
+        }
+
+        result
     }
 }
 
@@ -291,16 +354,26 @@ mod test {
             Action::Insert(bitvec![0, 0, 1], l3),
         ];
         let mut queue = VecDeque::new();
-        let mut state = CIState::new(bitvec![], n0, &actions, queue);
-        graph.process_actions(&mut state);
+        let mut state = CIState::new(
+            bitvec![],
+            graph.reduce_until_indication(n0),
+            &actions,
+            queue,
+        );
+        let r1 = graph.process_actions(&mut state).unwrap();
+        graph.commit(r1, n0);
         println!("{:?}", Dot::with_config(&graph.g, &[]));
 
-        // let actions2 = [Action::Remove(bitvec![0, 1])];
-        // let mut queue2 = VecDeque::new();
-        // let mut state2 = CIState::new(bitvec![], n0, &actions2, queue2);
-        // graph.process_actions(&mut state2);
-        // println!("{:?}", Dot::with_config(&graph.g, &[]));
-
-        panic!("woo hoo");
+        let actions2 = [Action::Remove(bitvec![0, 1])];
+        let mut queue2 = VecDeque::new();
+        let mut state2 = CIState::new(
+            bitvec![],
+            graph.reduce_until_indication(r1),
+            &actions2,
+            queue2,
+        );
+        let r2 = graph.process_actions(&mut state2).unwrap();
+        graph.commit(r2, r1);
+        println!("{:?}", Dot::with_config(&graph.g, &[]));
     }
 }
