@@ -461,5 +461,6 @@ mod test {
         // graph.commit(r2, r1);
 
         println!("{:?}", Dot::with_config(&graph.g, &[]));
+        // panic!("");
     }
 }
