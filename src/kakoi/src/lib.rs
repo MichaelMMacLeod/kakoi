@@ -1,13 +1,7 @@
-pub mod circle;
-// pub mod extend;
 pub mod action;
-// pub mod adapter;
-// pub mod copy_instructor;
-pub mod graph;
-// pub mod graph_group_iterator;
-// pub mod graph_impl;
-pub mod index;
-// pub mod recursive_copy_instructor;
+pub mod circle;
 pub mod flat_graph;
+pub mod graph;
+pub mod index;
 pub mod recurse;
 pub mod svg;
