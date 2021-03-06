@@ -8,5 +8,6 @@ pub mod graph;
 // pub mod graph_impl;
 pub mod index;
 // pub mod recursive_copy_instructor;
+pub mod flat_graph;
 pub mod recurse;
 pub mod svg;
