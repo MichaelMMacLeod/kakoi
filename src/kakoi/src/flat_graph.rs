@@ -33,6 +33,12 @@ struct Todo {
 }
 
 impl FlatGraph {
+    // Flattens a source graph into a FlatGraph.
+    //
+    // Only groups indicated by the focused node in the source graph will be
+    // indicated in the FlatGraph.
+    //
+    // While the Graph type is acyclic, a FlatGraph need not be.
     fn from_source(source_graph: &Graph) -> Self {
         let mut copy_graph = GraphImpl::<Node, Edge, Directed, u32>::new();
 
@@ -49,7 +55,7 @@ impl FlatGraph {
         identity_map.insert(focused_source, focused_copy);
 
         while let Some(Todo { source, copy }) = todo_queue.pop_front() {
-            FlatGraph::magic_1(
+            FlatGraph::from_source_helper(
                 &mut copy_graph,
                 source_graph,
                 source,
@@ -62,7 +68,30 @@ impl FlatGraph {
         FlatGraph { g: copy_graph }
     }
 
-    fn magic_1(
+    // Helper function for from_source that should only be called from
+    // from_source.
+    //
+    // Processes a single group in the source graph. Before this function is
+    // called a copy of the start of the group is present in the flat graph.
+    // After this function is called, that node will have edges emanating out of
+    // it which point to copies of the nodes that the corresponding group in the
+    // source graph indicates. Each of the indicated nodes are then added to a
+    // queue so they can each, in turn, be processed by this function.
+    //
+    // copy_graph: the flat graph that is being constructed
+    // source_graph: the graph that is being flattened
+    // source: an index being currently flattened in the source_graph
+    // copy: the index corresponding to `source` in copy_graph.
+    // todo_queue: this function will push_back nodes that the group `source`
+    //             indicates so that they can be later processed by this
+    //             function
+    // identity_map: A single node in the copy graph corresponds to one or more
+    //               nodes in the source graph. When we encounter a source node
+    //               we map it to its copy here. This is necessary when the
+    //               source contains more than one indication of a node; both of
+    //               those indications must resolve to the same copy in our flat
+    //               graph.
+    fn from_source_helper(
         copy_graph: &mut GraphImpl<Node, Edge, Directed, u32>,
         source_graph: &Graph,
         source: NodeIndex<u32>,
