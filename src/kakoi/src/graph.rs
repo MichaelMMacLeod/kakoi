@@ -126,7 +126,7 @@ impl Graph {
         }
     }
 
-    fn reduce_until_indication(
+    pub fn reduce_until_indication(
         &self,
         node: NodeIndex<u32>,
     ) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
@@ -137,7 +137,7 @@ impl Graph {
         }
     }
 
-    fn next_source(
+    pub fn next_source(
         &self,
         source: &mut Option<(NodeIndex<u32>, NodeIndex<u32>)>,
     ) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
@@ -333,6 +333,96 @@ impl Graph {
 
         result
     }
+
+    pub fn make_naming_example() -> Self {
+        let mut graph = Graph::new();
+        let la = graph.insert_leaf("a".to_string());
+        let lb = graph.insert_leaf("b".to_string());
+        let lc = graph.insert_leaf("c".to_string());
+        let ld = graph.insert_leaf("d".to_string());
+        let le = graph.insert_leaf("e".to_string());
+        let lf = graph.insert_leaf("f".to_string());
+        let lg = graph.insert_leaf("g".to_string());
+        let li = graph.insert_leaf("i".to_string());
+        let lo = graph.insert_leaf("o".to_string());
+        let lu = graph.insert_leaf("u".to_string());
+        let lvowel = graph.insert_leaf("vowel".to_string());
+        let lconsonant = graph.insert_leaf("consonant".to_string());
+        let lnaming = graph.insert_leaf("naming".to_string());
+
+        let actions1 = [
+            Action::Insert(bitvec![1], la),
+            Action::Insert(bitvec![0, 1], le),
+            Action::Insert(bitvec![0, 0, 1], li),
+            Action::Insert(bitvec![0, 0, 0, 1], lo),
+            Action::Insert(bitvec![0, 0, 0, 0, 1], lu),
+        ];
+        let queue1 = VecDeque::new();
+        let mut state1 = CIState::new(bitvec![], None, &actions1, queue1);
+        let r1 = graph.process_actions(&mut state1).unwrap();
+
+        let actions2 = [
+            Action::Insert(bitvec![1], lb),
+            Action::Insert(bitvec![0, 1], lc),
+            Action::Insert(bitvec![0, 0, 1], ld),
+            Action::Insert(bitvec![0, 0, 0, 1], lf),
+            Action::Insert(bitvec![0, 0, 0, 0, 1], lg),
+        ];
+        let queue2 = VecDeque::new();
+        let mut state2 = CIState::new(bitvec![], None, &actions2, queue2);
+        let r2 = graph.process_actions(&mut state2).unwrap();
+
+        let actions3 = [
+            Action::Insert(bitvec![1], r1),
+            Action::Insert(bitvec![0, 1], lvowel),
+        ];
+        let queue3 = VecDeque::new();
+        let mut state3 = CIState::new(bitvec![], None, &actions3, queue3);
+        let r3 = graph.process_actions(&mut state3).unwrap();
+
+        let actions4 = [
+            Action::Insert(bitvec![1], r2),
+            Action::Insert(bitvec![0, 1], lconsonant),
+        ];
+        let queue4 = VecDeque::new();
+        let mut state4 = CIState::new(bitvec![], None, &actions4, queue4);
+        let r4 = graph.process_actions(&mut state4).unwrap();
+
+        let actions5 = [
+            Action::Insert(bitvec![1], r3),
+            Action::Insert(bitvec![0, 1], r4),
+        ];
+        let queue5 = VecDeque::new();
+        let mut state5 = CIState::new(bitvec![], None, &actions5, queue5);
+        let r5 = graph.process_actions(&mut state5).unwrap();
+
+        let actions6 = [
+            Action::Insert(bitvec![1], r5),
+            Action::Insert(bitvec![0, 1], lnaming),
+        ];
+        let queue6 = VecDeque::new();
+        let mut state6 = CIState::new(bitvec![], None, &actions6, queue6);
+        let r6 = graph.process_actions(&mut state6).unwrap();
+
+        let actions7 = [Action::Insert(bitvec![1], r6)];
+        let queue7 = VecDeque::new();
+        let mut state7 = CIState::new(
+            bitvec![],
+            graph.reduce_until_indication(r5),
+            &actions7,
+            queue7,
+        );
+        let r7 = graph.process_actions(&mut state7).unwrap();
+
+        graph.focused = Some(r7);
+
+        // graph.commit(r2, r1);
+
+        // println!("{:?}", Dot::with_config(&graph.g, &[]));
+        // panic!("");
+
+        graph
+    }
 }
 
 #[cfg(test)]
@@ -377,90 +467,5 @@ mod test {
         println!("{:?}", Dot::with_config(&graph.g, &[]));
     }
 
-    #[test]
-    fn process_actions_1() {
-        let mut graph = Graph::new();
-        let la = graph.insert_leaf("a".to_string());
-        let lb = graph.insert_leaf("b".to_string());
-        let lc = graph.insert_leaf("c".to_string());
-        let ld = graph.insert_leaf("d".to_string());
-        let le = graph.insert_leaf("e".to_string());
-        let lf = graph.insert_leaf("f".to_string());
-        let lg = graph.insert_leaf("g".to_string());
-        let li = graph.insert_leaf("i".to_string());
-        let lo = graph.insert_leaf("o".to_string());
-        let lu = graph.insert_leaf("u".to_string());
-        let lvowel = graph.insert_leaf("vowel".to_string());
-        let lconsonant = graph.insert_leaf("consonant".to_string());
-        let lnaming = graph.insert_leaf("naming".to_string());
-
-        let actions1 = [
-            Action::Insert(bitvec![1], la),
-            Action::Insert(bitvec![0, 1], le),
-            Action::Insert(bitvec![0, 0, 1], li),
-            Action::Insert(bitvec![0, 0, 0, 1], lo),
-            Action::Insert(bitvec![0, 0, 0, 0, 1], lu),
-        ];
-        let mut queue1 = VecDeque::new();
-        let mut state1 = CIState::new(bitvec![], None, &actions1, queue1);
-        let r1 = graph.process_actions(&mut state1).unwrap();
-
-        let actions2 = [
-            Action::Insert(bitvec![1], lb),
-            Action::Insert(bitvec![0, 1], lc),
-            Action::Insert(bitvec![0, 0, 1], ld),
-            Action::Insert(bitvec![0, 0, 0, 1], lf),
-            Action::Insert(bitvec![0, 0, 0, 0, 1], lg),
-        ];
-        let mut queue2 = VecDeque::new();
-        let mut state2 = CIState::new(bitvec![], None, &actions2, queue2);
-        let r2 = graph.process_actions(&mut state2).unwrap();
-
-        let actions3 = [
-            Action::Insert(bitvec![1], r1),
-            Action::Insert(bitvec![0, 1], lvowel),
-        ];
-        let mut queue3 = VecDeque::new();
-        let mut state3 = CIState::new(bitvec![], None, &actions3, queue3);
-        let r3 = graph.process_actions(&mut state3).unwrap();
-
-        let actions4 = [
-            Action::Insert(bitvec![1], r2),
-            Action::Insert(bitvec![0, 1], lconsonant),
-        ];
-        let mut queue4 = VecDeque::new();
-        let mut state4 = CIState::new(bitvec![], None, &actions4, queue4);
-        let r4 = graph.process_actions(&mut state4).unwrap();
-
-        let actions5 = [
-            Action::Insert(bitvec![1], r3),
-            Action::Insert(bitvec![0, 1], r4),
-        ];
-        let mut queue5 = VecDeque::new();
-        let mut state5 = CIState::new(bitvec![], None, &actions5, queue5);
-        let r5 = graph.process_actions(&mut state5).unwrap();
-
-        let actions6 = [
-            Action::Insert(bitvec![1], r5),
-            Action::Insert(bitvec![0, 1], lnaming),
-        ];
-        let mut queue6 = VecDeque::new();
-        let mut state6 = CIState::new(bitvec![], None, &actions6, queue6);
-        let r6 = graph.process_actions(&mut state6).unwrap();
-
-        let actions7 = [Action::Insert(bitvec![1], r6)];
-        let mut queue7 = VecDeque::new();
-        let mut state7 = CIState::new(
-            bitvec![],
-            graph.reduce_until_indication(r5),
-            &actions7,
-            queue7,
-        );
-        let r7 = graph.process_actions(&mut state7).unwrap();
-
-        // graph.commit(r2, r1);
-
-        println!("{:?}", Dot::with_config(&graph.g, &[]));
-        // panic!("");
-    }
+    // #[test]
 }
