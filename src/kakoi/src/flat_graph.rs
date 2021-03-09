@@ -1,6 +1,6 @@
 use crate::graph::{Graph, Node as GraphNode};
-use petgraph::graph::Graph as GraphImpl;
 use petgraph::graph::NodeIndex;
+use petgraph::stable_graph::StableGraph as GraphImpl;
 use petgraph::Directed;
 use std::collections::{HashMap, VecDeque};
 
