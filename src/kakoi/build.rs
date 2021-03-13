@@ -34,7 +34,8 @@ use std::{
     path::PathBuf,
 };
 
-const SHADER_SRC_DIR: &str = "src/shaders";
+const SHADER_SRC_DIR: &str = "src/shaders/src";
+const SHADER_BUILD_DIR: &str = "src/shaders/build";
 
 struct ShaderData {
     src: String,
@@ -44,7 +45,7 @@ struct ShaderData {
 }
 
 impl ShaderData {
-    pub fn load(src_path: PathBuf, dst_dir: PathBuf) -> Result<Self> {
+    pub fn load(src_path: PathBuf) -> Result<Self> {
         let extension = src_path
             .extension()
             .context("File has no extension")?
@@ -57,8 +58,10 @@ impl ShaderData {
             _ => bail!("Unsupported shader: {}", src_path.display()),
         };
 
+        let build_dir: PathBuf = SHADER_BUILD_DIR.into();
+
         let src = read_to_string(src_path.clone())?;
-        let spv_path = dst_dir
+        let spv_path = build_dir
             .join(src_path.strip_prefix(SHADER_SRC_DIR)?)
             .with_extension(format!("{}.spv", extension));
 
@@ -78,11 +81,9 @@ fn main() -> Result<()> {
         shader_paths.extend(glob(&*format!("{}/**/*.{}", SHADER_SRC_DIR, kind))?);
     }
 
-    let out_dir = env::var("OUT_DIR")?;
-
     let shaders = shader_paths
         .into_par_iter()
-        .map(|glob_result| ShaderData::load(glob_result?, out_dir.clone().into()))
+        .map(|glob_result| ShaderData::load(glob_result?))
         .collect::<Result<Vec<_>>>()?;
 
     let mut compiler = shaderc::Compiler::new().context("Unable to create shader compiler")?;
