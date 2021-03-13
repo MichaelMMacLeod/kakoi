@@ -16,6 +16,7 @@ pub struct State {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
+    center: [f32; 2],
 }
 
 impl Vertex {
@@ -23,33 +24,48 @@ impl Vertex {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &[wgpu::VertexAttribute {
-                offset: 0,
-                shader_location: 0,
-                format: wgpu::VertexFormat::Float3,
-            }],
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float2,
+                },
+            ],
         }
     }
 }
 
+const CENTER: [f32; 2] = [0.1, -0.5];
+
 const VERTICES: &[Vertex] = &[
     Vertex {
         position: [1.0, 1.0, 0.0],
+        center: CENTER,
     },
     Vertex {
         position: [-1.0, 1.0, 0.0],
+        center: CENTER,
     },
     Vertex {
         position: [-1.0, -1.0, 0.0],
+        center: CENTER,
     },
     Vertex {
         position: [1.0, 1.0, 0.0],
+        center: CENTER,
     },
     Vertex {
         position: [-1.0, -1.0, 0.0],
+        center: CENTER,
     },
     Vertex {
         position: [1.0, -1.0, 0.0],
+        center: CENTER,
     },
 ];
 
