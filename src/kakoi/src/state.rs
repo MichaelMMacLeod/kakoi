@@ -128,9 +128,11 @@ impl State {
         let flat_graph = FlatGraph::from_source(&mut Graph::make_naming_example());
 
         let max_depth = 20;
+        let min_radius = 0.02;
         let mut instances = Vec::new();
         let mut todo = VecDeque::new();
         todo.push_back((flat_graph.focused, 1.0, Point { x: 0.0, y: 0.0 }, 0));
+        instances.push(Instance::new(0.0, 0.0, 1.0));
 
         while let Some((index, radius, center, depth)) = todo.pop_front() {
             Self::build_instances_helper(
@@ -139,6 +141,7 @@ impl State {
                 &flat_graph,
                 index,
                 radius,
+                min_radius,
                 center,
                 depth,
                 max_depth,
@@ -154,17 +157,15 @@ impl State {
         flat_graph: &FlatGraph,
         index: NodeIndex<u32>,
         radius: f32,
+        min_radius: f32,
         center: Point,
         depth: u32,
         max_depth: u32,
     ) {
-        if depth < max_depth {
+        if depth < max_depth && radius > min_radius {
             match &flat_graph.g[index] {
                 Node::Leaf(_) => {}
                 Node::Branch(num_indications) => {
-                    let cx = center.x;
-                    let cy = center.y;
-
                     let circle_positioner = CirclePositioner::new(
                         radius as f64,
                         *num_indications as u64,
@@ -199,8 +200,6 @@ impl State {
                             todo.push_back((*node, radius as f32, center, depth + 1));
                             instances.push(Instance::new(x as f32, y as f32, radius as f32));
                         });
-
-                    instances.push(Instance::new(cx as f32, cy as f32, radius as f32));
                 }
             }
         }
