@@ -17,6 +17,7 @@ pub struct State {
 struct Vertex {
     position: [f32; 3],
     center: [f32; 2],
+    radius: f32,
 }
 
 impl Vertex {
@@ -35,37 +36,84 @@ impl Vertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float2,
                 },
+                wgpu::VertexAttribute {
+                    offset: (std::mem::size_of::<[f32; 3]>() + std::mem::size_of::<[f32; 2]>())
+                        as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float2,
+                },
             ],
         }
     }
 }
 
-const CENTER: [f32; 2] = [0.1, -0.5];
+const CENTER_0: [f32; 2] = [0.0, 0.0];
+const RADIUS_0: f32 = 1.0;
+
+const CENTER_1: [f32; 2] = [-0.48, 0.0];
+const RADIUS_1: f32 = 0.5;
 
 const VERTICES: &[Vertex] = &[
     Vertex {
         position: [1.0, 1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
     },
     Vertex {
         position: [-1.0, 1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
     },
     Vertex {
         position: [-1.0, -1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
     },
     Vertex {
         position: [1.0, 1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
     },
     Vertex {
         position: [-1.0, -1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
     },
     Vertex {
         position: [1.0, -1.0, 0.0],
-        center: CENTER,
+        center: CENTER_0,
+        radius: RADIUS_0,
+    },
+    // next one
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
+    },
+    Vertex {
+        position: [-1.0, 1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
+    },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
+    },
+    Vertex {
+        position: [-1.0, -1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
+    },
+    Vertex {
+        position: [1.0, -1.0, 0.0],
+        center: CENTER_1,
+        radius: RADIUS_1,
     },
 ];
 
@@ -216,7 +264,7 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..6, 0..1);
+            render_pass.draw(0..12, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));

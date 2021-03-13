@@ -4,13 +4,14 @@
 
 layout(location=0) in vec3 position;
 layout(location=1) in vec2 center;
+layout(location=2) in float r;
 layout(location=0) out vec4 color;
 
 void main() {
-  float thickness = 5.0;
+  float thickness = 10.0 * r;
 
   float radius = length(position.xy - center);
-  float signedDistance = radius - 1.0;
+  float signedDistance = radius - r;
   vec2 gradient = vec2(dFdx(signedDistance), dFdy(signedDistance));
   float rangeFromLine = abs(signedDistance / length(gradient));
   float lineWeight = clamp(thickness - rangeFromLine, 0.0, 1.0);
