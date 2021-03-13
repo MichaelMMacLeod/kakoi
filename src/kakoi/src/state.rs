@@ -15,7 +15,7 @@ pub struct State {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
-    position: [f32; 3],
+    position: [f32; 2],
     center: [f32; 2],
     radius: f32,
 }
@@ -29,15 +29,15 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float2,
                 },
                 wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float2,
                 },
                 wgpu::VertexAttribute {
-                    offset: (std::mem::size_of::<[f32; 3]>() + std::mem::size_of::<[f32; 2]>())
+                    offset: (std::mem::size_of::<[f32; 2]>() + std::mem::size_of::<[f32; 2]>())
                         as wgpu::BufferAddress,
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float2,
@@ -55,63 +55,63 @@ const RADIUS_1: f32 = 0.5;
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.0, 1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     Vertex {
-        position: [-1.0, 1.0, 0.0],
+        position: [-1.0, 1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.0, -1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.0, 1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.0, -1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     Vertex {
-        position: [1.0, -1.0, 0.0],
+        position: [1.0, -1.0],
         center: CENTER_0,
         radius: RADIUS_0,
     },
     // next one
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.0, 1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
     Vertex {
-        position: [-1.0, 1.0, 0.0],
+        position: [-1.0, 1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.0, -1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.0, 1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.0, -1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
     Vertex {
-        position: [1.0, -1.0, 0.0],
+        position: [1.0, -1.0],
         center: CENTER_1,
         radius: RADIUS_1,
     },
