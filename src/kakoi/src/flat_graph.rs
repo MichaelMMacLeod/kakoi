@@ -5,10 +5,10 @@ use petgraph::Directed;
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
-struct Edge(u32);
+pub struct Edge(pub u32);
 
 #[derive(Debug)]
-enum Node {
+pub enum Node {
     Branch(u32),
     Leaf(String),
 }
@@ -23,8 +23,9 @@ impl Node {
     }
 }
 
-struct FlatGraph {
-    g: GraphImpl<Node, Edge, Directed, u32>,
+pub struct FlatGraph {
+    pub g: GraphImpl<Node, Edge, Directed, u32>,
+    pub focused: NodeIndex<u32>,
 }
 
 struct Todo {
@@ -39,7 +40,7 @@ impl FlatGraph {
     // indicated in the FlatGraph.
     //
     // While the Graph type is acyclic, a FlatGraph need not be.
-    fn from_source(source_graph: &Graph) -> Self {
+    pub fn from_source(source_graph: &Graph) -> Self {
         let mut copy_graph = GraphImpl::<Node, Edge, Directed, u32>::new();
 
         let focused_source = source_graph.focused.unwrap(); // TODO: figure out what to do here
@@ -65,7 +66,10 @@ impl FlatGraph {
             );
         }
 
-        FlatGraph { g: copy_graph }
+        FlatGraph {
+            g: copy_graph,
+            focused: focused_copy,
+        }
     }
 
     // Helper function for from_source that should only be called from

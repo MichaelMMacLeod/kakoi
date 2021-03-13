@@ -17,7 +17,7 @@ void main() {
   float lineWeight = clamp(thickness - rangeFromLine, 0.0, 1.0);
 
   // fancy colors:
-  color = vec4(0.5 + 0.25 * position, 1.0, lineWeight);
+  color = vec4(0.25 + 0.25 * position, 1.0, lineWeight);
 
   // boring colors:
   // color = vec4(0.3, 0.3, 0.3, lineWeight);
