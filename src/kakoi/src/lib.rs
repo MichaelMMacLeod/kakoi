@@ -1,4 +1,5 @@
 pub mod action;
+pub mod camera;
 pub mod circle;
 pub mod flat_action;
 pub mod flat_graph;
