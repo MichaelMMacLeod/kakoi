@@ -45,7 +45,7 @@ impl Uniforms {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
-    position: [f32; 2],
+    position: [f32; 3],
 }
 
 impl Vertex {
@@ -56,7 +56,7 @@ impl Vertex {
             attributes: &[wgpu::VertexAttribute {
                 offset: 0,
                 shader_location: 0,
-                format: wgpu::VertexFormat::Float2,
+                format: wgpu::VertexFormat::Float3,
             }],
         }
     }
@@ -64,35 +64,35 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [1.0, 1.0],
+        position: [1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-1.0, 1.0],
+        position: [-1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-1.0, -1.0],
+        position: [-1.0, -1.0, 0.0],
     },
     Vertex {
-        position: [1.0, 1.0],
+        position: [1.0, 1.0, 0.0],
     },
     Vertex {
-        position: [-1.0, -1.0],
+        position: [-1.0, -1.0, 0.0],
     },
     Vertex {
-        position: [1.0, -1.0],
+        position: [1.0, -1.0, 0.0],
     },
 ];
 
 #[derive(Debug)]
 struct Instance {
-    position: cgmath::Vector2<f32>,
+    position: cgmath::Vector3<f32>,
     radius: f32,
 }
 
 impl Instance {
     fn new(x: f32, y: f32, radius: f32) -> Self {
         Self {
-            position: cgmath::Vector2::new(x, y),
+            position: cgmath::Vector3::new(x, y, 0.0), // TODO
             radius,
         }
     }
@@ -101,16 +101,16 @@ impl Instance {
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: cgmath::Matrix3::from_translation(self.position).into(),
+            model: cgmath::Matrix4::from_translation(self.position).into(),
             radius: self.radius,
         }
     }
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct InstanceRaw {
-    model: [[f32; 3]; 3],
+    model: [[f32; 4]; 4],
     radius: f32,
 }
 
@@ -124,21 +124,26 @@ impl InstanceRaw {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float4,
                 },
                 wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    offset: size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float4,
                 },
                 wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    offset: size_of::<[f32; 8]>() as wgpu::BufferAddress,
                     shader_location: 3,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float4,
                 },
                 wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 9]>() as wgpu::BufferAddress,
+                    offset: size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 4,
+                    format: wgpu::VertexFormat::Float4,
+                },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                    shader_location: 5,
                     format: wgpu::VertexFormat::Float,
                 },
             ],
@@ -282,7 +287,7 @@ impl State {
             device.create_shader_module(&wgpu::include_spirv!("shaders/build/shader.frag.spv"));
 
         let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
+            eye: (0.0, 0.0, 3.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
             aspect: sc_desc.width as f32 / sc_desc.height as f32,
@@ -441,14 +446,40 @@ impl State {
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//
-//     #[test]
-//     fn magic0() {
-//         let instances = State::build_instances();
-//         dbg!(instances.len(), &instances);
-//         panic!();
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // #[test]
+    // fn magic0() {
+    //     let instances = State::build_instances();
+    //     dbg!(instances.len(), &instances);
+    //     panic!();
+    // }
+
+    #[test]
+    fn magic1() {
+        let mut u = Uniforms::new();
+        let camera = Camera {
+            eye: (0.0, 1.0, 2.0).into(),
+            target: (0.0, 0.0, 0.0).into(),
+            up: cgmath::Vector3::unit_y(),
+            aspect: 600.0 / 600.0,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0,
+        };
+        u.update_view_proj(&camera);
+
+        let i = Instance::new(2.3, 4.5, 100.0);
+        let raw_i = i.to_raw();
+        /*
+        1.0 0.0 0.0 2.3
+        0.0 1.0 0.0 4.5
+        0.0 0.0 1.0 0.0
+        0.0 0.0 0.0 1.0
+        */
+        dbg!(cgmath::Matrix4::from(u.view_proj) * cgmath::Matrix4::from(raw_i.model));
+        panic!();
+    }
+}
