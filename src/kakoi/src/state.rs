@@ -19,6 +19,7 @@ pub struct State {
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     camera: Camera,
+    uniforms: Uniforms,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
 }
@@ -389,6 +390,7 @@ impl State {
             instances,
             instance_buffer,
             camera,
+            uniforms,
             uniform_buffer,
             uniform_bind_group,
         }
@@ -402,7 +404,17 @@ impl State {
         self.size = new_size;
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
+        self.camera.aspect = new_size.width as f32 / new_size.height as f32;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+    }
+
+    pub fn update(&mut self) {
+        self.uniforms.update_view_proj(&self.camera);
+        self.queue.write_buffer(
+            &self.uniform_buffer,
+            0,
+            bytemuck::cast_slice(&[self.uniforms]),
+        );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {

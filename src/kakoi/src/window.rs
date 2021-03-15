@@ -31,12 +31,15 @@ pub fn create_window() {
                 // get keyboard input, etc. here
                 _ => {}
             },
-            Event::RedrawRequested(_) => match state.render() {
-                Ok(_) => {}
-                Err(wgpu::SwapChainError::Lost) => state.recreate_swap_chain(),
-                Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                Err(e) => eprintln!("{:?}", e),
-            },
+            Event::RedrawRequested(_) => {
+                state.update();
+                match state.render() {
+                    Ok(_) => {}
+                    Err(wgpu::SwapChainError::Lost) => state.recreate_swap_chain(),
+                    Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    Err(e) => eprintln!("{:?}", e),
+                }
+            }
             _ => {}
         }
     })
