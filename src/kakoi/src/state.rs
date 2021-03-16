@@ -414,6 +414,28 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
+    pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
+        use winit::event::*;
+        match event {
+            WindowEvent::MouseWheel {
+                delta: MouseScrollDelta::LineDelta(_, y),
+                ..
+            } => {
+                self.camera.eye.z *= 1.0 + 0.1 * y;
+                true
+            }
+            WindowEvent::CursorMoved {
+                position: winit::dpi::PhysicalPosition { x, y },
+                ..
+            } => {
+                self.camera.eye.x = *x as f32 / self.sc_desc.width as f32 - 0.5;
+                self.camera.eye.y = -*y as f32 / self.sc_desc.height as f32 + 0.5;
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub fn update(&mut self) {
         self.uniforms.update_view_proj(&self.camera);
         self.queue.write_buffer(

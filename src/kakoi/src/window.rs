@@ -29,7 +29,11 @@ pub fn create_window() {
                     state.resize(*physical_size);
                 }
                 // get keyboard input, etc. here
-                _ => {}
+                _ => {
+                    if state.input(&event) {
+                        window.request_redraw();
+                    }
+                }
             },
             Event::RedrawRequested(_) => {
                 state.update();
