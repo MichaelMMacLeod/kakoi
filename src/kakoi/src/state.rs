@@ -22,6 +22,7 @@ pub struct State {
     uniforms: Uniforms,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    vertex_buffer_data: Vec<Vertex>,
 }
 
 #[repr(C)]
@@ -61,28 +62,42 @@ impl Vertex {
             }],
         }
     }
-}
 
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [1.1, 1.1, 0.0],
-    },
-    Vertex {
-        position: [-1.1, 1.1, 0.0],
-    },
-    Vertex {
-        position: [-1.1, -1.1, 0.0],
-    },
-    Vertex {
-        position: [1.1, 1.1, 0.0],
-    },
-    Vertex {
-        position: [-1.1, -1.1, 0.0],
-    },
-    Vertex {
-        position: [1.1, -1.1, 0.0],
-    },
-];
+    fn make_circle(steps: u32, min_radius: f32, max_radius: f32) -> Vec<Vertex> {
+        let mut theta = 0.0;
+        let mut result = Vec::new();
+        let step = 2.0 * std::f32::consts::PI / steps as f32;
+        while theta < 2.0 * std::f32::consts::PI {
+            let (x1, y1) = (theta.cos(), theta.sin());
+            let (x2, y2) = ((theta + step).cos(), (theta + step).sin());
+            let v1 = Vertex {
+                position: [x1 * min_radius, y1 * min_radius, 0.0],
+            };
+            let v2 = Vertex {
+                position: [x2 * min_radius, y2 * min_radius, 0.0],
+            };
+            let v3 = Vertex {
+                position: [x1 * max_radius, y1 * max_radius, 0.0],
+            };
+            let v4 = Vertex {
+                position: [x1 * max_radius, y1 * max_radius, 0.0],
+            };
+            let v5 = Vertex {
+                position: [x2 * min_radius, y2 * min_radius, 0.0],
+            };
+            let v6 = Vertex {
+                position: [x2 * max_radius, y2 * max_radius, 0.0],
+            };
+            result.append(&mut [v1, v2, v3, v4, v5, v6].into());
+            theta += step;
+        }
+        result
+    }
+
+    fn circle() -> Vec<Vertex> {
+        Self::make_circle(100, 0.98, 1.0)
+    }
+}
 
 #[derive(Debug)]
 struct Instance {
@@ -103,11 +118,8 @@ impl Instance {
     fn to_raw(&self) -> InstanceRaw {
         let scale = cgmath::Matrix4::from_scale(self.radius);
         let translation = cgmath::Matrix4::from_translation(self.position);
-
-        // dbg!(translation * scale);
         InstanceRaw {
             model: (translation * scale).into(),
-            radius: self.radius,
         }
     }
 }
@@ -116,7 +128,6 @@ impl Instance {
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct InstanceRaw {
     model: [[f32; 4]; 4],
-    radius: f32,
 }
 
 impl InstanceRaw {
@@ -145,11 +156,6 @@ impl InstanceRaw {
                     offset: size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 4,
                     format: wgpu::VertexFormat::Float4,
-                },
-                wgpu::VertexAttribute {
-                    offset: size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 5,
-                    format: wgpu::VertexFormat::Float,
                 },
             ],
         }
@@ -274,9 +280,10 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&vertex_buffer_data),
             usage: wgpu::BufferUsage::VERTEX,
         });
 
@@ -365,7 +372,7 @@ impl State {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: wgpu::CullMode::Back,
+                cull_mode: wgpu::CullMode::None,
                 polygon_mode: wgpu::PolygonMode::Fill,
             },
             depth_stencil: None,
@@ -391,6 +398,7 @@ impl State {
             uniforms,
             uniform_buffer,
             uniform_bind_group,
+            vertex_buffer_data,
         }
     }
 
@@ -449,12 +457,11 @@ impl State {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             let width = self.sc_desc.width as f32;
             let height = self.sc_desc.height as f32;
-            if width > height {
-                render_pass.set_viewport((width - height) / 2.0, 0.0, height, height, 0.0, 1.0);
-            } else {
-                render_pass.set_viewport(0.0, (height - width) / 2.0, width, width, 0.0, 1.0);
-            }
-            render_pass.draw(0..6, 0..self.instances.len() as _);
+            render_pass.set_viewport(0.0, 0.0, width, height, 0.0, 1.0);
+            render_pass.draw(
+                0..self.vertex_buffer_data.len() as _,
+                0..self.instances.len() as _,
+            );
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -469,34 +476,52 @@ mod test {
 
     // #[test]
     // fn magic0() {
-    //     let instances = State::build_instances();
-    //     dbg!(instances.len(), &instances);
+    //     let verts = Vertex::make_circle(4, 0.9, 1.0);
+    //     let mut x_vals = Vec::new();
+    //     let mut y_vals = Vec::new();
+    //     for Vertex {
+    //         position: [x, y, _],
+    //     } in verts
+    //     {
+    //         x_vals.push(x);
+    //         y_vals.push(y);
+    //     }
+    //     eprint!("[");
+    //     for x in x_vals {
+    //         eprint!("{},", x)
+    //     }
+    //     eprintln!("]");
+    //     eprint!("[");
+    //     for y in y_vals {
+    //         eprint!("{},", y)
+    //     }
+    //     eprintln!("]");
     //     panic!();
     // }
 
-    #[test]
-    fn magic1() {
-        let mut u = Uniforms::new();
-        let camera = Camera {
-            eye: (0.0, 1.0, 2.0).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
-            aspect: 600.0 / 600.0,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
-        };
-        u.update_view_proj(&camera);
+    // #[test]
+    // fn magic1() {
+    //     let mut u = Uniforms::new();
+    //     let camera = Camera {
+    //         eye: (0.0, 1.0, 2.0).into(),
+    //         target: (0.0, 0.0, 0.0).into(),
+    //         up: cgmath::Vector3::unit_y(),
+    //         aspect: 600.0 / 600.0,
+    //         fovy: 45.0,
+    //         znear: 0.1,
+    //         zfar: 100.0,
+    //     };
+    //     u.update_view_proj(&camera);
 
-        let i = Instance::new(2.3, 4.5, 100.0);
-        let raw_i = i.to_raw();
-        /*
-        1.0 0.0 0.0 2.3
-        0.0 1.0 0.0 4.5
-        0.0 0.0 1.0 0.0
-        0.0 0.0 0.0 1.0
-        */
-        dbg!(cgmath::Matrix4::from(u.view_proj) * cgmath::Matrix4::from(raw_i.model));
-        panic!();
-    }
+    //     let i = Instance::new(2.3, 4.5, 100.0);
+    //     let raw_i = i.to_raw();
+    //     /*
+    //     1.0 0.0 0.0 2.3
+    //     0.0 1.0 0.0 4.5
+    //     0.0 0.0 1.0 0.0
+    //     0.0 0.0 0.0 1.0
+    //     */
+    //     dbg!(cgmath::Matrix4::from(u.view_proj) * cgmath::Matrix4::from(raw_i.model));
+    //     panic!();
+    // }
 }
