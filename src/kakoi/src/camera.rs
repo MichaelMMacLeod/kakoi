@@ -32,7 +32,9 @@ impl Camera {
     }
     pub fn build_view_projection_matrix(&self) -> Matrix4<f32> {
         let view = Matrix4::look_at(self.eye, self.target, self.up);
-        let proj = perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        dbg!(&view);
+        let proj = perspective(Deg(self.fovy), 1.0, self.znear, self.zfar);
+        dbg!(&proj);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 }

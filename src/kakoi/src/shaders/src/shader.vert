@@ -27,6 +27,8 @@ void main() {
   // v_center = vec2(0.2, 0.3);
   v_center = (transformation * vec4(0.0, 0.0, 0.0, 1.0)).xy;
   // v_center = vec2(0.0, 0.0);
-  v_radius = radius;
+  float what = (transformation * vec4(1.0, 0.0, 0.0, 1.0)).x - v_center.x;
+  // v_radius = what;
+  v_radius = what;
   gl_Position = p;
 }

@@ -101,8 +101,12 @@ impl Instance {
 
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
+        let scale = cgmath::Matrix4::from_scale(self.radius);
+        let translation = cgmath::Matrix4::from_translation(self.position);
+
+        // dbg!(translation * scale);
         InstanceRaw {
-            model: cgmath::Matrix4::from_translation(self.position).into(),
+            model: (translation * scale).into(),
             radius: self.radius,
         }
     }
@@ -162,6 +166,8 @@ impl State {
         let mut todo = VecDeque::new();
         todo.push_back((flat_graph.focused, 1.0, Point { x: 0.0, y: 0.0 }, 0));
         instances.push(Instance::new(0.0, 0.0, 1.0));
+        // instances.push(Instance::new(-0.5, 0.0, 0.5));
+        // instances.push(Instance::new(0.5, 0.0, 0.5));
 
         while let Some((index, radius, center, depth)) = todo.pop_front() {
             Self::build_instances_helper(
@@ -441,6 +447,13 @@ impl State {
             render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            let width = self.sc_desc.width as f32;
+            let height = self.sc_desc.height as f32;
+            if width > height {
+                render_pass.set_viewport((width - height) / 2.0, 0.0, height, height, 0.0, 1.0);
+            } else {
+                render_pass.set_viewport(0.0, (height - width) / 2.0, width, width, 0.0, 1.0);
+            }
             render_pass.draw(0..6, 0..self.instances.len() as _);
         }
 

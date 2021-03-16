@@ -9,7 +9,7 @@ pub fn create_window() {
     let event_loop = EventLoop::new();
 
     let min_size: winit::dpi::PhysicalSize<u32> = (200, 200).into();
-    let start_size: winit::dpi::PhysicalSize<u32> = (600, 600).into();
+    let start_size: winit::dpi::PhysicalSize<u32> = (1920, 1080).into();
     let window = winit::window::WindowBuilder::new()
         .with_title("kakoi")
         .with_min_inner_size(min_size)
