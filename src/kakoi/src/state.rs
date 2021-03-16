@@ -208,7 +208,7 @@ impl State {
                 Node::Leaf(_) => {}
                 Node::Branch(num_indications) => {
                     let circle_positioner = CirclePositioner::new(
-                        radius as f64,
+                        radius as f64 * 0.99,
                         *num_indications as u64,
                         0.0,
                         center,
