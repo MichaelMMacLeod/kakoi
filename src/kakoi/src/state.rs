@@ -65,22 +65,22 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.1, 1.1, 0.0],
     },
     Vertex {
-        position: [-1.0, 1.0, 0.0],
+        position: [-1.1, 1.1, 0.0],
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.1, -1.1, 0.0],
     },
     Vertex {
-        position: [1.0, 1.0, 0.0],
+        position: [1.1, 1.1, 0.0],
     },
     Vertex {
-        position: [-1.0, -1.0, 0.0],
+        position: [-1.1, -1.1, 0.0],
     },
     Vertex {
-        position: [1.0, -1.0, 0.0],
+        position: [1.1, -1.1, 0.0],
     },
 ];
 
