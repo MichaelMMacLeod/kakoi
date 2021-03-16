@@ -166,8 +166,8 @@ impl State {
     fn build_instances() -> Vec<Instance> {
         let flat_graph = FlatGraph::from_source(&mut Graph::make_naming_example());
 
-        let max_depth = 20;
-        let min_radius = 0.02;
+        let max_depth = 50;
+        let min_radius = 0.0002;
         let mut instances = Vec::new();
         let mut todo = VecDeque::new();
         todo.push_back((flat_graph.focused, 1.0, Point { x: 0.0, y: 0.0 }, 0));
