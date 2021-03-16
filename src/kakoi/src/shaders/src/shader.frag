@@ -2,7 +2,7 @@
 
 // https://gamedev.stackexchange.com/questions/141264/an-efficient-way-for-generating-smooth-circle
 
-// layout(location=0) in vec2 position;
+layout(location=0) in vec2 position;
 // layout(location=1) in vec2 center;
 // layout(location=2) in float r;
 layout(location=0) out vec4 color;
@@ -18,7 +18,7 @@ void main() {
   // float lineWeight = clamp(thickness - rangeFromLine, 0.0, 1.0);
 
   // // fancy colors: (doesn't display well on a white background)
-  // color = vec4(0.25 + 0.25 * position, 1.0, lineWeight * r * 1.5);
+  color = vec4(0.25 + 0.25 * position, 0.5, 1.0);
   // // color = vec4(center, 1.0, 0.5);
 
   // // boring colors:
