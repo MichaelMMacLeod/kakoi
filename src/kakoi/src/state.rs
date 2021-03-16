@@ -44,6 +44,9 @@ impl Uniforms {
     }
 }
 
+const MIN_RADIUS: f32 = 0.98;
+const MAX_RADIUS: f32 = 1.0;
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
@@ -95,7 +98,7 @@ impl Vertex {
     }
 
     fn circle() -> Vec<Vertex> {
-        Self::make_circle(100, 0.98, 1.0)
+        Self::make_circle(200, MIN_RADIUS, MAX_RADIUS)
     }
 }
 
@@ -208,7 +211,7 @@ impl State {
                 Node::Leaf(_) => {}
                 Node::Branch(num_indications) => {
                     let circle_positioner = CirclePositioner::new(
-                        radius as f64 * 0.99,
+                        (radius * MIN_RADIUS) as f64,
                         *num_indications as u64,
                         0.0,
                         center,
