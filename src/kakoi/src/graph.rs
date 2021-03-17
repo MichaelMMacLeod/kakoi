@@ -146,7 +146,7 @@ impl Graph {
         Some(result)
     }
 
-    fn reduce_mut(&self, node: &mut NodeIndex<u32>) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
+    pub fn reduce_mut(&self, node: &mut NodeIndex<u32>) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
         let result = self.reduce(*node);
         if let Some((from, _)) = result {
             *node = from;
@@ -428,8 +428,7 @@ impl Graph {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bitvec::prelude::*;
-    use petgraph::dot::{Config, Dot};
+    use petgraph::dot::Dot;
 
     #[test]
     fn process_actions_0() {
@@ -443,7 +442,7 @@ mod test {
             Action::Insert(bitvec![0, 1], l2),
             Action::Insert(bitvec![0, 0, 1], l3),
         ];
-        let mut queue = VecDeque::new();
+        let queue = VecDeque::new();
         let mut state = CIState::new(
             bitvec![],
             graph.reduce_until_indication(n0),
@@ -455,7 +454,7 @@ mod test {
         println!("{:?}", Dot::with_config(&graph.g, &[]));
 
         let actions2 = [Action::Remove(bitvec![0, 1])];
-        let mut queue2 = VecDeque::new();
+        let queue2 = VecDeque::new();
         let mut state2 = CIState::new(
             bitvec![],
             graph.reduce_until_indication(r1),

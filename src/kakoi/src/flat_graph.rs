@@ -159,14 +159,13 @@ impl FlatGraph {
         *&mut copy_graph[copy] = Node::Branch(counter);
     }
 
-    fn process_action(&mut self, action: Action) {
+    pub fn process_action(&mut self, action: Action) {
         match action {
             Action::Insert {
                 into,
                 position,
                 node,
             } => {
-                let parent = &mut self.g[into];
                 match &mut self.g[into] {
                     Node::Branch(num_indications) => {
                         *num_indications += 1;
@@ -190,7 +189,6 @@ impl FlatGraph {
                 self.modifications.entry(node).or_insert(Vec::new()).push(Modification::InsertedInto(into));
             }
             Action::Remove { from, position } => {
-                let node = &self.g[from];
                 if let Node::Leaf(_) = self.g[from] {
                     panic!("attempted to remove child of leaf");
                 }

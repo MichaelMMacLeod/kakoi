@@ -29,7 +29,6 @@ use anyhow::*;
 use glob::glob;
 use rayon::prelude::*;
 use std::{
-    env,
     fs::{read_to_string, write},
     path::PathBuf,
 };

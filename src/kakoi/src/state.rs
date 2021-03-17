@@ -2,7 +2,7 @@ use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Edge, FlatGraph, Node};
 use crate::graph::Graph;
-use petgraph::{graph::NodeIndex, visit::IntoNeighborsDirected, Direction};
+use petgraph::{graph::NodeIndex, Direction};
 use std::collections::VecDeque;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
@@ -497,7 +497,6 @@ impl State {
 
 #[cfg(test)]
 mod test {
-    use super::*;
 
     // #[test]
     // fn magic0() {

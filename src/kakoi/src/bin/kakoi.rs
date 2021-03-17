@@ -1,5 +1,4 @@
 use clap::{App, Arg};
-use std::env;
 
 fn main() {
     let matches = App::new("kakoi")
