@@ -169,7 +169,7 @@ impl FlatGraph {
                 match &mut self.g[into] {
                     Node::Branch(num_indications) => {
                         *num_indications += 1;
-                    },
+                    }
                     Node::Leaf(_) => panic!("attempt to insert into leaf"),
                 }
                 let mut neighbors = self
@@ -186,7 +186,10 @@ impl FlatGraph {
                     }
                 }
                 self.g.add_edge(into, node, Edge(position));
-                self.modifications.entry(node).or_insert(Vec::new()).push(Modification::InsertedInto(into));
+                self.modifications
+                    .entry(node)
+                    .or_insert(Vec::new())
+                    .push(Modification::InsertedInto(into));
             }
             Action::Remove { from, position } => {
                 if let Node::Leaf(_) = self.g[from] {
@@ -227,12 +230,12 @@ mod test {
 
     #[test]
     fn naming_example_0() {
-        let graph = FlatGraph::from_source(&mut Graph::make_naming_example());
+        let graph = FlatGraph::from_source(&mut Graph::make_double_example());
 
-        println!("{:?}", Dot::with_config(&graph.g, &[]));
+        // eprintln!("{:?}", Dot::with_config(&graph.g, &[]));
 
-        // panic!("PRINT THE GRAPH PLEASE"); uncomment me to see the the graph in graphviz dot
-        // You can use a program like xdot to view it.
+        panic!("PRINT THE GRAPH PLEASE"); // uncomment me to see the the graph in graphviz dot
+                                          // You can use a program like xdot to view it.
     }
 
     #[test]
@@ -257,9 +260,6 @@ mod test {
             position: 1,
             node,
         });
-        println!(
-            "{:?}",
-            Dot::with_config(&graph.g, &[])
-        );
+        println!("{:?}", Dot::with_config(&graph.g, &[]));
     }
 }

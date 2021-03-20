@@ -146,7 +146,10 @@ impl Graph {
         Some(result)
     }
 
-    pub fn reduce_mut(&self, node: &mut NodeIndex<u32>) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
+    pub fn reduce_mut(
+        &self,
+        node: &mut NodeIndex<u32>,
+    ) -> Option<(NodeIndex<u32>, NodeIndex<u32>)> {
         let result = self.reduce(*node);
         if let Some((from, _)) = result {
             *node = from;
@@ -332,6 +335,28 @@ impl Graph {
         }
 
         result
+    }
+
+    pub fn make_double_example() -> Self {
+        let mut graph = Graph::new();
+        let li = graph.insert_leaf("i".into());
+        let la = graph.insert_leaf("a".into());
+        let lm = graph.insert_leaf("m".into());
+        let n0 = graph.g.add_node(Node::Branch);
+        let n1 = graph.g.add_node(Node::Branch);
+        let n2 = graph.g.add_node(Node::Branch);
+        let n3 = graph.g.add_node(Node::Branch);
+        let n4 = graph.g.add_node(Node::Branch);
+        graph.g.add_edge(n0, li, Edge::Indication);
+        graph.g.add_edge(n1, la, Edge::Indication);
+        graph.g.add_edge(n3, n1, Edge::Indication);
+        graph.g.add_edge(n2, lm, Edge::Indication);
+        graph.g.add_edge(n4, n2, Edge::Indication);
+        graph.g.add_edge(n2, n0, Edge::Extension);
+        graph.g.add_edge(n1, n0, Edge::Extension);
+        graph.g.add_edge(n4, n3, Edge::Extension);
+        graph.focused = Some(n4);
+        graph
     }
 
     pub fn make_naming_example() -> Self {
