@@ -2,7 +2,6 @@ use crate::graph::{Graph, Node as GraphNode};
 use petgraph::graph::NodeIndex;
 use petgraph::stable_graph::StableGraph as GraphImpl;
 use petgraph::Directed;
-use petgraph::Direction;
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
@@ -14,29 +13,18 @@ pub enum Node {
     Leaf(String),
 }
 
-pub enum Action {
-    Insert {
-        into: NodeIndex<u32>,
-        position: u32,
-        node: NodeIndex<u32>,
-    },
-    Remove {
-        from: NodeIndex<u32>,
-        position: u32,
-    },
-}
-
-#[derive(Debug)]
-pub enum Modification {
-    Modified,
-    InsertedInto(NodeIndex<u32>),
-    RemovedFrom(NodeIndex<u32>),
+impl Node {
+    pub fn branch_value(&self) -> u32 {
+        match self {
+            Node::Branch(value) => *value,
+            _ => panic!("not a branch"),
+        }
+    }
 }
 
 pub struct FlatGraph {
     pub g: GraphImpl<Node, Edge, Directed, u32>,
-    pub focused: NodeIndex<u32>,
-    pub modifications: HashMap<NodeIndex<u32>, Vec<Modification>>,
+    pub focused: Option<NodeIndex<u32>>,
 }
 
 struct Todo {
@@ -44,7 +32,111 @@ struct Todo {
     copy: NodeIndex<u32>,
 }
 
+pub enum Group {
+    Existing {
+        index: NodeIndex<u32>,
+        position: u32,
+    },
+    New,
+}
+
+pub enum Insertion {
+    Existing { index: NodeIndex<u32> },
+    New { leaf: String },
+}
+
 impl FlatGraph {
+    pub fn new() -> Self {
+        FlatGraph {
+            g: GraphImpl::new(),
+            focused: None,
+        }
+    }
+
+    fn prepare_group(&mut self, group: NodeIndex<u32>, position: u32) {
+        // TODO: check for overflow bugs here
+
+        let branch = &mut self.g[group];
+        match branch {
+            Node::Branch(n) => *branch = Node::Branch(*n + 1),
+            Node::Leaf(_) => panic!("attempted to insert into leaf"),
+        }
+
+        use petgraph::visit::EdgeRef;
+        let edges = self
+            .g
+            .edges(group)
+            .into_iter()
+            .map(|r| r.id())
+            .collect::<Vec<_>>();
+        for edge in edges {
+            let edge = &mut self.g[edge];
+            match edge {
+                Edge(n) if *n >= position => {
+                    *edge = Edge(*n + 1);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn populate_empty_group(&mut self, group: NodeIndex<u32>, members: Vec<Insertion>) {
+        let mut current_position = 0;
+
+        for member in members {
+            match member {
+                Insertion::Existing { index: indication } => {
+                    self.g.add_edge(group, indication, Edge(current_position));
+                }
+                Insertion::New { leaf } => {
+                    let indication = self.g.add_node(Node::Leaf(leaf));
+                    self.g.add_edge(group, indication, Edge(current_position));
+                }
+            }
+            current_position += 1;
+        }
+    }
+
+    pub fn group(&mut self, into: Group, members: Vec<Insertion>) -> Option<NodeIndex<u32>> {
+        use std::convert::TryInto;
+
+        let num_indications = members.len().try_into().unwrap();
+
+        match into {
+            Group::Existing { index, position } => match num_indications {
+                0 => Some(index),
+                1 => {
+                    let node_to_insert = match &members[0] {
+                        Insertion::New { leaf } => self.g.add_node(Node::Leaf(leaf.clone())),
+                        Insertion::Existing { index } => *index,
+                    };
+                    self.prepare_group(index, position);
+                    self.g.add_edge(index, node_to_insert, Edge(position));
+                    Some(index)
+                }
+                _ => {
+                    let node_to_insert = self.g.add_node(Node::Branch(num_indications));
+                    self.prepare_group(index, position);
+                    self.g.add_edge(index, node_to_insert, Edge(position));
+                    self.populate_empty_group(node_to_insert, members);
+                    Some(index)
+                }
+            },
+            Group::New => match num_indications {
+                0 => None,
+                1 => match &members[0] {
+                    Insertion::New { leaf } => Some(self.g.add_node(Node::Leaf(leaf.clone()))),
+                    Insertion::Existing { index } => Some(*index),
+                },
+                _ => {
+                    let node_to_insert = self.g.add_node(Node::Branch(num_indications));
+                    self.populate_empty_group(node_to_insert, members);
+                    Some(node_to_insert)
+                }
+            },
+        }
+    }
+
     // Flattens a source graph into a FlatGraph.
     //
     // Only groups indicated by the focused node in the source graph will be
@@ -79,8 +171,7 @@ impl FlatGraph {
 
         FlatGraph {
             g: copy_graph,
-            focused: focused_copy,
-            modifications: HashMap::new(),
+            focused: Some(focused_copy),
         }
     }
 
@@ -159,67 +250,42 @@ impl FlatGraph {
         *&mut copy_graph[copy] = Node::Branch(counter);
     }
 
-    pub fn process_action(&mut self, action: Action) {
-        match action {
-            Action::Insert {
-                into,
-                position,
-                node,
-            } => {
-                match &mut self.g[into] {
-                    Node::Branch(num_indications) => {
-                        *num_indications += 1;
-                    }
-                    Node::Leaf(_) => panic!("attempt to insert into leaf"),
-                }
-                let mut neighbors = self
-                    .g
-                    .neighbors_directed(into, Direction::Outgoing)
-                    .detach();
-                while let Some((e, _)) = neighbors.next(&self.g) {
-                    let edge = &mut self.g[e];
-                    match edge {
-                        Edge(edge_number) if *edge_number >= position => {
-                            *edge_number += 1;
-                        }
-                        _ => {}
-                    }
-                }
-                self.g.add_edge(into, node, Edge(position));
-                self.modifications
-                    .entry(node)
-                    .or_insert(Vec::new())
-                    .push(Modification::InsertedInto(into));
-            }
-            Action::Remove { from, position } => {
-                if let Node::Leaf(_) = self.g[from] {
-                    panic!("attempted to remove child of leaf");
-                }
-                let mut neighbors = self
-                    .g
-                    .neighbors_directed(from, Direction::Outgoing)
-                    .detach();
-                let index_to_remove = loop {
-                    match neighbors.next(&self.g) {
-                        Some((e, n)) => {
-                            let edge_number = match self.g[e] {
-                                Edge(edge_number) => edge_number,
-                            };
-                            if edge_number == position {
-                                break n;
-                            }
-                        }
-                        None => {
-                            panic!(r#"attempted to remove non-existent edge"#);
-                        }
-                    }
-                };
-                self.modifications
-                    .entry(index_to_remove)
-                    .or_insert(Vec::new())
-                    .push(Modification::RemovedFrom(from));
-            }
+    pub fn naming_example() -> Self {
+        fn make_leaf_insertions(leafs: &[&str]) -> Vec<Insertion> {
+            leafs
+            .iter()
+            .map(|&c| Insertion::New { leaf: c.into() })
+            .collect()
         }
+        let mut graph = FlatGraph::new();
+        let consonants = make_leaf_insertions(&[
+            "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v",
+            "w", "x", "y", "z",
+        ]);
+        let consonant_index = graph.group(Group::New, consonants).unwrap();
+        let vowels = make_leaf_insertions(&["a", "e", "i", "o", "u"]);
+        let vowel_index = graph.group(Group::New, vowels).unwrap();
+        let named_consonant_index = graph.group(Group::New, vec![
+            Insertion::Existing { index: consonant_index },
+            Insertion::New { leaf: "consonant".into() },
+        ]).unwrap();
+        let named_vowel_index = graph.group(Group::New, vec![
+            Insertion::Existing { index: vowel_index },
+            Insertion::New { leaf: "vowel".into() },
+        ]).unwrap();
+        let name_index = graph.group(Group::New, vec![
+            Insertion::Existing { index: named_consonant_index },
+            Insertion::Existing { index: named_vowel_index },
+        ]).unwrap();
+        let named_name_index = graph.group(Group::New, vec![
+            Insertion::Existing { index: name_index },
+            Insertion::New { leaf: "naming".into() },
+        ]).unwrap();
+        graph.group(Group::Existing { index: name_index, position: 0 }, vec![
+            Insertion::Existing { index: named_name_index },
+        ]);
+        graph.focused = Some(name_index);
+        graph
     }
 }
 
@@ -229,37 +295,19 @@ mod test {
     use petgraph::dot::Dot;
 
     #[test]
+    fn example_1() {
+        let graph = FlatGraph::naming_example();
+        eprintln!("{:?}", Dot::with_config(&graph.g, &[]));
+    }
+
+    #[test]
     fn naming_example_0() {
-        let graph = FlatGraph::from_source(&mut Graph::make_double_example());
+        //
+        // let graph = FlatGraph::from_source(&mut Graph::make_double_example());
 
         // eprintln!("{:?}", Dot::with_config(&graph.g, &[]));
 
-        panic!("PRINT THE GRAPH PLEASE"); // uncomment me to see the the graph in graphviz dot
-                                          // You can use a program like xdot to view it.
-    }
-
-    #[test]
-    fn process_action_0() {
-        let mut graph = FlatGraph::from_source(&mut Graph::make_naming_example());
-        graph.process_action(Action::Remove {
-            from: graph.focused,
-            position: 2,
-        });
-        println!(
-            "{:?}",
-            Dot::with_config(&graph.g, &[petgraph::dot::Config::NodeIndexLabel])
-        );
-    }
-
-    #[test]
-    fn process_action_1() {
-        let mut graph = FlatGraph::from_source(&mut Graph::make_naming_example());
-        let node = graph.g.add_node(Node::Leaf("Inserted".into()));
-        graph.process_action(Action::Insert {
-            into: graph.focused,
-            position: 1,
-            node,
-        });
-        println!("{:?}", Dot::with_config(&graph.g, &[]));
+        // panic!("PRINT THE GRAPH PLEASE"); // uncomment me to see the the graph in graphviz dot
+        // You can use a program like xdot to view it.
     }
 }

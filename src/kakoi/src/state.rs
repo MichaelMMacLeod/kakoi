@@ -1,7 +1,6 @@
 use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Edge, FlatGraph, Node};
-use crate::graph::Graph;
 use petgraph::{graph::NodeIndex, Direction};
 use std::collections::VecDeque;
 use wgpu::util::DeviceExt;
@@ -167,14 +166,16 @@ impl InstanceRaw {
 
 impl State {
     fn build_instances() -> Vec<Instance> {
-        let flat_graph = FlatGraph::from_source(&mut Graph::make_naming_example());
+        let flat_graph = FlatGraph::naming_example();
 
         let max_depth = 50;
         let min_radius = 0.0002;
         let mut instances = Vec::new();
         let mut todo = VecDeque::new();
-        todo.push_back((flat_graph.focused, 1.0, Point { x: 0.0, y: 0.0 }, 0));
-        instances.push(Instance::new(0.0, 0.0, 1.0));
+        if let Some(focused_index) = flat_graph.focused {
+            todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
+            instances.push(Instance::new(0.0, 0.0, 1.0));
+        }
         // instances.push(Instance::new(-0.5, 0.0, 0.5));
         // instances.push(Instance::new(0.5, 0.0, 0.5));
 
