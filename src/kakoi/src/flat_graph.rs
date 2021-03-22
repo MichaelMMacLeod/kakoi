@@ -53,10 +53,15 @@ impl FlatGraph {
         }
     }
 
-    fn prepare_group(&mut self, group: NodeIndex<u32>, position: u32) {
+    // Prepares a group for the addition of an indication at a specified
+    // position.
+    //
+    // `enclose` must point to a Node::Branch. This is checked, and will panic
+    // if not satisfied.
+    fn prepare_group(&mut self, enclose: NodeIndex<u32>, position: u32) {
         // TODO: check for overflow bugs here
 
-        let branch = &mut self.g[group];
+        let branch = &mut self.g[enclose];
         match branch {
             Node::Branch(n) => *branch = Node::Branch(*n + 1),
             Node::Leaf(_) => panic!("attempted to insert into leaf"),
@@ -65,7 +70,7 @@ impl FlatGraph {
         use petgraph::visit::EdgeRef;
         let edges = self
             .g
-            .edges(group)
+            .edges(enclose)
             .into_iter()
             .map(|r| r.id())
             .collect::<Vec<_>>();
@@ -80,24 +85,36 @@ impl FlatGraph {
         }
     }
 
-    fn populate_empty_group(&mut self, group: NodeIndex<u32>, members: Vec<Insertion>) {
+    // Adds indications of `members`, in order, into the group specified by
+    // `enclose`.
+    //
+    // `enclose` must point to a Node::Branch. This is not checked.
+    //
+    // `members` should be of length at least two. This is not checked.
+    fn populate_empty_group(&mut self, enclose: NodeIndex<u32>, members: Vec<Insertion>) {
         let mut current_position = 0;
 
         for member in members {
             match member {
                 Insertion::Existing { index: indication } => {
-                    self.g.add_edge(group, indication, Edge(current_position));
+                    self.g.add_edge(enclose, indication, Edge(current_position));
                 }
                 Insertion::New { leaf } => {
                     let indication = self.g.add_node(Node::Leaf(leaf));
-                    self.g.add_edge(group, indication, Edge(current_position));
+                    self.g.add_edge(enclose, indication, Edge(current_position));
                 }
             }
             current_position += 1;
         }
     }
 
-    pub fn group(&mut self, into: Group, members: Vec<Insertion>) -> Option<NodeIndex<u32>> {
+    // Creates or locates a group that indicates `members`, possibly by
+    // modifying an existing group. Returns its index if such a group would have
+    // at least one indication, otherwise, returns None.
+    //
+    // The returned index can point to either a Node::Branch or a Node::Leaf,
+    // depending on the arguments.
+    pub fn enclose(&mut self, into: Group, members: Vec<Insertion>) -> Option<NodeIndex<u32>> {
         use std::convert::TryInto;
 
         let num_indications = members.len().try_into().unwrap();
@@ -178,10 +195,10 @@ impl FlatGraph {
     // Helper function for from_source that should only be called from
     // from_source.
     //
-    // Processes a single group in the source graph. Before this function is
-    // called a copy of the start of the group is present in the flat graph.
+    // Processes a single enclose in the source graph. Before this function is
+    // called a copy of the start of the enclose is present in the flat graph.
     // After this function is called, that node will have edges emanating out of
-    // it which point to copies of the nodes that the corresponding group in the
+    // it which point to copies of the nodes that the corresponding enclose in the
     // source graph indicates. Each of the indicated nodes are then added to a
     // queue so they can each, in turn, be processed by this function.
     //
@@ -189,7 +206,7 @@ impl FlatGraph {
     // source_graph: the graph that is being flattened
     // source: an index being currently flattened in the source_graph
     // copy: the index corresponding to `source` in copy_graph.
-    // todo_queue: this function will push_back nodes that the group `source`
+    // todo_queue: this function will push_back nodes that the enclose `source`
     //             indicates so that they can be later processed by this
     //             function
     // identity_map: A single node in the copy graph corresponds to one or more
@@ -253,37 +270,75 @@ impl FlatGraph {
     pub fn naming_example() -> Self {
         fn make_leaf_insertions(leafs: &[&str]) -> Vec<Insertion> {
             leafs
-            .iter()
-            .map(|&c| Insertion::New { leaf: c.into() })
-            .collect()
+                .iter()
+                .map(|&c| Insertion::New { leaf: c.into() })
+                .collect()
         }
         let mut graph = FlatGraph::new();
         let consonants = make_leaf_insertions(&[
             "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v",
             "w", "x", "y", "z",
         ]);
-        let consonant_index = graph.group(Group::New, consonants).unwrap();
+        let consonant_index = graph.enclose(Group::New, consonants).unwrap();
         let vowels = make_leaf_insertions(&["a", "e", "i", "o", "u"]);
-        let vowel_index = graph.group(Group::New, vowels).unwrap();
-        let named_consonant_index = graph.group(Group::New, vec![
-            Insertion::Existing { index: consonant_index },
-            Insertion::New { leaf: "consonant".into() },
-        ]).unwrap();
-        let named_vowel_index = graph.group(Group::New, vec![
-            Insertion::Existing { index: vowel_index },
-            Insertion::New { leaf: "vowel".into() },
-        ]).unwrap();
-        let name_index = graph.group(Group::New, vec![
-            Insertion::Existing { index: named_consonant_index },
-            Insertion::Existing { index: named_vowel_index },
-        ]).unwrap();
-        let named_name_index = graph.group(Group::New, vec![
-            Insertion::Existing { index: name_index },
-            Insertion::New { leaf: "naming".into() },
-        ]).unwrap();
-        graph.group(Group::Existing { index: name_index, position: 0 }, vec![
-            Insertion::Existing { index: named_name_index },
-        ]);
+        let vowel_index = graph.enclose(Group::New, vowels).unwrap();
+        let named_consonant_index = graph
+            .enclose(
+                Group::New,
+                vec![
+                    Insertion::Existing {
+                        index: consonant_index,
+                    },
+                    Insertion::New {
+                        leaf: "consonant".into(),
+                    },
+                ],
+            )
+            .unwrap();
+        let named_vowel_index = graph
+            .enclose(
+                Group::New,
+                vec![
+                    Insertion::Existing { index: vowel_index },
+                    Insertion::New {
+                        leaf: "vowel".into(),
+                    },
+                ],
+            )
+            .unwrap();
+        let name_index = graph
+            .enclose(
+                Group::New,
+                vec![
+                    Insertion::Existing {
+                        index: named_consonant_index,
+                    },
+                    Insertion::Existing {
+                        index: named_vowel_index,
+                    },
+                ],
+            )
+            .unwrap();
+        let named_name_index = graph
+            .enclose(
+                Group::New,
+                vec![
+                    Insertion::Existing { index: name_index },
+                    Insertion::New {
+                        leaf: "naming".into(),
+                    },
+                ],
+            )
+            .unwrap();
+        graph.enclose(
+            Group::Existing {
+                index: name_index,
+                position: 0,
+            },
+            vec![Insertion::Existing {
+                index: named_name_index,
+            }],
+        );
         graph.focused = Some(name_index);
         graph
     }
