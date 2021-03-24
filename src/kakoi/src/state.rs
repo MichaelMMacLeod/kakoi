@@ -3,7 +3,7 @@ use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Edge, FlatGraph, Node};
 use crate::render;
 use petgraph::{graph::NodeIndex, Direction};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Mul};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -28,6 +28,15 @@ pub struct State {
     local_spawner: futures::executor::LocalSpawner,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
     text_constraint_builder: render::TextConstraintBuilder,
+    sampling_config: SamplingConfig,
+}
+
+enum SamplingConfig {
+    Single,
+    Multi {
+        sample_count: u32,
+        multisampled_framebuffer: wgpu::TextureView,
+    },
 }
 
 #[repr(C)]
@@ -196,6 +205,31 @@ impl InstanceRaw {
 }
 
 impl State {
+    fn create_mutisampled_framebuffer(
+        device: &wgpu::Device,
+        sc_desc: &wgpu::SwapChainDescriptor,
+        sample_count: u32,
+    ) -> wgpu::TextureView {
+        let multisampled_texture_extent = wgpu::Extent3d {
+            width: sc_desc.width,
+            height: sc_desc.height,
+            depth: 1,
+        };
+        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
+            size: multisampled_texture_extent,
+            mip_level_count: 1,
+            sample_count,
+            dimension: wgpu::TextureDimension::D2,
+            format: sc_desc.format,
+            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+            label: Some("multisampled_frame"),
+        };
+
+        device
+            .create_texture(multisampled_frame_descriptor)
+            .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+
     fn build_instances(
         text_constraint_builder: &mut render::TextConstraintBuilder,
     ) -> Vec<Instance> {
@@ -386,6 +420,14 @@ impl State {
             label: Some("uniform_bind_group"),
         });
 
+        let sample_count = 4;
+        let multisampled_framebuffer =
+            Self::create_mutisampled_framebuffer(&device, &sc_desc, sample_count);
+        let sampling_config = SamplingConfig::Multi {
+            sample_count,
+            multisampled_framebuffer,
+        };
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
@@ -420,7 +462,7 @@ impl State {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: sample_count,
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
@@ -465,6 +507,7 @@ impl State {
             local_spawner,
             glyph_brush,
             text_constraint_builder,
+            sampling_config,
         }
     }
 
@@ -478,6 +521,15 @@ impl State {
         self.sc_desc.height = new_size.height;
         self.camera.aspect = new_size.width as f32 / new_size.height as f32;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+        self.sampling_config = match self.sampling_config {
+            SamplingConfig::Single => SamplingConfig::Single,
+            SamplingConfig::Multi { sample_count, .. } => {
+                SamplingConfig::Multi {
+                    sample_count,
+                    multisampled_framebuffer: Self::create_mutisampled_framebuffer(&self.device, &self.sc_desc, sample_count),
+                }
+            }
+        };
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
@@ -521,29 +573,53 @@ impl State {
             });
 
         {
-
-             // This is supposed to be rgb(33,33,33,256), but it ends up being a bit too dark on screen.
-             // I don't know why---if you have more knowledge of color spaces, please help!
-             //
-             // get_swap_chain_preferred_format: https://docs.rs/wgpu/0.7.0/wgpu/struct.Adapter.html#method.get_swap_chain_preferred_format
-             //   - This returns Bgra8UnormSrgb on my computer.
-             // sRGB color space: https://en.wikipedia.org/wiki/SRGB
+            // This is supposed to be rgb(33,33,33,256), but it ends up being a bit too dark on screen.
+            // I don't know why---if you have more knowledge of color spaces, please help!
+            //
+            // get_swap_chain_preferred_format: https://docs.rs/wgpu/0.7.0/wgpu/struct.Adapter.html#method.get_swap_chain_preferred_format
+            //   - This returns Bgra8UnormSrgb on my computer.
+            // sRGB color space: https://en.wikipedia.org/wiki/SRGB
             let grayish_color = (33.0f64 / 256.0f64).powf(2.2f64);
+
+            let color_attachment_descriptor = match &self.sampling_config {
+                SamplingConfig::Single => {
+                    wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: &frame.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: grayish_color,
+                                g: grayish_color,
+                                b: grayish_color,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    }
+                },
+                SamplingConfig::Multi {
+                    sample_count,
+                    multisampled_framebuffer,
+                } => {
+                    wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: multisampled_framebuffer,
+                        resolve_target: Some(&frame.view),
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: grayish_color,
+                                g: grayish_color,
+                                b: grayish_color,
+                                a: 1.0,
+                            }),
+                            store: true,
+                        },
+                    }
+                },
+            };
+
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: grayish_color,
-                            g: grayish_color,
-                            b: grayish_color,
-                            a: 1.0,
-                        }),
-                        store: true,
-                    },
-                }],
+                color_attachments: &[color_attachment_descriptor],
                 depth_stencil_attachment: None,
             });
 
