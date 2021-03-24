@@ -290,7 +290,7 @@ impl FlatGraph {
                         index: consonant_index,
                     },
                     Insertion::New {
-                        leaf: "consonant".into(),
+                        leaf: "Consonant".into(),
                     },
                 ],
             )
@@ -301,7 +301,7 @@ impl FlatGraph {
                 vec![
                     Insertion::Existing { index: vowel_index },
                     Insertion::New {
-                        leaf: "vowel".into(),
+                        leaf: "Vowel".into(),
                     },
                 ],
             )
@@ -325,7 +325,7 @@ impl FlatGraph {
                 vec![
                     Insertion::Existing { index: name_index },
                     Insertion::New {
-                        leaf: "naming".into(),
+                        leaf: "Naming".into(),
                     },
                 ],
             )

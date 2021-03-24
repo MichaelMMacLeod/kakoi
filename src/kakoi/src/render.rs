@@ -137,11 +137,13 @@ impl TextConstraintInstance {
 
         section.text[0].scale = current_scale;
 
-        let mut iterations = 0;
-
+        // Perform a binary search between [min_scale, max_scale] for the
+        // correct text scale. We stop our search when the difference between
+        // our previous and current text scale is small enough to not effect its
+        // bounding box (i.e., the bounding box drawn from the current text
+        // scale has the same dimensions as the bounding box drawn from the
+        // previous text scale).
         while Some(current_scale) != previous_scale {
-            // eprintln!("Binary searching[{}]", iterations);
-            iterations += 1;
             match glyph_brush.glyph_bounds(&section.clone()) {
                 Some(rect) => {
                     previous_scale = Some(current_scale);
@@ -150,17 +152,6 @@ impl TextConstraintInstance {
                     width = rect_width;
                     height = rect_height;
                     let max_dimension = rect_width.max(rect_height);
-                    // eprintln!(
-                    //     "Searching[{}]. [{},{},{}] max={}, width={}, height={}. Target: {}",
-                    //     iterations,
-                    //     min_scale.y,
-                    //     current_scale.y,
-                    //     max_scale.y,
-                    //     max_dimension,
-                    //     rect_width,
-                    //     rect_height,
-                    //     target
-                    // );
                     if max_dimension > target {
                         max_scale = current_scale;
                     } else {
@@ -189,24 +180,27 @@ pub struct TextConstraintRenderer<'b> {
 impl<'b> TextConstraintRenderer<'b> {
     pub fn render(&mut self) {
         for instance in self.text_constraint_instances {
-            let section = wgpu_glyph::Section {
-                screen_position: (-instance.width * 0.5, -instance.height * 0.5),
-                bounds: (f32::INFINITY, f32::INFINITY),
-                text: vec![wgpu_glyph::Text::new(&instance.text)
-                    .with_color([0.0, 0.0, 0.0, 1.0])
-                    .with_scale(instance.scale)],
-                ..wgpu_glyph::Section::default()
-            };
-            self.glyph_brush.queue(&section);
-            self.glyph_brush
-                .draw_queued_with_transform(
-                    self.device,
-                    self.staging_belt,
-                    self.encoder,
-                    self.texture_view,
-                    instance.transformation,
-                )
-                .unwrap(); // It seems like this function always returns Ok(())...?
+            // Don't draw text that is too small to be seen clearly.
+            if instance.scale > 10.0 {
+                let section = wgpu_glyph::Section {
+                    screen_position: (-instance.width * 0.5, -instance.height * 0.5),
+                    bounds: (f32::INFINITY, f32::INFINITY),
+                    text: vec![wgpu_glyph::Text::new(&instance.text)
+                        .with_color([0.0, 0.0, 0.0, 1.0])
+                        .with_scale(instance.scale)],
+                    ..wgpu_glyph::Section::default()
+                };
+                self.glyph_brush.queue(&section);
+                self.glyph_brush
+                    .draw_queued_with_transform(
+                        self.device,
+                        self.staging_belt,
+                        self.encoder,
+                        self.texture_view,
+                        instance.transformation,
+                    )
+                    .unwrap(); // It seems like this function always returns Ok(())...?
+            }
         }
     }
 }

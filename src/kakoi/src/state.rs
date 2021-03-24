@@ -26,7 +26,6 @@ pub struct State {
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
-    texture_format: wgpu::TextureFormat,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
     text_constraint_builder: render::TextConstraintBuilder,
 }
@@ -435,17 +434,22 @@ impl State {
             },
         });
 
-        let staging_belt = wgpu::util::StagingBelt::new(1024);
+        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
+        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
+        // base this number on an estimate of how much data we would upload into
+        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
+        // for more information.
+        let staging_belt = wgpu::util::StagingBelt::new(4096);
 
         let local_pool = futures::executor::LocalPool::new();
         let local_spawner = local_pool.spawner();
 
         let glyph_brush = {
-            let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
-                "Inconsolata-Regular.ttf"
+            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+                "resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
             ))
             .unwrap();
-            wgpu_glyph::GlyphBrushBuilder::using_font(inconsolata).build(&device, texture_format)
+            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, texture_format)
         };
 
         Self {
@@ -464,7 +468,6 @@ impl State {
             uniform_buffer,
             uniform_bind_group,
             vertex_buffer_data,
-            texture_format,
             staging_belt,
             local_pool,
             local_spawner,
@@ -556,26 +559,6 @@ impl State {
                 0..self.instances.len() as _,
             );
         }
-
-        // let text_section = wgpu_glyph::Section {
-        //     screen_position: (0.0, 0.0),
-        //     bounds: (f32::INFINITY, f32::INFINITY),
-        //     text: vec![wgpu_glyph::Text::new("Hello, world!")
-        //         .with_color([0.0, 0.0, 0.0, 1.0])
-        //         .with_scale(200.0)],
-        //     ..wgpu_glyph::Section::default()
-        // };
-        // self.glyph_brush.queue(text_section);
-        // self.glyph_brush
-        //     .draw_queued(
-        //         &self.device,
-        //         &mut self.staging_belt,
-        //         &mut encoder,
-        //         &frame.view,
-        //         self.sc_desc.width,
-        //         self.sc_desc.height,
-        //     )
-        //     .expect("Draw queued");
 
         let text_constraint_instances = self.text_constraint_builder.build_instances(
             &mut self.glyph_brush,
