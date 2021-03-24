@@ -406,16 +406,8 @@ impl State {
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
                     format: sc_desc.format,
-                    alpha_blend: wgpu::BlendState {
-                        src_factor: wgpu::BlendFactor::One,
-                        dst_factor: wgpu::BlendFactor::One,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    color_blend: wgpu::BlendState {
-                        src_factor: wgpu::BlendFactor::SrcAlpha,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
+                    alpha_blend: wgpu::BlendState::REPLACE,
+                    color_blend: wgpu::BlendState::REPLACE,
                     write_mask: wgpu::ColorWrite::ALL,
                 }],
             }),
@@ -529,6 +521,14 @@ impl State {
             });
 
         {
+
+             // This is supposed to be rgb(33,33,33,256), but it ends up being a bit too dark on screen.
+             // I don't know why---if you have more knowledge of color spaces, please help!
+             //
+             // get_swap_chain_preferred_format: https://docs.rs/wgpu/0.7.0/wgpu/struct.Adapter.html#method.get_swap_chain_preferred_format
+             //   - This returns Bgra8UnormSrgb on my computer.
+             // sRGB color space: https://en.wikipedia.org/wiki/SRGB
+            let grayish_color = (33.0f64 / 256.0f64).powf(2.2f64);
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
@@ -536,9 +536,9 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
+                            r: grayish_color,
+                            g: grayish_color,
+                            b: grayish_color,
                             a: 1.0,
                         }),
                         store: true,

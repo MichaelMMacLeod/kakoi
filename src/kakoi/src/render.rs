@@ -197,7 +197,7 @@ impl<'b> TextConstraintRenderer<'b> {
     pub fn render(&mut self) {
         for instance in self.text_constraint_instances {
             // Don't draw text that is too small to be seen clearly.
-            if instance.scale > 10.0 {
+            if instance.scale > 5.0 {
                 let section = wgpu_glyph::Section {
                     screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                     bounds: (f32::INFINITY, f32::INFINITY),
