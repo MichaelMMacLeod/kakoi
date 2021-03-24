@@ -1,6 +1,7 @@
 use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Edge, FlatGraph, Node};
+use crate::render;
 use petgraph::{graph::NodeIndex, Direction};
 use std::collections::VecDeque;
 use wgpu::util::DeviceExt;
@@ -22,6 +23,11 @@ pub struct State {
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     vertex_buffer_data: Vec<Vertex>,
+    staging_belt: wgpu::util::StagingBelt,
+    local_pool: futures::executor::LocalPool,
+    local_spawner: futures::executor::LocalSpawner,
+    texture_format: wgpu::TextureFormat,
+    glyph_brush: wgpu_glyph::GlyphBrush<()>,
 }
 
 #[repr(C)]
@@ -98,6 +104,31 @@ impl Vertex {
 
     fn circle() -> Vec<Vertex> {
         Self::make_circle(200, MIN_RADIUS, MAX_RADIUS)
+    }
+}
+
+struct TextLeaf<'a> {
+    bounding_square_center: cgmath::Vector3<f32>,
+    bounding_square_size: f32,
+    text_width: f32,
+    text_height: f32,
+    text: &'a String,
+}
+
+impl<'a> TextLeaf<'a> {
+    fn get_projection(&self, camera: &Camera, size: f32) -> [f32; 16] {
+        let t = cgmath::Matrix4::from_nonuniform_scale(2.0 / size, 2.0 / size, 1.0);
+        let t = cgmath::Matrix4::from_nonuniform_scale(1.0, -1.0, 1.0) * t;
+        let t = cgmath::Matrix4::from_scale(self.bounding_square_size) * t;
+        let mut t = cgmath::Matrix4::from_translation(
+            self.bounding_square_center
+                - cgmath::Vector3::new(1.0, -1.0, 0.0) * self.bounding_square_size / 2.0,
+        ) * t;
+        *(camera.build_view_projection_matrix() * t).as_mut()
+    }
+
+    fn get_text(&self) -> wgpu_glyph::Text {
+        wgpu_glyph::Text::new(self.text).with_color([1.0, 1.0, 1.0, 1.0])
     }
 }
 
@@ -274,9 +305,11 @@ impl State {
             .await
             .unwrap();
 
+        let texture_format = adapter.get_swap_chain_preferred_format(&surface);
+
         let sc_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            format: adapter.get_swap_chain_preferred_format(&surface),
+            format: texture_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -387,6 +420,19 @@ impl State {
             },
         });
 
+        let staging_belt = wgpu::util::StagingBelt::new(1024);
+
+        let local_pool = futures::executor::LocalPool::new();
+        let local_spawner = local_pool.spawner();
+
+        let glyph_brush = {
+            let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+                "Inconsolata-Regular.ttf"
+            ))
+            .unwrap();
+            wgpu_glyph::GlyphBrushBuilder::using_font(inconsolata).build(&device, texture_format)
+        };
+
         Self {
             surface,
             device,
@@ -403,6 +449,11 @@ impl State {
             uniform_buffer,
             uniform_bind_group,
             vertex_buffer_data,
+            texture_format,
+            staging_belt,
+            local_pool,
+            local_spawner,
+            glyph_brush,
         }
     }
 
@@ -449,7 +500,7 @@ impl State {
         );
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
+    pub fn render<'a>(&mut self, text_constraint_builder: &'a mut render::TextConstraintBuilder<'a>) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
         let mut encoder = self
@@ -490,7 +541,61 @@ impl State {
             );
         }
 
+        // let text_section = wgpu_glyph::Section {
+        //     screen_position: (0.0, 0.0),
+        //     bounds: (f32::INFINITY, f32::INFINITY),
+        //     text: vec![wgpu_glyph::Text::new("Hello, world!")
+        //         .with_color([0.0, 0.0, 0.0, 1.0])
+        //         .with_scale(200.0)],
+        //     ..wgpu_glyph::Section::default()
+        // };
+        // self.glyph_brush.queue(text_section);
+        // self.glyph_brush
+        //     .draw_queued(
+        //         &self.device,
+        //         &mut self.staging_belt,
+        //         &mut encoder,
+        //         &frame.view,
+        //         self.sc_desc.width,
+        //         self.sc_desc.height,
+        //     )
+        //     .expect("Draw queued");
+
+        text_constraint_builder.with_constraint(
+            "ABC\nDEF\nGHI".into(),
+            render::Sphere {
+                center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+                radius: 0.5,
+            },
+        );
+        let text_constraint_instances = text_constraint_builder.build_instances(
+            &mut self.glyph_brush,
+            &self.camera.build_view_projection_matrix(),
+            self.sc_desc.width as f32,
+            self.sc_desc.height as f32,
+            false,
+        );
+        let mut text_constraint_renderer = render::TextConstraintRenderer {
+            text_constraint_instances,
+            device: &mut self.device,
+            glyph_brush: &mut self.glyph_brush,
+            encoder: &mut encoder,
+            staging_belt: &mut self.staging_belt,
+            texture_view: &frame.view,
+        };
+        text_constraint_renderer.render();
+
+        self.staging_belt.finish();
+
         self.queue.submit(std::iter::once(encoder.finish()));
+
+        use futures::task::SpawnExt;
+
+        self.local_spawner
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging belt");
+
+        self.local_pool.run_until_stalled();
 
         Ok(())
     }
@@ -549,4 +654,17 @@ mod test {
     //     dbg!(cgmath::Matrix4::from(u.view_proj) * cgmath::Matrix4::from(raw_i.model));
     //     panic!();
     // }
+
+    #[test]
+    fn magic2() {
+        use super::*;
+        let leaf = TextLeaf {
+            bounding_square_center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+            bounding_square_size: 1.0,
+            text_width: 185.89133,
+            text_height: 300.0,
+            text: &"Hello, world!".into(),
+        };
+        dbg!(leaf.get_projection(&Camera::new(1.0), 600.0));
+    }
 }

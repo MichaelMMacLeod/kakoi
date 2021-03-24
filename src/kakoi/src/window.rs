@@ -1,4 +1,5 @@
-use crate::state::State;
+use crate::{render::TextConstraintBuilder, state::State};
+use crate::render;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -19,6 +20,7 @@ pub fn create_window() {
         .unwrap();
 
     let mut state = futures::executor::block_on(State::new(&window));
+    let mut text_constraint_builder = render::TextConstraintBuilder::new();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -37,7 +39,7 @@ pub fn create_window() {
             },
             Event::RedrawRequested(_) => {
                 state.update();
-                match state.render() {
+                match state.render(&mut text_constraint_builder) {
                     Ok(_) => {}
                     Err(wgpu::SwapChainError::Lost) => state.recreate_swap_chain(),
                     Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,

@@ -9,3 +9,4 @@ pub mod recurse;
 pub mod state;
 pub mod svg;
 pub mod window;
+pub mod render;
