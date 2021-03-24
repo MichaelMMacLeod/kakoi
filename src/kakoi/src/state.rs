@@ -561,20 +561,14 @@ impl State {
         //     )
         //     .expect("Draw queued");
 
-        text_constraint_builder.with_constraint(
-            "ABC\nDEF\nGHI".into(),
-            render::Sphere {
-                center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-                radius: 0.5,
-            },
-        );
         let text_constraint_instances = text_constraint_builder.build_instances(
             &mut self.glyph_brush,
             &self.camera.build_view_projection_matrix(),
             self.sc_desc.width as f32,
             self.sc_desc.height as f32,
-            false,
+            true,
         );
+        dbg!(text_constraint_instances.len());
         let mut text_constraint_renderer = render::TextConstraintRenderer {
             text_constraint_instances,
             device: &mut self.device,

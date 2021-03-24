@@ -21,6 +21,13 @@ pub fn create_window() {
 
     let mut state = futures::executor::block_on(State::new(&window));
     let mut text_constraint_builder = render::TextConstraintBuilder::new();
+    text_constraint_builder.with_constraint(
+        "ABC\nDEF\nGHI".into(),
+        render::Sphere {
+            center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+            radius: 0.5,
+        },
+    );
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

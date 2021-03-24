@@ -63,6 +63,7 @@ impl TextConstraintBuilder {
 
 pub struct TextConstraintInstance {
     text: String,
+    scale: f32,
     transformation: [f32; 16],
 }
 
@@ -89,8 +90,10 @@ impl TextConstraintInstance {
             viewport_height * _sphere.radius
         };
         Self::binary_search_for_text_scale(_glyph_brush, &mut section, scaled_radius);
+        let scale = section.text[0].scale.y;
         Self {
             text: text,
+            scale,
             transformation: Self::calculate_transformation(
                 _view_projection_matrix,
                 _sphere,
@@ -182,7 +185,7 @@ impl<'b> TextConstraintRenderer<'b> {
                 bounds: (f32::INFINITY, f32::INFINITY),
                 text: vec![wgpu_glyph::Text::new(&instance.text)
                     .with_color([0.0, 0.0, 0.0, 1.0])
-                    .with_scale(20.0)],
+                    .with_scale(instance.scale)],
                 ..wgpu_glyph::Section::default()
             };
             self.glyph_brush.queue(&section);
