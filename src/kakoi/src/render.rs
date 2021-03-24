@@ -202,7 +202,7 @@ impl<'b> TextConstraintRenderer<'b> {
                     screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                     bounds: (f32::INFINITY, f32::INFINITY),
                     text: vec![wgpu_glyph::Text::new(&instance.text)
-                        .with_color([0.0, 0.0, 0.0, 1.0])
+                        .with_color([1.0, 1.0, 1.0, 1.0])
                         .with_scale(instance.scale)],
                     ..wgpu_glyph::Section::default()
                 };
