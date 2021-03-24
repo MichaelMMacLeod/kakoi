@@ -64,6 +64,8 @@ impl TextConstraintBuilder {
 pub struct TextConstraintInstance {
     text: String,
     scale: f32,
+    width: f32,
+    height: f32,
     transformation: [f32; 16],
 }
 
@@ -89,10 +91,13 @@ impl TextConstraintInstance {
         } else {
             viewport_height * _sphere.radius
         };
-        Self::binary_search_for_text_scale(_glyph_brush, &mut section, scaled_radius);
+        let (width, height) =
+            Self::binary_search_for_text_scale(_glyph_brush, &mut section, scaled_radius);
         let scale = section.text[0].scale.y;
         Self {
             text: text,
+            width,
+            height,
             scale,
             transformation: Self::calculate_transformation(
                 _view_projection_matrix,
@@ -109,11 +114,9 @@ impl TextConstraintInstance {
     ) -> [f32; 16] {
         // TODO: possible division by zero error?
         let transformation =
-            cgmath::Matrix4::from_nonuniform_scale(2.0 / scaled_radius, -2.0 / scaled_radius, 1.0);
+            cgmath::Matrix4::from_nonuniform_scale(1.0 / scaled_radius, -1.0 / scaled_radius, 1.0);
         let transformation = cgmath::Matrix4::from_scale(sphere.radius) * transformation;
-        let transformation = cgmath::Matrix4::from_translation(
-            sphere.center - cgmath::Vector3::new(1.0, -1.0, 0.0) * sphere.radius / 2.0,
-        ) * transformation;
+        let transformation = cgmath::Matrix4::from_translation(sphere.center) * transformation;
         *(view_projection_matrix * transformation).as_mut()
     }
 
@@ -121,14 +124,16 @@ impl TextConstraintInstance {
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         section: &mut wgpu_glyph::Section,
         scaled_radius: f32,
-    ) {
+    ) -> (f32, f32) {
         use wgpu_glyph::ab_glyph::PxScale;
 
         let mut min_scale: PxScale = 0.0.into();
         let mut max_scale: PxScale = scaled_radius.into();
         let mut previous_scale: Option<PxScale> = None;
         let mut current_scale = (min_scale.y * 0.5 + max_scale.y * 0.5).into();
-        let target = scaled_radius * 0.5;
+        let mut width = 0.0;
+        let mut height = 0.0;
+        let target = ((2.0 * scaled_radius).powf(2.0) * 0.5).sqrt();
 
         section.text[0].scale = current_scale;
 
@@ -142,6 +147,8 @@ impl TextConstraintInstance {
                     previous_scale = Some(current_scale);
                     let rect_width = rect.width();
                     let rect_height = rect.height();
+                    width = rect_width;
+                    height = rect_height;
                     let max_dimension = rect_width.max(rect_height);
                     // eprintln!(
                     //     "Searching[{}]. [{},{},{}] max={}, width={}, height={}. Target: {}",
@@ -165,6 +172,8 @@ impl TextConstraintInstance {
                 None => break,
             }
         }
+
+        (width, height)
     }
 }
 
@@ -181,7 +190,7 @@ impl<'b> TextConstraintRenderer<'b> {
     pub fn render(&mut self) {
         for instance in self.text_constraint_instances {
             let section = wgpu_glyph::Section {
-                screen_position: (0.0, 0.0),
+                screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                 bounds: (f32::INFINITY, f32::INFINITY),
                 text: vec![wgpu_glyph::Text::new(&instance.text)
                     .with_color([0.0, 0.0, 0.0, 1.0])
