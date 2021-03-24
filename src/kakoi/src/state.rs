@@ -500,7 +500,7 @@ impl State {
         );
     }
 
-    pub fn render<'a>(&mut self, text_constraint_builder: &'a mut render::TextConstraintBuilder<'a>) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, text_constraint_builder: &mut render::TextConstraintBuilder) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
         let mut encoder = self

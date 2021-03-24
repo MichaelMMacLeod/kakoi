@@ -6,12 +6,12 @@ pub struct Sphere {
     pub radius: f32,
 }
 
-pub struct TextConstraintBuilder<'a> {
+pub struct TextConstraintBuilder {
     constraints: HashMap<String, Vec<Sphere>>,
-    instances_cache: Option<Vec<TextConstraintInstance<'a>>>,
+    instances_cache: Option<Vec<TextConstraintInstance>>,
 }
 
-impl<'a> TextConstraintBuilder<'a> {
+impl TextConstraintBuilder {
     pub fn new() -> Self {
         Self {
             constraints: HashMap::new(),
@@ -27,20 +27,20 @@ impl<'a> TextConstraintBuilder<'a> {
     }
 
     pub fn build_instances(
-        &'a mut self,
+        &mut self,
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
         refresh_cache: bool,
-    ) -> &'a Vec<TextConstraintInstance<'a>> {
-        if dbg!(self.instances_cache.is_none()) || refresh_cache {
-            let mut instances: Vec<TextConstraintInstance<'a>> = Vec::new();
+    ) -> &Vec<TextConstraintInstance> {
+        if self.instances_cache.is_none() || refresh_cache {
+            let mut instances: Vec<TextConstraintInstance> = Vec::new();
 
-            let mut build_onekey_instances = |text, spheres| {
+            let mut build_onekey_instances = |text: String, spheres| {
                 for sphere in spheres {
                     instances.push(TextConstraintInstance::new(
-                        text,
+                        text.clone(),
                         glyph_brush,
                         sphere,
                         view_projection_matrix,
@@ -51,7 +51,7 @@ impl<'a> TextConstraintBuilder<'a> {
             };
 
             for (text, spheres) in &self.constraints {
-                build_onekey_instances(text, spheres);
+                build_onekey_instances(text.clone(), spheres);
             }
 
             self.instances_cache = Some(instances);
@@ -61,14 +61,14 @@ impl<'a> TextConstraintBuilder<'a> {
     }
 }
 
-pub struct TextConstraintInstance<'a> {
-    section: wgpu_glyph::Section<'a>,
+pub struct TextConstraintInstance {
+    text: String,
     transformation: [f32; 16],
 }
 
-impl<'a> TextConstraintInstance<'a> {
+impl TextConstraintInstance {
     pub fn new(
-        text: &'a String,
+        text: String,
         _glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         _sphere: &Sphere,
         _view_projection_matrix: &cgmath::Matrix4<f32>,
@@ -90,7 +90,7 @@ impl<'a> TextConstraintInstance<'a> {
         };
         Self::binary_search_for_text_scale(_glyph_brush, &mut section, scaled_radius);
         Self {
-            section: section,
+            text: text,
             transformation: Self::calculate_transformation(
                 _view_projection_matrix,
                 _sphere,
@@ -132,7 +132,7 @@ impl<'a> TextConstraintInstance<'a> {
         let mut iterations = 0;
 
         while Some(current_scale) != previous_scale {
-            eprintln!("Binary searching[{}]", iterations);
+            // eprintln!("Binary searching[{}]", iterations);
             iterations += 1;
             match glyph_brush.glyph_bounds(&section.clone()) {
                 Some(rect) => {
@@ -165,8 +165,8 @@ impl<'a> TextConstraintInstance<'a> {
     }
 }
 
-pub struct TextConstraintRenderer<'a, 'b> {
-    pub text_constraint_instances: &'a Vec<TextConstraintInstance<'a>>,
+pub struct TextConstraintRenderer<'b> {
+    pub text_constraint_instances: &'b Vec<TextConstraintInstance>,
     pub device: &'b mut wgpu::Device,
     pub glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
     pub encoder: &'b mut wgpu::CommandEncoder,
@@ -174,10 +174,18 @@ pub struct TextConstraintRenderer<'a, 'b> {
     pub texture_view: &'b wgpu::TextureView,
 }
 
-impl<'a, 'b> TextConstraintRenderer<'a, 'b> {
+impl<'b> TextConstraintRenderer<'b> {
     pub fn render(&mut self) {
         for instance in self.text_constraint_instances {
-            self.glyph_brush.queue(&instance.section);
+            let section = wgpu_glyph::Section {
+                screen_position: (0.0, 0.0),
+                bounds: (f32::INFINITY, f32::INFINITY),
+                text: vec![wgpu_glyph::Text::new(&instance.text)
+                    .with_color([0.0, 0.0, 0.0, 1.0])
+                    .with_scale(20.0)],
+                ..wgpu_glyph::Section::default()
+            };
+            self.glyph_brush.queue(&section);
             self.glyph_brush
                 .draw_queued_with_transform(
                     self.device,
