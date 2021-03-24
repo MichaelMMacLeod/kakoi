@@ -197,7 +197,9 @@ impl InstanceRaw {
 }
 
 impl State {
-    fn build_instances() -> Vec<Instance> {
+    fn build_instances(
+        text_constraint_builder: &mut render::TextConstraintBuilder,
+    ) -> Vec<Instance> {
         let flat_graph = FlatGraph::naming_example();
 
         let max_depth = 50;
@@ -213,6 +215,7 @@ impl State {
 
         while let Some((index, radius, center, depth)) = todo.pop_front() {
             Self::build_instances_helper(
+                text_constraint_builder,
                 &mut instances,
                 &mut todo,
                 &flat_graph,
@@ -229,6 +232,7 @@ impl State {
     }
 
     fn build_instances_helper(
+        text_constraint_builder: &mut render::TextConstraintBuilder,
         instances: &mut Vec<Instance>,
         todo: &mut VecDeque<(NodeIndex<u32>, f32, Point, u32)>,
         flat_graph: &FlatGraph,
@@ -241,7 +245,15 @@ impl State {
     ) {
         if depth < max_depth && radius > min_radius {
             match &flat_graph.g[index] {
-                Node::Leaf(_) => {}
+                Node::Leaf(text) => {
+                    text_constraint_builder.with_constraint(
+                        text.clone(),
+                        render::Sphere {
+                            center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
+                            radius,
+                        },
+                    );
+                }
                 Node::Branch(num_indications) => {
                     let circle_positioner = CirclePositioner::new(
                         (radius * MIN_RADIUS) as f64,
@@ -325,7 +337,9 @@ impl State {
             usage: wgpu::BufferUsage::VERTEX,
         });
 
-        let instances = Self::build_instances();
+        let mut text_constraint_builder = render::TextConstraintBuilder::new();
+
+        let instances = Self::build_instances(&mut text_constraint_builder);
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
@@ -434,15 +448,6 @@ impl State {
             wgpu_glyph::GlyphBrushBuilder::using_font(inconsolata).build(&device, texture_format)
         };
 
-        let mut text_constraint_builder = render::TextConstraintBuilder::new();
-        text_constraint_builder.with_constraint(
-            "ABC\nDEF\nGHI".into(),
-            render::Sphere {
-                center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-                radius: 0.5,
-            },
-        );
-
         Self {
             surface,
             device,
@@ -511,9 +516,7 @@ impl State {
         );
     }
 
-    pub fn render(
-        &mut self
-    ) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
         let mut encoder = self
@@ -581,7 +584,6 @@ impl State {
             self.sc_desc.height as f32,
             true,
         );
-        dbg!(text_constraint_instances.len());
         let mut text_constraint_renderer = render::TextConstraintRenderer {
             text_constraint_instances,
             device: &mut self.device,

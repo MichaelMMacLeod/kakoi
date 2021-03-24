@@ -1,5 +1,4 @@
-use crate::{render::TextConstraintBuilder, state::State};
-use crate::render;
+use crate::state::State;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
