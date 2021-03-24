@@ -28,6 +28,7 @@ pub struct State {
     local_spawner: futures::executor::LocalSpawner,
     texture_format: wgpu::TextureFormat,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
+    text_constraint_builder: render::TextConstraintBuilder,
 }
 
 #[repr(C)]
@@ -433,6 +434,15 @@ impl State {
             wgpu_glyph::GlyphBrushBuilder::using_font(inconsolata).build(&device, texture_format)
         };
 
+        let mut text_constraint_builder = render::TextConstraintBuilder::new();
+        text_constraint_builder.with_constraint(
+            "ABC\nDEF\nGHI".into(),
+            render::Sphere {
+                center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+                radius: 0.5,
+            },
+        );
+
         Self {
             surface,
             device,
@@ -454,6 +464,7 @@ impl State {
             local_pool,
             local_spawner,
             glyph_brush,
+            text_constraint_builder,
         }
     }
 
@@ -500,7 +511,9 @@ impl State {
         );
     }
 
-    pub fn render(&mut self, text_constraint_builder: &mut render::TextConstraintBuilder) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(
+        &mut self
+    ) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
         let mut encoder = self
@@ -561,7 +574,7 @@ impl State {
         //     )
         //     .expect("Draw queued");
 
-        let text_constraint_instances = text_constraint_builder.build_instances(
+        let text_constraint_instances = self.text_constraint_builder.build_instances(
             &mut self.glyph_brush,
             &self.camera.build_view_projection_matrix(),
             self.sc_desc.width as f32,
