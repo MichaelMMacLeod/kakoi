@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use wgpu_glyph::GlyphCruncher;
 
+#[derive(Clone, Copy)]
 pub struct Sphere {
     pub center: cgmath::Vector3<f32>,
     pub radius: f32,
@@ -55,6 +56,10 @@ impl TextConstraintBuilder {
             }
 
             self.instances_cache = Some(instances);
+        } else {
+            for instance in self.instances_cache.as_mut().unwrap() {
+                instance.set_view_projection_matrix(view_projection_matrix);
+            }
         }
 
         self.instances_cache.as_ref().unwrap()
@@ -66,6 +71,8 @@ pub struct TextConstraintInstance {
     scale: f32,
     width: f32,
     height: f32,
+    sphere: Sphere,
+    scaled_radius: f32,
     transformation: [f32; 16],
 }
 
@@ -99,6 +106,8 @@ impl TextConstraintInstance {
             width,
             height,
             scale,
+            sphere: *_sphere,
+            scaled_radius,
             transformation: Self::calculate_transformation(
                 _view_projection_matrix,
                 _sphere,
@@ -107,15 +116,22 @@ impl TextConstraintInstance {
         }
     }
 
+    fn set_view_projection_matrix(&mut self, view_projection_matrix: &cgmath::Matrix4<f32>) {
+        self.transformation =
+            Self::calculate_transformation(view_projection_matrix, &self.sphere, self.scaled_radius)
+    }
+
     fn calculate_transformation(
         view_projection_matrix: &cgmath::Matrix4<f32>,
         sphere: &Sphere,
         scaled_radius: f32,
     ) -> [f32; 16] {
         // TODO: possible division by zero error?
-        let transformation =
-            cgmath::Matrix4::from_nonuniform_scale(1.0 / scaled_radius, -1.0 / scaled_radius, 1.0);
-        let transformation = cgmath::Matrix4::from_scale(sphere.radius) * transformation;
+        let transformation = cgmath::Matrix4::from_nonuniform_scale(
+            sphere.radius / scaled_radius,
+            -sphere.radius / scaled_radius,
+            1.0,
+        );
         let transformation = cgmath::Matrix4::from_translation(sphere.center) * transformation;
         *(view_projection_matrix * transformation).as_mut()
     }

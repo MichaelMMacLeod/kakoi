@@ -565,7 +565,7 @@ impl State {
             &self.camera.build_view_projection_matrix(),
             self.sc_desc.width as f32,
             self.sc_desc.height as f32,
-            true,
+            false,
         );
         let mut text_constraint_renderer = render::TextConstraintRenderer {
             text_constraint_instances,
