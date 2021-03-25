@@ -1,8 +1,8 @@
-use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Branch, Edge, FlatGraph, Node};
 use crate::render;
 use crate::sphere::Sphere;
+use crate::{camera::Camera, render::renderer::InstanceRenderer};
 use petgraph::{graph::NodeIndex, Direction};
 use std::collections::VecDeque;
 use winit::window::Window;
@@ -44,12 +44,12 @@ impl State {
         let mut todo = VecDeque::new();
         if let Some(focused_index) = flat_graph.focused {
             todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
-            circle_constraint_builder.with_constraint(
-                focused_index,
+            circle_constraint_builder.with_instance(
                 Sphere {
                     center: cgmath::Vector3::new(0.0, 0.0, 0.0),
                     radius: 1.0,
                 },
+                &focused_index,
             );
         }
 
@@ -84,12 +84,12 @@ impl State {
         if depth < max_depth && radius > min_radius {
             match &flat_graph.g[index] {
                 Node::Leaf(text) => {
-                    text_constraint_builder.with_constraint(
-                        text.clone(),
+                    text_constraint_builder.with_instance(
                         Sphere {
                             center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
                             radius,
                         },
+                        text,
                     );
                 }
                 Node::Branch(Branch {
@@ -135,12 +135,12 @@ impl State {
                             let Point { x, y } = center;
 
                             todo.push_back((*node, radius as f32, center, depth + 1));
-                            circle_constraint_builder.with_constraint(
-                                index,
+                            circle_constraint_builder.with_instance(
                                 Sphere {
                                     center: cgmath::Vector3::new(x as f32, y as f32, 0.0),
                                     radius: radius as f32,
                                 },
+                                &index,
                             );
                         });
                 }
@@ -188,9 +188,12 @@ impl State {
         let view_projection_matrix = camera.build_view_projection_matrix();
 
         let mut text_constraint_builder =
-            render::text::TextConstraintBuilder::new(&device, &sc_desc);
-        let mut circle_constraint_builder =
-            render::circle::CircleConstraintBuilder::new(&device, &sc_desc, view_projection_matrix);
+            render::text::TextConstraintBuilder::new(&device, &sc_desc, &&view_projection_matrix);
+        let mut circle_constraint_builder = render::circle::CircleConstraintBuilder::new(
+            &device,
+            &sc_desc,
+            &view_projection_matrix,
+        );
 
         Self::build_instances(&mut circle_constraint_builder, &mut text_constraint_builder);
 
@@ -219,8 +222,16 @@ impl State {
         self.camera.aspect = new_size.width as f32 / new_size.height as f32;
         self.view_projection_matrix = self.camera.build_view_projection_matrix();
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-        self.circle_constraint_builder
-            .resize(&self.device, &self.sc_desc);
+        self.circle_constraint_builder.resize(
+            &self.device,
+            &self.sc_desc,
+            &self.view_projection_matrix,
+        );
+        self.text_constraint_builder.resize(
+            &self.device,
+            &self.sc_desc,
+            &self.view_projection_matrix,
+        );
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
@@ -247,7 +258,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.circle_constraint_builder
-            .update(&mut self.queue, self.view_projection_matrix);
+            .update(&mut self.queue, &self.view_projection_matrix);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
@@ -261,35 +272,19 @@ impl State {
 
         self.circle_constraint_builder.render(
             &self.device,
-            &mut encoder,
-            &frame.view,
             &self.sc_desc,
-        );
-
-        self.text_constraint_builder.render(
-            &self.sc_desc,
-            &self.device,
             &mut encoder,
             &frame.view,
             &self.view_projection_matrix,
         );
 
-        // let text_constraint_instances = self.text_constraint_builder.build_instances(
-        //     &mut self.glyph_brush,
-        //     &self.camera.build_view_projection_matrix(),
-        //     self.sc_desc.width as f32,
-        //     self.sc_desc.height as f32,
-        //     false,
-        // );
-        // let mut text_constraint_renderer = render::text::TextConstraintRenderer {
-        //     text_constraint_instances,
-        //     device: &mut self.device,
-        //     glyph_brush: &mut self.glyph_brush,
-        //     encoder: &mut encoder,
-        //     staging_belt: &mut self.staging_belt,
-        //     texture_view: &frame.view,
-        // };
-        // text_constraint_renderer.render();
+        self.text_constraint_builder.render(
+            &self.device,
+            &self.sc_desc,
+            &mut encoder,
+            &frame.view,
+            &self.view_projection_matrix,
+        );
 
         self.queue.submit(std::iter::once(encoder.finish()));
 

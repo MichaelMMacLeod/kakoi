@@ -1,3 +1,4 @@
+use crate::render::renderer::InstanceRenderer;
 use crate::sampling_config::SamplingConfig;
 use crate::sphere::Sphere;
 use petgraph::graph::NodeIndex;
@@ -95,7 +96,68 @@ pub struct CircleConstraintBuilder {
 }
 
 impl CircleConstraintBuilder {
-    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor, view_projection_matrix: cgmath::Matrix4<f32>) -> Self {
+    fn build_instances<'a, 'b>(
+        instances_cache: &'b mut Option<wgpu::Buffer>,
+        constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,
+        device: &'a wgpu::Device,
+    ) -> &'b wgpu::Buffer {
+        if instances_cache.is_none() {
+            let mut instances: Vec<CircleConstraintInstance> = Vec::new();
+
+            let mut build_onekey_instances = |spheres| {
+                for sphere in spheres {
+                    instances.push(CircleConstraintInstance::new(sphere));
+                }
+            };
+
+            for (_, spheres) in constraints {
+                build_onekey_instances(spheres);
+            }
+
+            *instances_cache = Some(
+                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("CircleConstraintInstance instance buffer"),
+                    contents: bytemuck::cast_slice(&instances),
+                    usage: wgpu::BufferUsage::VERTEX,
+                }),
+            );
+        }
+
+        instances_cache.as_ref().unwrap()
+    }
+
+    fn create_mutisampled_framebuffer(
+        device: &wgpu::Device,
+        sc_desc: &wgpu::SwapChainDescriptor,
+        sample_count: u32,
+    ) -> wgpu::TextureView {
+        let multisampled_texture_extent = wgpu::Extent3d {
+            width: sc_desc.width,
+            height: sc_desc.height,
+            depth: 1,
+        };
+        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
+            size: multisampled_texture_extent,
+            mip_level_count: 1,
+            sample_count,
+            dimension: wgpu::TextureDimension::D2,
+            format: sc_desc.format,
+            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+            label: Some("multisampled_frame"),
+        };
+
+        device
+            .create_texture(multisampled_frame_descriptor)
+            .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+}
+
+impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
+    fn new<'a>(
+        device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) -> Self {
         let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("CircleConstraint vertex buffer"),
@@ -109,7 +171,7 @@ impl CircleConstraintBuilder {
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.frag.spv"));
 
         let mut uniforms = Uniforms::new();
-        uniforms.update_view_proj(view_projection_matrix);
+        uniforms.update_view_proj((*view_projection_matrix).into());
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -203,46 +265,21 @@ impl CircleConstraintBuilder {
         }
     }
 
-    pub fn with_constraint(&mut self, node_index: NodeIndex<u32>, sphere: Sphere) {
+    fn with_instance<'a>(&mut self, sphere: Sphere, node_index: &'a NodeIndex<u32>) {
         self.constraints
-            .entry(node_index)
+            .entry(*node_index)
             .or_insert_with(|| Vec::with_capacity(1))
             .push(sphere);
         self.num_instances += 1;
     }
 
-    fn build_instances<'a, 'b>(
-        instances_cache: &'b mut Option<wgpu::Buffer>,
-        constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,
-        device: &'a wgpu::Device,
-    ) -> &'b wgpu::Buffer {
-        if instances_cache.is_none() {
-            let mut instances: Vec<CircleConstraintInstance> = Vec::new();
-
-            let mut build_onekey_instances = |spheres| {
-                for sphere in spheres {
-                    instances.push(CircleConstraintInstance::new(sphere));
-                }
-            };
-
-            for (_, spheres) in constraints {
-                build_onekey_instances(spheres);
-            }
-
-            *instances_cache = Some(
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("CircleConstraintInstance instance buffer"),
-                    contents: bytemuck::cast_slice(&instances),
-                    usage: wgpu::BufferUsage::VERTEX,
-                }),
-            );
-        }
-
-        instances_cache.as_ref().unwrap()
-    }
-
-    pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue, view_projection_matrix: cgmath::Matrix4<f32>) {
-        self.uniforms.update_view_proj(view_projection_matrix);
+    fn update<'a>(
+        &mut self,
+        queue: &'a mut wgpu::Queue,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+        self.uniforms
+            .update_view_proj((*view_projection_matrix).into());
         queue.write_buffer(
             &self.uniform_buffer,
             0,
@@ -250,7 +287,12 @@ impl CircleConstraintBuilder {
         );
     }
 
-    pub fn resize<'a>(&mut self, device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) {
+    fn resize<'a>(
+        &mut self,
+        device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
         self.sampling_config = match self.sampling_config {
             SamplingConfig::Single => SamplingConfig::Single,
             SamplingConfig::Multi { sample_count, .. } => SamplingConfig::Multi {
@@ -264,12 +306,13 @@ impl CircleConstraintBuilder {
         };
     }
 
-    pub fn render<'a>(
+    fn render<'a>(
         &mut self,
         device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
         command_encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) {
         // This is supposed to be rgb(33,33,33,256), but it ends up being a bit too dark on screen.
         // I don't know why---if you have more knowledge of color spaces, please help!
@@ -330,30 +373,7 @@ impl CircleConstraintBuilder {
         render_pass.draw(0..self.vertex_buffer_data.len() as _, 0..self.num_instances);
     }
 
-    fn create_mutisampled_framebuffer(
-        device: &wgpu::Device,
-        sc_desc: &wgpu::SwapChainDescriptor,
-        sample_count: u32,
-    ) -> wgpu::TextureView {
-        let multisampled_texture_extent = wgpu::Extent3d {
-            width: sc_desc.width,
-            height: sc_desc.height,
-            depth: 1,
-        };
-        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
-            size: multisampled_texture_extent,
-            mip_level_count: 1,
-            sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: sc_desc.format,
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            label: Some("multisampled_frame"),
-        };
-
-        device
-            .create_texture(multisampled_frame_descriptor)
-            .create_view(&wgpu::TextureViewDescriptor::default())
-    }
+    fn post_render(&mut self) {}
 }
 
 #[repr(C)]

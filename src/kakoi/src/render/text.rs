@@ -1,6 +1,8 @@
-use crate::{sphere::Sphere};
+use crate::sphere::Sphere;
 use std::collections::HashMap;
 use wgpu_glyph::GlyphCruncher;
+
+use super::renderer::InstanceRenderer;
 
 pub struct TextConstraintBuilder {
     constraints: HashMap<String, Vec<Sphere>>,
@@ -12,42 +14,6 @@ pub struct TextConstraintBuilder {
 }
 
 impl TextConstraintBuilder {
-    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
-        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
-        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
-        // base this number on an estimate of how much data we would upload into
-        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
-        // for more information.
-        let staging_belt = wgpu::util::StagingBelt::new(4096);
-
-        let local_pool = futures::executor::LocalPool::new();
-        let local_spawner = local_pool.spawner();
-
-        let glyph_brush = {
-            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
-                "../resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
-            ))
-            .unwrap();
-            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, sc_desc.format)
-        };
-
-        Self {
-            constraints: HashMap::new(),
-            instances_cache: None,
-            glyph_brush,
-            staging_belt,
-            local_pool,
-            local_spawner,
-        }
-    }
-
-    pub fn with_constraint(&mut self, text: String, sphere: Sphere) {
-        self.constraints
-            .entry(text)
-            .or_insert_with(|| Vec::with_capacity(1))
-            .push(sphere);
-    }
-
     fn build_instances<'a, 'b>(
         instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
         constraints: &'a HashMap<String, Vec<Sphere>>,
@@ -85,11 +51,76 @@ impl TextConstraintBuilder {
 
         instances_cache.as_ref().unwrap()
     }
+}
 
-    pub fn render<'a>(
-        &mut self,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
+impl InstanceRenderer<String> for TextConstraintBuilder {
+    fn new<'a>(
         device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) -> Self {
+        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
+        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
+        // base this number on an estimate of how much data we would upload into
+        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
+        // for more information.
+        let staging_belt = wgpu::util::StagingBelt::new(4096);
+
+        let local_pool = futures::executor::LocalPool::new();
+        let local_spawner = local_pool.spawner();
+
+        let glyph_brush = {
+            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+                "../resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
+            ))
+            .unwrap();
+            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, sc_desc.format)
+        };
+
+        Self {
+            constraints: HashMap::new(),
+            instances_cache: None,
+            glyph_brush,
+            staging_belt,
+            local_pool,
+            local_spawner,
+        }
+    }
+
+    fn with_instance<'a>(&mut self, sphere: Sphere, text: &'a String) {
+        self.constraints
+            .entry(text.clone())
+            .or_insert_with(|| Vec::with_capacity(1))
+            .push(sphere);
+    }
+
+    fn update<'a>(
+        &mut self,
+        _queue: &'a mut wgpu::Queue,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+    }
+
+    fn resize<'a>(
+        &mut self,
+        _device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+        Self::build_instances(
+            &mut self.instances_cache,
+            &self.constraints,
+            &mut self.glyph_brush,
+            view_projection_matrix,
+            sc_desc,
+            true,
+        );
+    }
+
+    fn render<'a>(
+        &mut self,
+        device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
         encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
@@ -129,7 +160,7 @@ impl TextConstraintBuilder {
         self.staging_belt.finish();
     }
 
-    pub fn post_render(&mut self) {
+    fn post_render(&mut self) {
         use futures::task::SpawnExt;
 
         self.local_spawner
@@ -217,6 +248,8 @@ impl TextConstraintInstance {
     ) -> (f32, f32) {
         use wgpu_glyph::ab_glyph::PxScale;
 
+        const SCALE_TOLERENCE: f32 = 10.0;
+
         let mut min_scale: PxScale = 0.0.into();
         let mut max_scale: PxScale = scaled_radius.into();
         let mut previous_scale: Option<PxScale> = None;
@@ -227,20 +260,20 @@ impl TextConstraintInstance {
 
         section.text[0].scale = current_scale;
 
-        // Perform a binary search between [min_scale, max_scale] for the
-        // correct text scale. We stop our search when the difference between
-        // our previous and current text scale is small enough to not effect its
-        // bounding box (i.e., the bounding box drawn from the current text
-        // scale has the same dimensions as the bounding box drawn from the
-        // previous text scale).
-        while Some(current_scale) != previous_scale {
+        loop {
             match glyph_brush.glyph_bounds(&section.clone()) {
                 Some(rect) => {
+                    let old_ps = previous_scale;
                     previous_scale = Some(current_scale);
                     let rect_width = rect.width();
                     let rect_height = rect.height();
                     width = rect_width;
                     height = rect_height;
+                    if let Some(ps) = old_ps {
+                        if (ps.y - current_scale.y).abs() < SCALE_TOLERENCE {
+                            break;
+                        }
+                    }
                     let max_dimension = rect_width.max(rect_height);
                     if max_dimension > target {
                         max_scale = current_scale;
