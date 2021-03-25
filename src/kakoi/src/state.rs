@@ -15,10 +15,6 @@ pub struct State {
     swap_chain: wgpu::SwapChain,
     size: winit::dpi::PhysicalSize<u32>,
     camera: Camera,
-    staging_belt: wgpu::util::StagingBelt,
-    local_pool: futures::executor::LocalPool,
-    local_spawner: futures::executor::LocalSpawner,
-    glyph_brush: wgpu_glyph::GlyphBrush<()>,
     circle_constraint_builder: render::circle::CircleConstraintBuilder,
     text_constraint_builder: render::text::TextConstraintBuilder,
 }
@@ -187,30 +183,14 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let mut text_constraint_builder = render::text::TextConstraintBuilder::new();
-        let mut circle_constraint_builder = render::circle::CircleConstraintBuilder::new(&device, &sc_desc);
+        let mut text_constraint_builder =
+            render::text::TextConstraintBuilder::new(&device, &sc_desc);
+        let mut circle_constraint_builder =
+            render::circle::CircleConstraintBuilder::new(&device, &sc_desc);
 
         Self::build_instances(&mut circle_constraint_builder, &mut text_constraint_builder);
 
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-
-        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
-        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
-        // base this number on an estimate of how much data we would upload into
-        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
-        // for more information.
-        let staging_belt = wgpu::util::StagingBelt::new(4096);
-
-        let local_pool = futures::executor::LocalPool::new();
-        let local_spawner = local_pool.spawner();
-
-        let glyph_brush = {
-            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
-                "resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
-            ))
-            .unwrap();
-            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, texture_format)
-        };
 
         Self {
             surface,
@@ -220,10 +200,6 @@ impl State {
             swap_chain,
             size,
             camera,
-            staging_belt,
-            local_pool,
-            local_spawner,
-            glyph_brush,
             circle_constraint_builder,
             text_constraint_builder,
         }
@@ -241,6 +217,7 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
         self.circle_constraint_builder
             .resize(&self.device, &self.sc_desc);
+            self.text_constraint_builder.resize(self.camera.build_view_projection_matrix())
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
@@ -286,35 +263,30 @@ impl State {
             &self.sc_desc,
         );
 
-        let text_constraint_instances = self.text_constraint_builder.build_instances(
-            &mut self.glyph_brush,
-            &self.camera.build_view_projection_matrix(),
-            self.sc_desc.width as f32,
-            self.sc_desc.height as f32,
-            false,
-        );
-        let mut text_constraint_renderer = render::text::TextConstraintRenderer {
-            text_constraint_instances,
-            device: &mut self.device,
-            glyph_brush: &mut self.glyph_brush,
-            encoder: &mut encoder,
-            staging_belt: &mut self.staging_belt,
-            texture_view: &frame.view,
-        };
-        text_constraint_renderer.render();
+        self.text_constraint_builder
+            .render(&self.sc_desc, &self.device, &mut encoder, &frame.view);
 
-        self.staging_belt.finish();
+        // let text_constraint_instances = self.text_constraint_builder.build_instances(
+        //     &mut self.glyph_brush,
+        //     &self.camera.build_view_projection_matrix(),
+        //     self.sc_desc.width as f32,
+        //     self.sc_desc.height as f32,
+        //     false,
+        // );
+        // let mut text_constraint_renderer = render::text::TextConstraintRenderer {
+        //     text_constraint_instances,
+        //     device: &mut self.device,
+        //     glyph_brush: &mut self.glyph_brush,
+        //     encoder: &mut encoder,
+        //     staging_belt: &mut self.staging_belt,
+        //     texture_view: &frame.view,
+        // };
+        // text_constraint_renderer.render();
 
         self.queue.submit(std::iter::once(encoder.finish()));
 
-        use futures::task::SpawnExt;
-
-        self.local_spawner
-            .spawn(self.staging_belt.recall())
-            .expect("Recall staging belt");
-
-        self.local_pool.run_until_stalled();
-
+        self.text_constraint_builder.post_render();
+        
         Ok(())
     }
 }
