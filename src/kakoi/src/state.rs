@@ -1,5 +1,4 @@
 use crate::render::renderer::Renderer;
-use crate::{camera::Camera};
 use winit::window::Window;
 
 pub struct State {
@@ -9,8 +8,6 @@ pub struct State {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     size: winit::dpi::PhysicalSize<u32>,
-    camera: Camera,
-    view_projection_matrix: cgmath::Matrix4<f32>,
     renderer: Renderer,
 }
 
@@ -63,10 +60,7 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-        let view_projection_matrix = camera.build_view_projection_matrix();
-
-        let renderer = Renderer::new(&device, &sc_desc, &&view_projection_matrix);
+        let renderer = Renderer::new(&device, &sc_desc);
 
         Self {
             surface,
@@ -75,8 +69,6 @@ impl State {
             sc_desc,
             swap_chain,
             size,
-            camera,
-            view_projection_matrix,
             renderer,
         }
     }
@@ -89,13 +81,10 @@ impl State {
         self.size = new_size;
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
-        self.camera.aspect = new_size.width as f32 / new_size.height as f32;
-        self.view_projection_matrix = self.camera.build_view_projection_matrix();
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
         self.renderer.resize(
             &self.device,
             &self.sc_desc,
-            &self.view_projection_matrix,
         );
     }
 
@@ -123,7 +112,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.renderer.update(
-            &mut self.queue, &self.view_projection_matrix
+            &mut self.queue
         );
     }
 
@@ -141,7 +130,6 @@ impl State {
             &self.sc_desc,
             &mut encoder,
             &frame.view,
-            &self.view_projection_matrix,
         );
 
         self.queue.submit(std::iter::once(encoder.finish()));
