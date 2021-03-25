@@ -257,14 +257,3 @@ impl TextConstraintInstance {
         (width, height)
     }
 }
-
-pub struct TextConstraintRenderer<'b> {
-    pub text_constraint_instances: &'b Vec<TextConstraintInstance>,
-    pub device: &'b mut wgpu::Device,
-    pub glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
-    pub encoder: &'b mut wgpu::CommandEncoder,
-    pub staging_belt: &'b mut wgpu::util::StagingBelt,
-    pub texture_view: &'b wgpu::TextureView,
-}
-
-impl<'b> TextConstraintRenderer<'b> {}
