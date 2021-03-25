@@ -48,7 +48,7 @@ impl TextConstraintBuilder {
             .push(sphere);
     }
 
-    pub fn build_instances<'a, 'b>(
+    fn build_instances<'a, 'b>(
         instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
         constraints: &'a HashMap<String, Vec<Sphere>>,
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,

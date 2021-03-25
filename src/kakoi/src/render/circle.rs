@@ -211,7 +211,7 @@ impl CircleConstraintBuilder {
         self.num_instances += 1;
     }
 
-    pub fn build_instances<'a, 'b>(
+    fn build_instances<'a, 'b>(
         instances_cache: &'b mut Option<wgpu::Buffer>,
         constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,
         device: &'a wgpu::Device,
