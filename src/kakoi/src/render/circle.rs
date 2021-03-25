@@ -1,4 +1,3 @@
-use crate::camera::Camera;
 use crate::sampling_config::SamplingConfig;
 use crate::sphere::Sphere;
 use petgraph::graph::NodeIndex;
@@ -19,8 +18,8 @@ impl Uniforms {
         }
     }
 
-    fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+    fn update_view_proj<'a>(&mut self, view_projection_matrix: cgmath::Matrix4<f32>) {
+        self.view_proj = view_projection_matrix.into();
     }
 }
 
@@ -96,7 +95,7 @@ pub struct CircleConstraintBuilder {
 }
 
 impl CircleConstraintBuilder {
-    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
+    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor, view_projection_matrix: cgmath::Matrix4<f32>) -> Self {
         let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("CircleConstraint vertex buffer"),
@@ -110,7 +109,7 @@ impl CircleConstraintBuilder {
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.frag.spv"));
 
         let mut uniforms = Uniforms::new();
-        uniforms.update_view_proj(&Camera::new(sc_desc.width as f32 / sc_desc.height as f32));
+        uniforms.update_view_proj(view_projection_matrix);
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -242,8 +241,8 @@ impl CircleConstraintBuilder {
         instances_cache.as_ref().unwrap()
     }
 
-    pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue, camera: &'a Camera) {
-        self.uniforms.update_view_proj(camera);
+    pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue, view_projection_matrix: cgmath::Matrix4<f32>) {
+        self.uniforms.update_view_proj(view_projection_matrix);
         queue.write_buffer(
             &self.uniform_buffer,
             0,

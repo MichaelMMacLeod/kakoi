@@ -1,5 +1,4 @@
-use crate::{sphere::Sphere, state};
-use bitvec::view;
+use crate::{sphere::Sphere};
 use std::collections::HashMap;
 use wgpu_glyph::GlyphCruncher;
 
@@ -10,7 +9,6 @@ pub struct TextConstraintBuilder {
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
-    view_projection_matrix: cgmath::Matrix4<f32>,
 }
 
 impl TextConstraintBuilder {
@@ -33,8 +31,6 @@ impl TextConstraintBuilder {
             wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, sc_desc.format)
         };
 
-        let view_projection_matrix = crate::camera::Camera::new(1.0).build_view_projection_matrix();
-
         Self {
             constraints: HashMap::new(),
             instances_cache: None,
@@ -42,7 +38,6 @@ impl TextConstraintBuilder {
             staging_belt,
             local_pool,
             local_spawner,
-            view_projection_matrix,
         }
     }
 
@@ -51,10 +46,6 @@ impl TextConstraintBuilder {
             .entry(text)
             .or_insert_with(|| Vec::with_capacity(1))
             .push(sphere);
-    }
-
-    pub fn resize(&mut self, view_projection_matrix: cgmath::Matrix4<f32>) {
-        self.view_projection_matrix = view_projection_matrix;
     }
 
     pub fn build_instances<'a, 'b>(
@@ -101,12 +92,13 @@ impl TextConstraintBuilder {
         device: &'a wgpu::Device,
         encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) {
         let text_constraint_instances = Self::build_instances(
             &mut self.instances_cache,
             &self.constraints,
             &mut self.glyph_brush,
-            &self.view_projection_matrix,
+            view_projection_matrix,
             sc_desc,
             false,
         );

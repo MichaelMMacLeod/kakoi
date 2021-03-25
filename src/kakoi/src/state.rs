@@ -15,6 +15,7 @@ pub struct State {
     swap_chain: wgpu::SwapChain,
     size: winit::dpi::PhysicalSize<u32>,
     camera: Camera,
+    view_projection_matrix: cgmath::Matrix4<f32>,
     circle_constraint_builder: render::circle::CircleConstraintBuilder,
     text_constraint_builder: render::text::TextConstraintBuilder,
 }
@@ -183,14 +184,15 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
+        let view_projection_matrix = camera.build_view_projection_matrix();
+
         let mut text_constraint_builder =
             render::text::TextConstraintBuilder::new(&device, &sc_desc);
         let mut circle_constraint_builder =
-            render::circle::CircleConstraintBuilder::new(&device, &sc_desc);
+            render::circle::CircleConstraintBuilder::new(&device, &sc_desc, view_projection_matrix);
 
         Self::build_instances(&mut circle_constraint_builder, &mut text_constraint_builder);
-
-        let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
 
         Self {
             surface,
@@ -200,6 +202,7 @@ impl State {
             swap_chain,
             size,
             camera,
+            view_projection_matrix,
             circle_constraint_builder,
             text_constraint_builder,
         }
@@ -214,10 +217,10 @@ impl State {
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
         self.camera.aspect = new_size.width as f32 / new_size.height as f32;
+        self.view_projection_matrix = self.camera.build_view_projection_matrix();
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
         self.circle_constraint_builder
             .resize(&self.device, &self.sc_desc);
-            self.text_constraint_builder.resize(self.camera.build_view_projection_matrix())
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
@@ -244,7 +247,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.circle_constraint_builder
-            .update(&mut self.queue, &self.camera);
+            .update(&mut self.queue, self.view_projection_matrix);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
@@ -263,8 +266,13 @@ impl State {
             &self.sc_desc,
         );
 
-        self.text_constraint_builder
-            .render(&self.sc_desc, &self.device, &mut encoder, &frame.view);
+        self.text_constraint_builder.render(
+            &self.sc_desc,
+            &self.device,
+            &mut encoder,
+            &frame.view,
+            &self.view_projection_matrix,
+        );
 
         // let text_constraint_instances = self.text_constraint_builder.build_instances(
         //     &mut self.glyph_brush,
@@ -286,7 +294,7 @@ impl State {
         self.queue.submit(std::iter::once(encoder.finish()));
 
         self.text_constraint_builder.post_render();
-        
+
         Ok(())
     }
 }
