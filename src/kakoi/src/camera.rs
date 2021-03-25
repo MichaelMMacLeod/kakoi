@@ -26,7 +26,7 @@ impl Camera {
             up: cgmath::Vector3::unit_y(),
             aspect: aspect,
             fovy: 45.0,
-            znear: 0.1,
+            znear: 0.0001,
             zfar: 100.0,
         }
     }

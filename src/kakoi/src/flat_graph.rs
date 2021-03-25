@@ -8,18 +8,26 @@ use std::collections::{HashMap, VecDeque};
 pub struct Edge(pub u32);
 
 #[derive(Debug)]
-pub enum Node {
-    Branch(u32),
-    Leaf(String),
+pub struct Branch {
+    pub num_indications: u32,
+    pub focused_indication: u32,
+    pub zoom: f32,
 }
 
-impl Node {
-    pub fn branch_value(&self) -> u32 {
-        match self {
-            Node::Branch(value) => *value,
-            _ => panic!("not a branch"),
+impl Branch {
+    fn new(num_indications: u32) -> Self {
+        Self {
+            num_indications,
+            focused_indication: 0,
+            zoom: 0.0,
         }
     }
+}
+
+#[derive(Debug)]
+pub enum Node {
+    Branch(Branch),
+    Leaf(String),
 }
 
 pub struct FlatGraph {
@@ -63,7 +71,9 @@ impl FlatGraph {
 
         let branch = &mut self.g[enclose];
         match branch {
-            Node::Branch(n) => *branch = Node::Branch(*n + 1),
+            Node::Branch(Branch { num_indications, .. }) => {
+                *num_indications += 1;
+            }
             Node::Leaf(_) => panic!("attempted to insert into leaf"),
         }
 
@@ -132,7 +142,7 @@ impl FlatGraph {
                     Some(index)
                 }
                 _ => {
-                    let node_to_insert = self.g.add_node(Node::Branch(num_indications));
+                    let node_to_insert = self.g.add_node(Node::Branch(Branch::new(num_indications)));
                     self.prepare_group(index, position);
                     self.g.add_edge(index, node_to_insert, Edge(position));
                     self.populate_empty_group(node_to_insert, members);
@@ -146,7 +156,7 @@ impl FlatGraph {
                     Insertion::Existing { index } => Some(*index),
                 },
                 _ => {
-                    let node_to_insert = self.g.add_node(Node::Branch(num_indications));
+                    let node_to_insert = self.g.add_node(Node::Branch(Branch::new(num_indications)));
                     self.populate_empty_group(node_to_insert, members);
                     Some(node_to_insert)
                 }
@@ -164,7 +174,7 @@ impl FlatGraph {
         let mut copy_graph = GraphImpl::<Node, Edge, Directed, u32>::new();
 
         let focused_source = source_graph.focused.unwrap(); // TODO: figure out what to do here
-        let focused_copy = copy_graph.add_node(Node::Branch(0));
+        let focused_copy = copy_graph.add_node(Node::Branch(Branch::new(0)));
 
         let mut todo_queue = VecDeque::new();
         todo_queue.push_back(Todo {
@@ -238,7 +248,7 @@ impl FlatGraph {
                 Some(indicated_copy) => *indicated_copy,
                 None => match source_graph.g.node_weight(current_source_indication) {
                     Some(GraphNode::Branch) => {
-                        let indicated_copy = copy_graph.add_node(Node::Branch(0));
+                        let indicated_copy = copy_graph.add_node(Node::Branch(Branch::new(0)));
                         identity_map.insert(current_source_indication, indicated_copy);
                         todo_queue.push_back(Todo {
                             source: current_source_indication,
@@ -264,7 +274,7 @@ impl FlatGraph {
             source_graph.next_source(&mut current);
         }
 
-        *&mut copy_graph[copy] = Node::Branch(counter);
+        *&mut copy_graph[copy] = Node::Branch(Branch::new(counter));
     }
 
     pub fn naming_example() -> Self {

@@ -1,6 +1,6 @@
 use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
-use crate::flat_graph::{Edge, FlatGraph, Node};
+use crate::flat_graph::{Branch, Edge, FlatGraph, Node};
 use crate::render;
 use petgraph::{graph::NodeIndex, Direction};
 use std::{collections::VecDeque, ops::Mul};
@@ -287,13 +287,18 @@ impl State {
                         },
                     );
                 }
-                Node::Branch(num_indications) => {
+                Node::Branch(Branch {
+                    num_indications,
+                    focused_indication,
+                    zoom,
+                }) => {
+                    let focus_angle = 2.0 * std::f32::consts::PI / *num_indications as f32 * *focused_indication as f32;
                     let circle_positioner = CirclePositioner::new(
                         (radius * MIN_RADIUS) as f64,
                         *num_indications as u64,
-                        0.0,
+                        *zoom as f64,
                         center,
-                        0.0,
+                        focus_angle as f64,
                     );
 
                     let mut indications = {
@@ -312,9 +317,13 @@ impl State {
                     };
                     indications.sort_by_key(|(n, _)| *n);
 
+                    let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = indications
+                        .iter()
+                        .partition(|(i, _)| i < focused_indication);
+
                     circle_positioner
                         .into_iter()
-                        .zip(indications.iter())
+                        .zip(focused_and_after.iter().chain(before_focused.iter()))
                         .for_each(|(circle, (_, node))| {
                             let Circle { center, radius } = circle;
                             let Point { x, y } = center;
@@ -523,12 +532,14 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
         self.sampling_config = match self.sampling_config {
             SamplingConfig::Single => SamplingConfig::Single,
-            SamplingConfig::Multi { sample_count, .. } => {
-                SamplingConfig::Multi {
+            SamplingConfig::Multi { sample_count, .. } => SamplingConfig::Multi {
+                sample_count,
+                multisampled_framebuffer: Self::create_mutisampled_framebuffer(
+                    &self.device,
+                    &self.sc_desc,
                     sample_count,
-                    multisampled_framebuffer: Self::create_mutisampled_framebuffer(&self.device, &self.sc_desc, sample_count),
-                }
-            }
+                ),
+            },
         };
     }
 
@@ -582,38 +593,34 @@ impl State {
             let grayish_color = (33.0f64 / 256.0f64).powf(2.2f64);
 
             let color_attachment_descriptor = match &self.sampling_config {
-                SamplingConfig::Single => {
-                    wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: grayish_color,
-                                g: grayish_color,
-                                b: grayish_color,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    }
+                SamplingConfig::Single => wgpu::RenderPassColorAttachmentDescriptor {
+                    attachment: &frame.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: grayish_color,
+                            g: grayish_color,
+                            b: grayish_color,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
                 },
                 SamplingConfig::Multi {
                     sample_count,
                     multisampled_framebuffer,
-                } => {
-                    wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: multisampled_framebuffer,
-                        resolve_target: Some(&frame.view),
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: grayish_color,
-                                g: grayish_color,
-                                b: grayish_color,
-                                a: 1.0,
-                            }),
-                            store: true,
-                        },
-                    }
+                } => wgpu::RenderPassColorAttachmentDescriptor {
+                    attachment: multisampled_framebuffer,
+                    resolve_target: Some(&frame.view),
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: grayish_color,
+                            g: grayish_color,
+                            b: grayish_color,
+                            a: 1.0,
+                        }),
+                        store: true,
+                    },
                 },
             };
 
