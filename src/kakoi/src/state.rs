@@ -2,6 +2,7 @@ use crate::camera::Camera;
 use crate::circle::{Circle, CirclePositioner, Point};
 use crate::flat_graph::{Branch, Edge, FlatGraph, Node};
 use crate::render;
+use crate::sphere::Sphere;
 use petgraph::{graph::NodeIndex, Direction};
 use std::collections::VecDeque;
 use winit::window::Window;
@@ -18,8 +19,8 @@ pub struct State {
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
-    circle_constraint_builder: render::CircleConstraintBuilder,
-    text_constraint_builder: render::TextConstraintBuilder,
+    circle_constraint_builder: render::circle::CircleConstraintBuilder,
+    text_constraint_builder: render::text::TextConstraintBuilder,
 }
 
 #[derive(Debug)]
@@ -36,8 +37,8 @@ struct InstanceRaw {
 
 impl State {
     fn build_instances(
-        circle_constraint_builder: &mut render::CircleConstraintBuilder,
-        text_constraint_builder: &mut render::TextConstraintBuilder,
+        circle_constraint_builder: &mut render::circle::CircleConstraintBuilder,
+        text_constraint_builder: &mut render::text::TextConstraintBuilder,
     ) {
         let flat_graph = FlatGraph::naming_example();
 
@@ -48,7 +49,7 @@ impl State {
             todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
             circle_constraint_builder.with_constraint(
                 focused_index,
-                render::Sphere {
+                Sphere {
                     center: cgmath::Vector3::new(0.0, 0.0, 0.0),
                     radius: 1.0,
                 },
@@ -72,8 +73,8 @@ impl State {
     }
 
     fn build_instances_helper(
-        circle_constraint_builder: &mut render::CircleConstraintBuilder,
-        text_constraint_builder: &mut render::TextConstraintBuilder,
+        circle_constraint_builder: &mut render::circle::CircleConstraintBuilder,
+        text_constraint_builder: &mut render::text::TextConstraintBuilder,
         todo: &mut VecDeque<(NodeIndex<u32>, f32, Point, u32)>,
         flat_graph: &FlatGraph,
         index: NodeIndex<u32>,
@@ -88,7 +89,7 @@ impl State {
                 Node::Leaf(text) => {
                     text_constraint_builder.with_constraint(
                         text.clone(),
-                        render::Sphere {
+                        Sphere {
                             center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
                             radius,
                         },
@@ -102,7 +103,7 @@ impl State {
                     let focus_angle = 2.0 * std::f32::consts::PI / *num_indications as f32
                         * *focused_indication as f32;
                     let circle_positioner = CirclePositioner::new(
-                        (radius * render::MIN_RADIUS) as f64,
+                        (radius * render::circle::MIN_RADIUS) as f64,
                         *num_indications as u64,
                         *zoom as f64,
                         center,
@@ -139,7 +140,7 @@ impl State {
                             todo.push_back((*node, radius as f32, center, depth + 1));
                             circle_constraint_builder.with_constraint(
                                 index,
-                                render::Sphere {
+                                Sphere {
                                     center: cgmath::Vector3::new(x as f32, y as f32, 0.0),
                                     radius: radius as f32,
                                 },
@@ -186,8 +187,8 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let mut text_constraint_builder = render::TextConstraintBuilder::new();
-        let mut circle_constraint_builder = render::CircleConstraintBuilder::new(&device, &sc_desc);
+        let mut text_constraint_builder = render::text::TextConstraintBuilder::new();
+        let mut circle_constraint_builder = render::circle::CircleConstraintBuilder::new(&device, &sc_desc);
 
         Self::build_instances(&mut circle_constraint_builder, &mut text_constraint_builder);
 
@@ -292,7 +293,7 @@ impl State {
             self.sc_desc.height as f32,
             false,
         );
-        let mut text_constraint_renderer = render::TextConstraintRenderer {
+        let mut text_constraint_renderer = render::text::TextConstraintRenderer {
             text_constraint_instances,
             device: &mut self.device,
             glyph_brush: &mut self.glyph_brush,

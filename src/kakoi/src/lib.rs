@@ -11,3 +11,4 @@ pub mod sampling_config;
 pub mod state;
 pub mod svg;
 pub mod window;
+pub mod sphere;
