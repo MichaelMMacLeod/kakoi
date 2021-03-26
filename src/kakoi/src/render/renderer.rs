@@ -64,8 +64,8 @@ impl Renderer {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
         let selected_sphere = Sphere {
-            center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-            radius: 1.0,
+            center: cgmath::Vector3::new(-0.5, 0.0, 0.0),
+            radius: 0.5,
         };
         let mut flat_graph = FlatGraph::naming_example();
         let mut circle_renderer = CircleConstraintBuilder::new(
@@ -88,10 +88,19 @@ impl Renderer {
     }
 
     pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue) {
+        let aspect_corrected_sphere = Sphere {
+            center: self.selected_sphere.center,
+            radius: if self.camera.aspect > 1.0 {
+                self.selected_sphere.radius * self.camera.aspect
+            } else {
+                self.selected_sphere.radius / self.camera.aspect
+            }
+        };
+
         self.circle_renderer
-            .update(queue, &self.view_projection_matrix, &self.selected_sphere);
+            .update(queue, &self.view_projection_matrix, &aspect_corrected_sphere);
         self.text_renderer
-            .update(queue, &self.view_projection_matrix, &self.selected_sphere);
+            .update(queue, &self.view_projection_matrix, &aspect_corrected_sphere);
     }
 
     pub fn resize<'a>(&mut self, device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) {
