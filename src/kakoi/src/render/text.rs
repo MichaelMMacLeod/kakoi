@@ -35,14 +35,18 @@ impl TextConstraintBuilder {
                         // TODO: possible division by zero error here
                         radius: sphere.radius / selected_sphere.radius,
                     };
-                    instances.push(TextConstraintInstance::new(
-                        text.clone(),
-                        glyph_brush,
-                        &new_sphere,
-                        view_projection_matrix,
-                        sc_desc.width as f32,
-                        sc_desc.height as f32,
-                    ));
+                    if new_sphere.center.x.abs() - new_sphere.radius <= 1.0
+                        && new_sphere.center.y.abs() - new_sphere.radius <= 1.0
+                    {
+                        instances.push(TextConstraintInstance::new(
+                            text.clone(),
+                            glyph_brush,
+                            &new_sphere,
+                            view_projection_matrix,
+                            sc_desc.width as f32,
+                            sc_desc.height as f32,
+                        ));
+                    }
                 }
             };
 
