@@ -329,26 +329,26 @@ impl FlatGraph {
                 ],
             )
             .unwrap();
-        let named_name_index = graph
-            .enclose(
-                Group::New,
-                vec![
-                    Insertion::Existing { index: name_index },
-                    Insertion::New {
-                        leaf: "Naming".into(),
-                    },
-                ],
-            )
-            .unwrap();
-        graph.enclose(
-            Group::Existing {
-                index: name_index,
-                position: 0,
-            },
-            vec![Insertion::Existing {
-                index: named_name_index,
-            }],
-        );
+        // let named_name_index = graph
+        //     .enclose(
+        //         Group::New,
+        //         vec![
+        //             Insertion::Existing { index: name_index },
+        //             Insertion::New {
+        //                 leaf: "Naming".into(),
+        //             },
+        //         ],
+        //     )
+        //     .unwrap();
+        // graph.enclose(
+        //     Group::Existing {
+        //         index: name_index,
+        //         position: 0,
+        //     },
+        //     vec![Insertion::Existing {
+        //         index: named_name_index,
+        //     }],
+        // );
         graph.focused = Some(name_index);
         graph
     }

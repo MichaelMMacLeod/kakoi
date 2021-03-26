@@ -19,6 +19,7 @@ pub trait InstanceRenderer<D> {
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     ) -> Self;
 
     fn with_instance<'a>(&mut self, bounds: Sphere, data: &'a D);
@@ -27,6 +28,7 @@ pub trait InstanceRenderer<D> {
         &mut self,
         queue: &'a mut wgpu::Queue,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     );
 
     fn resize<'a>(
@@ -51,6 +53,7 @@ pub trait InstanceRenderer<D> {
 pub struct Renderer {
     flat_graph: FlatGraph,
     camera: Camera,
+    selected_sphere: Sphere,
     view_projection_matrix: cgmath::Matrix4<f32>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
@@ -60,11 +63,19 @@ impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
+        let selected_sphere = Sphere {
+            center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+            radius: 1.0,
+        };
         let mut flat_graph = FlatGraph::naming_example();
-        let mut circle_renderer =
-            CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
+        let mut circle_renderer = CircleConstraintBuilder::new(
+            device,
+            sc_desc,
+            &view_projection_matrix,
+            &selected_sphere,
+        );
         let mut text_renderer =
-            TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
+            TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix, &selected_sphere);
         Self::build_instances(&mut flat_graph, &mut circle_renderer, &mut text_renderer);
         Self {
             flat_graph,
@@ -72,22 +83,18 @@ impl Renderer {
             view_projection_matrix,
             text_renderer,
             circle_renderer,
+            selected_sphere,
         }
     }
 
-    pub fn update<'a>(
-        &mut self,
-        queue: &'a mut wgpu::Queue,
-    ) {
-        self.circle_renderer.update(queue, &self.view_projection_matrix);
-        self.text_renderer.update(queue, &self.view_projection_matrix);
+    pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue) {
+        self.circle_renderer
+            .update(queue, &self.view_projection_matrix, &self.selected_sphere);
+        self.text_renderer
+            .update(queue, &self.view_projection_matrix, &self.selected_sphere);
     }
 
-    pub fn resize<'a>(
-        &mut self,
-        device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-    ) {
+    pub fn resize<'a>(&mut self, device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) {
         self.camera.aspect = sc_desc.width as f32 / sc_desc.height as f32;
         self.view_projection_matrix = self.camera.build_view_projection_matrix();
         self.circle_renderer

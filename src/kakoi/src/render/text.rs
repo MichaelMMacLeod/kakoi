@@ -11,6 +11,7 @@ pub struct TextConstraintBuilder {
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
+    selected_sphere: Sphere,
 }
 
 impl TextConstraintBuilder {
@@ -21,16 +22,23 @@ impl TextConstraintBuilder {
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
         refresh_cache: bool,
+        selected_sphere: &'b Sphere,
     ) -> &'a Vec<TextConstraintInstance> {
         if instances_cache.is_none() || refresh_cache {
             let mut instances: Vec<TextConstraintInstance> = Vec::new();
 
             let mut build_onekey_instances = |text: String, spheres| {
                 for sphere in spheres {
+                    let sphere: &Sphere = sphere;
+                    let new_sphere: Sphere = Sphere {
+                        center: (sphere.center - selected_sphere.center) / selected_sphere.radius,
+                        // TODO: possible division by zero error here
+                        radius: sphere.radius / selected_sphere.radius,
+                    };
                     instances.push(TextConstraintInstance::new(
                         text.clone(),
                         glyph_brush,
-                        sphere,
+                        &new_sphere,
                         view_projection_matrix,
                         sc_desc.width as f32,
                         sc_desc.height as f32,
@@ -58,6 +66,7 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     ) -> Self {
         // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
         // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
@@ -84,6 +93,7 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             staging_belt,
             local_pool,
             local_spawner,
+            selected_sphere: *selected_sphere,
         }
     }
 
@@ -98,7 +108,9 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
         &mut self,
         _queue: &'a mut wgpu::Queue,
         _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     ) {
+        self.selected_sphere = *selected_sphere;
     }
 
     fn resize<'a>(
@@ -114,6 +126,7 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             view_projection_matrix,
             sc_desc,
             true,
+            &self.selected_sphere,
         );
     }
 
@@ -131,7 +144,8 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             &mut self.glyph_brush,
             view_projection_matrix,
             sc_desc,
-            false,
+            true,
+            &self.selected_sphere,
         );
         for instance in text_constraint_instances {
             // Don't draw text that is too small to be seen clearly.
@@ -184,9 +198,9 @@ pub struct TextConstraintInstance {
 impl TextConstraintInstance {
     pub fn new(
         text: String,
-        _glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
-        _sphere: &Sphere,
-        _view_projection_matrix: &cgmath::Matrix4<f32>,
+        glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
+        sphere: &Sphere,
+        view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
@@ -199,23 +213,23 @@ impl TextConstraintInstance {
             ..wgpu_glyph::Section::default()
         };
         let scaled_radius = if viewport_width > viewport_height {
-            viewport_width * _sphere.radius
+            viewport_width * sphere.radius
         } else {
-            viewport_height * _sphere.radius
+            viewport_height * sphere.radius
         };
         let (width, height) =
-            Self::binary_search_for_text_scale(_glyph_brush, &mut section, scaled_radius);
+            Self::binary_search_for_text_scale(glyph_brush, &mut section, scaled_radius);
         let scale = section.text[0].scale.y;
         Self {
             text: text,
             width,
             height,
             scale,
-            sphere: *_sphere,
+            sphere: *sphere,
             scaled_radius,
             transformation: Self::calculate_transformation(
-                _view_projection_matrix,
-                _sphere,
+                view_projection_matrix,
+                sphere,
                 scaled_radius,
             ),
         }

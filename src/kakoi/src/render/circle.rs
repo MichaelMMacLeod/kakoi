@@ -19,8 +19,17 @@ impl Uniforms {
         }
     }
 
-    fn update_view_proj<'a>(&mut self, view_projection_matrix: cgmath::Matrix4<f32>) {
-        self.view_proj = view_projection_matrix.into();
+    fn update_view_proj<'a>(
+        &mut self,
+        view_projection_matrix: cgmath::Matrix4<f32>,
+        selected_sphere: &Sphere,
+    ) {
+        // TODO: possible division by zero error here
+        let scale = 1.0 / selected_sphere.radius;
+        let transformation = cgmath::Matrix4::from_scale(scale);
+        let transformation =
+            cgmath::Matrix4::from_translation(-selected_sphere.center * scale) * transformation;
+        self.view_proj = (view_projection_matrix * transformation).into();
     }
 }
 
@@ -157,6 +166,7 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     ) -> Self {
         let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -171,7 +181,7 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.frag.spv"));
 
         let mut uniforms = Uniforms::new();
-        uniforms.update_view_proj((*view_projection_matrix).into());
+        uniforms.update_view_proj((*view_projection_matrix).into(), selected_sphere);
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -277,9 +287,10 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
         &mut self,
         queue: &'a mut wgpu::Queue,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        selected_sphere: &'a Sphere,
     ) {
         self.uniforms
-            .update_view_proj((*view_projection_matrix).into());
+            .update_view_proj((*view_projection_matrix).into(), selected_sphere);
         queue.write_buffer(
             &self.uniform_buffer,
             0,
