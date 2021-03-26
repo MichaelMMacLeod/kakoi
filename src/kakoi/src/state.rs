@@ -90,24 +90,7 @@ impl State {
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
         use winit::event::*;
-        match event {
-            WindowEvent::MouseWheel {
-                delta: MouseScrollDelta::LineDelta(_, _y),
-                ..
-            } => {
-                // self.camera.eye.z *= 1.0 + 0.1 * y;
-                true
-            }
-            WindowEvent::CursorMoved {
-                position: winit::dpi::PhysicalPosition { x: _x, y: _y },
-                ..
-            } => {
-                // self.camera.eye.x = *x as f32 / self.sc_desc.width as f32 - 0.5;
-                // self.camera.eye.y = -*y as f32 / self.sc_desc.height as f32 + 0.5;
-                true
-            }
-            _ => false,
-        }
+        self.renderer.input(event)
     }
 
     pub fn update(&mut self) {

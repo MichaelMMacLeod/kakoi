@@ -92,7 +92,7 @@ impl Vertex {
 }
 
 pub struct CircleConstraintBuilder {
-    constraints: HashMap<NodeIndex<u32>, Vec<Sphere>>,
+    pub constraints: HashMap<NodeIndex<u32>, Vec<Sphere>>,
     num_instances: u32,
     instances_cache: Option<wgpu::Buffer>,
     render_pipeline: wgpu::RenderPipeline,
