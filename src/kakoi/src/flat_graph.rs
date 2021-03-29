@@ -48,6 +48,7 @@ pub enum Group {
     New,
 }
 
+#[derive(Clone)]
 pub enum Insertion {
     Existing { index: NodeIndex<u32> },
     New { leaf: String },
@@ -71,7 +72,9 @@ impl FlatGraph {
 
         let branch = &mut self.g[enclose];
         match branch {
-            Node::Branch(Branch { num_indications, .. }) => {
+            Node::Branch(Branch {
+                num_indications, ..
+            }) => {
                 *num_indications += 1;
             }
             Node::Leaf(_) => panic!("attempted to insert into leaf"),
@@ -142,7 +145,8 @@ impl FlatGraph {
                     Some(index)
                 }
                 _ => {
-                    let node_to_insert = self.g.add_node(Node::Branch(Branch::new(num_indications)));
+                    let node_to_insert =
+                        self.g.add_node(Node::Branch(Branch::new(num_indications)));
                     self.prepare_group(index, position);
                     self.g.add_edge(index, node_to_insert, Edge(position));
                     self.populate_empty_group(node_to_insert, members);
@@ -156,7 +160,8 @@ impl FlatGraph {
                     Insertion::Existing { index } => Some(*index),
                 },
                 _ => {
-                    let node_to_insert = self.g.add_node(Node::Branch(Branch::new(num_indications)));
+                    let node_to_insert =
+                        self.g.add_node(Node::Branch(Branch::new(num_indications)));
                     self.populate_empty_group(node_to_insert, members);
                     Some(node_to_insert)
                 }
@@ -277,20 +282,71 @@ impl FlatGraph {
         *&mut copy_graph[copy] = Node::Branch(Branch::new(counter));
     }
 
-    pub fn naming_example() -> Self {
-        fn make_leaf_insertions(leafs: &[&str]) -> Vec<Insertion> {
-            leafs
-                .iter()
-                .map(|&c| Insertion::New { leaf: c.into() })
-                .collect()
-        }
+    pub fn double_cycle_example() -> Self {
         let mut graph = FlatGraph::new();
-        let consonants = make_leaf_insertions(&[
+        let cycle_1 = Self::make_leaf_insertions(&["Cycle #1"]);
+        let cycle_2 = Self::make_leaf_insertions(&["Cycle #2"]);
+        let double_cycle = Self::make_leaf_insertions(&["Double cycle.\nHow intimidating!"]);
+        let cycle_1_index = {
+            let mut dc1 = double_cycle.clone();
+            dc1.append(&mut cycle_1.clone());
+            let c1idx = graph.enclose(Group::New, dc1).unwrap();
+            graph
+                .enclose(
+                    Group::Existing {
+                        index: c1idx,
+                        position: 2,
+                    },
+                    vec![Insertion::Existing { index: c1idx }],
+                )
+                .unwrap()
+        };
+        let cycle_2_index = {
+            let mut dc2 = double_cycle.clone();
+            dc2.append(&mut cycle_2.clone());
+            let c2idx = graph.enclose(Group::New, dc2).unwrap();
+            graph
+                .enclose(
+                    Group::Existing {
+                        index: c2idx,
+                        position: 2,
+                    },
+                    vec![Insertion::Existing { index: c2idx }],
+                )
+                .unwrap()
+        };
+        let toplevel = graph
+            .enclose(
+                Group::New,
+                vec![
+                    Insertion::Existing {
+                        index: cycle_1_index,
+                    },
+                    Insertion::Existing {
+                        index: cycle_2_index,
+                    },
+                ],
+            )
+            .unwrap();
+        graph.focused = Some(toplevel);
+        graph
+    }
+
+    fn make_leaf_insertions(leafs: &[&str]) -> Vec<Insertion> {
+        leafs
+            .iter()
+            .map(|&c| Insertion::New { leaf: c.into() })
+            .collect()
+    }
+
+    pub fn naming_example() -> Self {
+        let mut graph = FlatGraph::new();
+        let consonants = Self::make_leaf_insertions(&[
             "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v",
             "w", "x", "y", "z",
         ]);
         let consonant_index = graph.enclose(Group::New, consonants).unwrap();
-        let vowels = make_leaf_insertions(&["a", "e", "i", "o", "u"]);
+        let vowels = Self::make_leaf_insertions(&["a", "e", "i", "o", "u"]);
         let vowel_index = graph.enclose(Group::New, vowels).unwrap();
         let named_consonant_index = graph
             .enclose(

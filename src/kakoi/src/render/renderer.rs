@@ -68,7 +68,7 @@ impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let mut flat_graph = FlatGraph::naming_example();
+        let mut flat_graph = FlatGraph::double_cycle_example();
         let selected_index = flat_graph.focused.unwrap();
         let selected_sphere = Sphere {
             center: cgmath::Vector3::new(0.0, 0.0, 0.0),
