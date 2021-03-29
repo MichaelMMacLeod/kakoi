@@ -181,6 +181,7 @@ impl Renderer {
                             x + self.selected_sphere.center.x,
                             y + self.selected_sphere.center.y,
                         );
+                        dbg!(x, y);
 
                         let indications = {
                             let mut walker = self
@@ -210,11 +211,20 @@ impl Renderer {
                             indications
                         };
 
-                        dbg!(&indications);
-
                         let selected = indications.iter().find(|(_, sphere)| {
-                            let dx = x - sphere.center.x;
-                            let dy = y - sphere.center.y;
+                            let sx = sphere.center.x;
+                            let sy = sphere.center.y;
+
+                            // let sx = sx / self.selected_sphere.radius;
+                            // let sy = sy / self.selected_sphere.radius;
+                            
+                            // let sx = sx - self.selected_sphere.center.x;
+                            // let sy = sy - self.selected_sphere.center.y;
+
+                            eprintln!("{:?}", (sx, sy));
+
+                            let dx = x - sx;
+                            let dy = y - sy;
                             let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
                             inside_rad
                         });

@@ -10,7 +10,8 @@ use wgpu::util::DeviceExt;
 struct Uniforms {
     view_proj: [[f32; 4]; 4],
 }
-
+// TODO: think about using a tree to organize circle instances, where a 
+// node in the tree represents a circle, and its children are the circles it contains.
 impl Uniforms {
     fn new() -> Self {
         use cgmath::SquareMatrix;
