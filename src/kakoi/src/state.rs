@@ -89,7 +89,6 @@ impl State {
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
-        use winit::event::*;
         self.renderer.input(event)
     }
 
