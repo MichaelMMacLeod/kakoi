@@ -9,8 +9,8 @@ pub struct History {
 }
 
 pub struct Element {
-    flat_graph_index: flat_graph::Index,
-    indication_tree_index: indication_tree::Index,
+    pub flat_graph_index: flat_graph::Index,
+    pub indication_tree_index: indication_tree::Index,
 }
 
 impl History {
