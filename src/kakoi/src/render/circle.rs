@@ -2,7 +2,7 @@ use crate::render::renderer::InstanceRenderer;
 use crate::sampling_config::SamplingConfig;
 use crate::sphere::Sphere;
 use petgraph::graph::NodeIndex;
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -106,6 +106,12 @@ pub struct CircleConstraintBuilder {
 }
 
 impl CircleConstraintBuilder {
+    pub fn invalidate(&mut self) {
+        self.constraints = HashMap::new();
+        self.num_instances = 0;
+        self.instances_cache = None;
+    }
+    
     fn build_instances<'a, 'b>(
         instances_cache: &'b mut Option<wgpu::Buffer>,
         constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,

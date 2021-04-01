@@ -15,6 +15,11 @@ pub struct TextConstraintBuilder {
 }
 
 impl TextConstraintBuilder {
+    pub fn invalidate(&mut self) {
+        self.constraints = HashMap::new();
+        self.instances_cache = None;
+    }
+
     fn build_instances<'a, 'b>(
         instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
         constraints: &'a HashMap<String, Vec<Sphere>>,

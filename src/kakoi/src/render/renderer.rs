@@ -71,7 +71,7 @@ impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let mut flat_graph = FlatGraph::double_cycle_example();
+        let mut flat_graph = FlatGraph::naming_example();
         let selected_index = flat_graph.focused.unwrap();
         let selected_sphere = Sphere {
             center: cgmath::Vector3::new(0.0, 0.0, 0.0),
@@ -242,13 +242,16 @@ impl Renderer {
                         if let Some((node, sphere)) = selected {
                             self.selected_node_history
                                 .push((self.selected_index, self.selected_sphere));
-                            self.selected_sphere = *sphere;
+                            // self.selected_sphere = *sphere;
                             self.selected_index = *node;
+
+                            self.circle_renderer.invalidate();
+                            self.text_renderer.invalidate();
 
                             self.builder = Builder::new_with_selection(
                                 &self.flat_graph,
                                 self.camera.aspect,
-                                &self.selected_sphere,
+                                self.selected_index,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
                             );
@@ -260,8 +263,20 @@ impl Renderer {
                     }
                     MouseButton::Right => match self.selected_node_history.pop() {
                         Some((index, sphere)) => {
-                            self.selected_sphere = sphere;
+                            // self.selected_sphere = sphere;
                             self.selected_index = index;
+
+                            self.circle_renderer.invalidate();
+                            self.text_renderer.invalidate();
+
+                            self.builder = Builder::new_with_selection(
+                                &self.flat_graph,
+                                self.camera.aspect,
+                                self.selected_index,
+                                &mut self.circle_renderer,
+                                &mut self.text_renderer,
+                            );
+
                             true
                         }
                         None => false,
