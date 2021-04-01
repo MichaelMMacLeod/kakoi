@@ -1,4 +1,4 @@
-use petgraph::{graph::NodeIndex, Direction};
+use petgraph::graph::NodeIndex;
 
 use crate::{camera::Camera, flat_graph::FlatGraph, sphere::Sphere};
 
@@ -85,7 +85,6 @@ impl Renderer {
             &mut circle_renderer,
             &mut text_renderer,
         );
-        // Self::build_instances(&mut flat_graph, &mut circle_renderer, &mut text_renderer);
         Self {
             flat_graph,
             camera,

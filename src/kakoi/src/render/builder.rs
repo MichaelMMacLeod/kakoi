@@ -198,24 +198,3 @@ impl Builder {
         Self { indication_tree }
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-
-//     #[test]
-//     fn test_0() {
-//         let builder = Builder::new_with_selection(
-//             &FlatGraph::double_cycle_example(),
-//             1.0,
-//             &Sphere {
-//                 center: cgmath::vec3(0.23266159, 0.0, 0.0),
-//                 radius: 0.2228616,
-//             },
-//         );
-//         eprintln!(
-//             "{:?}",
-//             petgraph::dot::Dot::with_config(&builder.indication_tree.g, &[])
-//         );
-//     }
-// }
