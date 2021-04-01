@@ -11,7 +11,6 @@ pub struct TextConstraintBuilder {
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
-    selected_sphere: Sphere,
 }
 
 impl TextConstraintBuilder {
@@ -27,7 +26,6 @@ impl TextConstraintBuilder {
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
         refresh_cache: bool,
-        selected_sphere: &'b Sphere,
     ) -> &'a Vec<TextConstraintInstance> {
         if instances_cache.is_none() || refresh_cache {
             let mut instances: Vec<TextConstraintInstance> = Vec::new();
@@ -35,11 +33,7 @@ impl TextConstraintBuilder {
             let mut build_onekey_instances = |text: String, spheres| {
                 for sphere in spheres {
                     let sphere: &Sphere = sphere;
-                    let new_sphere: Sphere = Sphere {
-                        center: (sphere.center - selected_sphere.center) / selected_sphere.radius,
-                        // TODO: possible division by zero error here
-                        radius: sphere.radius / selected_sphere.radius,
-                    };
+                    let new_sphere = sphere;
                     if new_sphere.center.x.abs() - new_sphere.radius <= 1.0
                         && new_sphere.center.y.abs() - new_sphere.radius <= 1.0
                     {
@@ -75,7 +69,6 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         _view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     ) -> Self {
         // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
         // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
@@ -102,7 +95,6 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             staging_belt,
             local_pool,
             local_spawner,
-            selected_sphere: *selected_sphere,
         }
     }
 
@@ -117,9 +109,7 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
         &mut self,
         _queue: &'a mut wgpu::Queue,
         _view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     ) {
-        self.selected_sphere = *selected_sphere;
     }
 
     fn resize<'a>(
@@ -135,7 +125,6 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             view_projection_matrix,
             sc_desc,
             true,
-            &self.selected_sphere,
         );
     }
 
@@ -154,7 +143,6 @@ impl InstanceRenderer<String> for TextConstraintBuilder {
             view_projection_matrix,
             sc_desc,
             true,
-            &self.selected_sphere,
         );
         for instance in text_constraint_instances {
             // Don't draw text that is too small to be seen clearly.

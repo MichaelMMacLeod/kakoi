@@ -1,8 +1,5 @@
 use petgraph::graph::NodeIndex;
 
-use crate::flat_graph;
-use super::indication_tree;
-
 // Maintains a stack of history elements. Each element represents a circle 
 // that we have zoomed in on so that it fills the screen.
 pub struct History {

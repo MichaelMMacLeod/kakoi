@@ -33,12 +33,7 @@ impl Camera {
     pub fn build_view_projection_matrix(&self) -> Matrix4<f32> {
         let target = cgmath::Point3::new(self.eye.x, self.eye.y, 0.0);
         let view = Matrix4::look_at_rh(self.eye, target, self.up);
-        let proj = if self.aspect > 1.0 {
-            cgmath::Matrix4::from_nonuniform_scale(1.0, self.aspect, 1.0)
-        } else {
-            cgmath::Matrix4::from_nonuniform_scale(1.0 / self.aspect, 1.0, 1.0)
-        };
-        let proj = perspective(Deg(self.fovy), 1.0, self.znear, self.zfar) * proj;
+        let proj = perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 }

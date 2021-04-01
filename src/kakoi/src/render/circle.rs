@@ -2,7 +2,7 @@ use crate::render::renderer::InstanceRenderer;
 use crate::sampling_config::SamplingConfig;
 use crate::sphere::Sphere;
 use petgraph::graph::NodeIndex;
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -10,8 +10,7 @@ use wgpu::util::DeviceExt;
 struct Uniforms {
     view_proj: [[f32; 4]; 4],
 }
-// TODO: think about using a tree to organize circle instances, where a 
-// node in the tree represents a circle, and its children are the circles it contains.
+
 impl Uniforms {
     fn new() -> Self {
         use cgmath::SquareMatrix;
@@ -20,17 +19,8 @@ impl Uniforms {
         }
     }
 
-    fn update_view_proj<'a>(
-        &mut self,
-        view_projection_matrix: cgmath::Matrix4<f32>,
-        selected_sphere: &Sphere,
-    ) {
-        // TODO: possible division by zero error here
-        let scale = 1.0 / selected_sphere.radius;
-        let transformation = cgmath::Matrix4::from_scale(scale);
-        let transformation =
-            cgmath::Matrix4::from_translation(-selected_sphere.center * scale) * transformation;
-        self.view_proj = (view_projection_matrix * transformation).into();
+    fn update_view_proj<'a>(&mut self, view_projection_matrix: cgmath::Matrix4<f32>) {
+        self.view_proj = view_projection_matrix.into();
     }
 }
 
@@ -111,33 +101,31 @@ impl CircleConstraintBuilder {
         self.num_instances = 0;
         self.instances_cache = None;
     }
-    
+
     fn build_instances<'a, 'b>(
         instances_cache: &'b mut Option<wgpu::Buffer>,
         constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,
         device: &'a wgpu::Device,
     ) -> &'b wgpu::Buffer {
-        // if instances_cache.is_none() {
-            let mut instances: Vec<CircleConstraintInstance> = Vec::new();
+        let mut instances: Vec<CircleConstraintInstance> = Vec::new();
 
-            let mut build_onekey_instances = |spheres| {
-                for sphere in spheres {
-                    instances.push(CircleConstraintInstance::new(sphere));
-                }
-            };
-
-            for (_, spheres) in constraints {
-                build_onekey_instances(spheres);
+        let mut build_onekey_instances = |spheres| {
+            for sphere in spheres {
+                instances.push(CircleConstraintInstance::new(sphere));
             }
+        };
 
-            *instances_cache = Some(
-                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("CircleConstraintInstance instance buffer"),
-                    contents: bytemuck::cast_slice(&instances),
-                    usage: wgpu::BufferUsage::VERTEX,
-                }),
-            );
-        // }
+        for (_, spheres) in constraints {
+            build_onekey_instances(spheres);
+        }
+
+        *instances_cache = Some(
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("CircleConstraintInstance instance buffer"),
+                contents: bytemuck::cast_slice(&instances),
+                usage: wgpu::BufferUsage::VERTEX,
+            }),
+        );
 
         instances_cache.as_ref().unwrap()
     }
@@ -173,7 +161,6 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     ) -> Self {
         let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -188,7 +175,7 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.frag.spv"));
 
         let mut uniforms = Uniforms::new();
-        uniforms.update_view_proj((*view_projection_matrix).into(), selected_sphere);
+        uniforms.update_view_proj((*view_projection_matrix).into());
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -294,10 +281,9 @@ impl InstanceRenderer<NodeIndex<u32>> for CircleConstraintBuilder {
         &mut self,
         queue: &'a mut wgpu::Queue,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     ) {
         self.uniforms
-            .update_view_proj((*view_projection_matrix).into(), selected_sphere);
+            .update_view_proj((*view_projection_matrix).into());
         queue.write_buffer(
             &self.uniform_buffer,
             0,

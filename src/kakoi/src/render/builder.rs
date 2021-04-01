@@ -1,7 +1,5 @@
-use core::num;
 use std::collections::VecDeque;
 
-use cgmath::ElementWise;
 use petgraph::graph::NodeIndex;
 
 use crate::{circle::Point, sphere::Sphere};

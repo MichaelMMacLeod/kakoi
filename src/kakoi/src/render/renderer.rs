@@ -1,27 +1,14 @@
-use std::collections::VecDeque;
-
 use petgraph::{graph::NodeIndex, Direction};
 
-use crate::{
-    camera::Camera,
-    circle::{Circle, CirclePositioner, Point},
-    flat_graph::{Branch, Edge, FlatGraph, Node},
-    sphere::Sphere,
-};
+use crate::{camera::Camera, flat_graph::FlatGraph, sphere::Sphere};
 
-use super::{
-    builder::Builder,
-    circle::{CircleConstraintBuilder, MIN_RADIUS},
-    indication_tree::Tree,
-    text::TextConstraintBuilder,
-};
+use super::{builder::Builder, circle::CircleConstraintBuilder, text::TextConstraintBuilder};
 
 pub trait InstanceRenderer<D> {
     fn new<'a>(
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     ) -> Self;
 
     fn with_instance<'a>(&mut self, bounds: Sphere, data: &'a D);
@@ -30,7 +17,6 @@ pub trait InstanceRenderer<D> {
         &mut self,
         queue: &'a mut wgpu::Queue,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-        selected_sphere: &'a Sphere,
     );
 
     fn resize<'a>(
@@ -57,9 +43,8 @@ pub struct Renderer {
     camera: Camera,
     width: f32,
     height: f32,
-    selected_sphere: Sphere,
     selected_index: NodeIndex<u32>,
-    selected_node_history: Vec<(NodeIndex<u32>, Sphere)>,
+    selected_node_history: Vec<NodeIndex<u32>>,
     view_projection_matrix: cgmath::Matrix4<f32>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
@@ -71,20 +56,12 @@ impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let mut flat_graph = FlatGraph::naming_example();
+        let flat_graph = FlatGraph::naming_example();
         let selected_index = flat_graph.focused.unwrap();
-        let selected_sphere = Sphere {
-            center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-            radius: 1.0,
-        };
-        let mut circle_renderer = CircleConstraintBuilder::new(
-            device,
-            sc_desc,
-            &view_projection_matrix,
-            &selected_sphere,
-        );
+        let mut circle_renderer =
+            CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
         let mut text_renderer =
-            TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix, &selected_sphere);
+            TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
         let builder = Builder::new(
             &flat_graph,
             sc_desc.width as f32 / sc_desc.height as f32,
@@ -98,7 +75,6 @@ impl Renderer {
             view_projection_matrix,
             text_renderer,
             circle_renderer,
-            selected_sphere,
             selected_index,
             selected_node_history: Vec::new(),
             cursor_position: (0.0, 0.0),
@@ -109,25 +85,10 @@ impl Renderer {
     }
 
     pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue) {
-        let aspect_corrected_sphere = Sphere {
-            center: self.selected_sphere.center,
-            radius: if self.camera.aspect > 1.0 {
-                self.selected_sphere.radius * self.camera.aspect
-            } else {
-                self.selected_sphere.radius / self.camera.aspect
-            },
-        };
-
-        self.circle_renderer.update(
-            queue,
-            &self.view_projection_matrix,
-            &aspect_corrected_sphere,
-        );
-        self.text_renderer.update(
-            queue,
-            &self.view_projection_matrix,
-            &aspect_corrected_sphere,
-        );
+        self.circle_renderer
+            .update(queue, &self.view_projection_matrix);
+        self.text_renderer
+            .update(queue, &self.view_projection_matrix);
     }
 
     pub fn resize<'a>(&mut self, device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) {
@@ -183,14 +144,6 @@ impl Renderer {
                         } else {
                             (x, y * self.camera.aspect)
                         };
-                        let (x, y) = (
-                            x * self.selected_sphere.radius,
-                            y * self.selected_sphere.radius,
-                        );
-                        let (x, y) = (
-                            x + self.selected_sphere.center.x,
-                            y + self.selected_sphere.center.y,
-                        );
                         dbg!(x, y);
 
                         let indications = {
@@ -201,7 +154,6 @@ impl Renderer {
                                 .detach();
 
                             let mut indications = Vec::new();
-                            let selected_sphere_radius = self.selected_sphere.radius;
 
                             while let Some((_, node)) = walker.next(&self.flat_graph.g) {
                                 self.circle_renderer
@@ -213,7 +165,7 @@ impl Renderer {
                                         });
                                         spheres
                                             .iter()
-                                            .find(|sphere| sphere.radius < selected_sphere_radius)
+                                            .find(|sphere| sphere.radius < 1.0)
                                             .map(|sphere| indications.push((node, *sphere)));
                                     });
                             }
@@ -240,8 +192,7 @@ impl Renderer {
                         });
 
                         if let Some((node, sphere)) = selected {
-                            self.selected_node_history
-                                .push((self.selected_index, self.selected_sphere));
+                            self.selected_node_history.push(self.selected_index);
                             // self.selected_sphere = *sphere;
                             self.selected_index = *node;
 
@@ -262,8 +213,7 @@ impl Renderer {
                         }
                     }
                     MouseButton::Right => match self.selected_node_history.pop() {
-                        Some((index, sphere)) => {
-                            // self.selected_sphere = sphere;
+                        Some(index) => {
                             self.selected_index = index;
 
                             self.circle_renderer.invalidate();
@@ -403,6 +353,6 @@ impl Renderer {
     //                     });
     //             }
     //         }
-        // }
+    // }
     // }
 }

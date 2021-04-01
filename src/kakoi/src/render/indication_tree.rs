@@ -1,6 +1,6 @@
-use petgraph::{graph::NodeIndex, Directed, stable_graph::StableGraph};
+use petgraph::{graph::NodeIndex, stable_graph::StableGraph, Directed};
 
-use crate::{flat_graph, sphere::Sphere};
+use crate::sphere::Sphere;
 
 #[derive(Debug)]
 pub struct TreeNode {
