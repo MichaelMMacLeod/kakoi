@@ -1,14 +1,9 @@
-pub mod action;
 pub mod camera;
 pub mod circle;
-pub mod flat_action;
 pub mod flat_graph;
 pub mod graph;
-pub mod index;
-pub mod recurse;
 pub mod render;
 pub mod sampling_config;
 pub mod state;
-pub mod svg;
 pub mod window;
 pub mod sphere;
