@@ -52,6 +52,23 @@ pub struct Renderer {
     builder: Builder,
 }
 
+fn screen_to_view_coordinates(
+    screen_x: f32,
+    screen_y: f32,
+    screen_width: f32,
+    screen_height: f32,
+) -> (f32, f32) {
+    let aspect = screen_width / screen_height;
+    let (cx, cy) = (screen_x, screen_y);
+    let x = (2.0 * cx / screen_width) - 1.0;
+    let y = (-2.0 * cy / screen_height) + 1.0;
+    if aspect > 1.0 {
+        (x * aspect, y)
+    } else {
+        (x, y * aspect)
+    }
+}
+
 impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
@@ -136,64 +153,32 @@ impl Renderer {
             WindowEvent::MouseInput { button, state, .. } if *state == ElementState::Pressed => {
                 match button {
                     MouseButton::Left => {
-                        let (cx, cy) = self.cursor_position;
-                        let x = (2.0 * cx / self.width) - 1.0;
-                        let y = (-2.0 * cy / self.height) + 1.0;
-                        let (x, y) = if self.camera.aspect > 1.0 {
-                            (x * self.camera.aspect, y)
-                        } else {
-                            (x, y * self.camera.aspect)
-                        };
-                        dbg!(x, y);
+                        let (cx, cy) = screen_to_view_coordinates(
+                            self.cursor_position.0,
+                            self.cursor_position.1,
+                            self.width,
+                            self.height,
+                        );
 
-                        let indications = {
-                            let mut walker = self
-                                .flat_graph
-                                .g
-                                .neighbors_directed(self.selected_index, Direction::Outgoing)
-                                .detach();
+                        let indications = self
+                            .builder
+                            .indication_tree
+                            .indications_of(self.builder.indication_tree.root);
 
-                            let mut indications = Vec::new();
-
-                            while let Some((_, node)) = walker.next(&self.flat_graph.g) {
-                                self.circle_renderer
-                                    .constraints
-                                    .get_mut(&node)
-                                    .map(|spheres| {
-                                        spheres.sort_unstable_by(|a, b| {
-                                            b.radius.partial_cmp(&a.radius).unwrap()
-                                        });
-                                        spheres
-                                            .iter()
-                                            .find(|sphere| sphere.radius < 1.0)
-                                            .map(|sphere| indications.push((node, *sphere)));
-                                    });
-                            }
-
-                            indications
-                        };
-
-                        let selected = indications.iter().find(|(_, sphere)| {
-                            let sx = sphere.center.x;
-                            let sy = sphere.center.y;
-
-                            // let sx = sx / self.selected_sphere.radius;
-                            // let sy = sy / self.selected_sphere.radius;
-
-                            // let sx = sx - self.selected_sphere.center.x;
-                            // let sy = sy - self.selected_sphere.center.y;
-
-                            eprintln!("{:?}", (sx, sy));
-
-                            let dx = x - sx;
-                            let dy = y - sy;
+                        let selected_node = indications.iter().find_map(|(sphere, node)| {
+                            let dx = sphere.center.x - cx;
+                            let dy = sphere.center.y - cy;
                             let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
-                            inside_rad
+
+                            if inside_rad {
+                                Some(node)
+                            } else {
+                                None
+                            }
                         });
 
-                        if let Some((node, sphere)) = selected {
+                        if let Some(node) = selected_node {
                             self.selected_node_history.push(self.selected_index);
-                            // self.selected_sphere = *sphere;
                             self.selected_index = *node;
 
                             self.circle_renderer.invalidate();
@@ -241,118 +226,4 @@ impl Renderer {
             _ => false,
         }
     }
-
-    // pub fn build_instances(
-    //     flat_graph: &mut FlatGraph,
-    //     circle_constraint_builder: &mut CircleConstraintBuilder,
-    //     text_constraint_builder: &mut TextConstraintBuilder,
-    // ) {
-    //     let max_depth = 50;
-    //     let min_radius = 0.0002;
-    //     let mut todo = VecDeque::new();
-    //     if let Some(focused_index) = flat_graph.focused {
-    //         todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
-    //         circle_constraint_builder.with_instance(
-    //             Sphere {
-    //                 center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-    //                 radius: 1.0,
-    //             },
-    //             &focused_index,
-    //         );
-    //     }
-
-    //     while let Some((index, radius, center, depth)) = todo.pop_front() {
-    //         Self::build_instances_helper(
-    //             circle_constraint_builder,
-    //             text_constraint_builder,
-    //             &mut todo,
-    //             &flat_graph,
-    //             index,
-    //             radius,
-    //             min_radius,
-    //             center,
-    //             depth,
-    //             max_depth,
-    //         );
-    //     }
-    // }
-
-    // fn build_instances_helper(
-    //     circle_constraint_builder: &mut CircleConstraintBuilder,
-    //     text_constraint_builder: &mut TextConstraintBuilder,
-    //     todo: &mut VecDeque<(NodeIndex<u32>, f32, Point, u32)>,
-    //     flat_graph: &FlatGraph,
-    //     index: NodeIndex<u32>,
-    //     radius: f32,
-    //     min_radius: f32,
-    //     center: Point,
-    //     depth: u32,
-    //     max_depth: u32,
-    // ) {
-    //     if depth < max_depth && radius > min_radius {
-    //         match &flat_graph.g[index] {
-    //             Node::Leaf(text) => {
-    //                 text_constraint_builder.with_instance(
-    //                     Sphere {
-    //                         center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
-    //                         radius,
-    //                     },
-    //                     text,
-    //                 );
-    //             }
-    //             Node::Branch(Branch {
-    //                 num_indications,
-    //                 focused_indication,
-    //                 zoom,
-    //             }) => {
-    //                 let focus_angle = 2.0 * std::f32::consts::PI / *num_indications as f32
-    //                     * *focused_indication as f32;
-    //                 let circle_positioner = CirclePositioner::new(
-    //                     (radius * MIN_RADIUS) as f64,
-    //                     *num_indications as u64,
-    //                     *zoom as f64,
-    //                     center,
-    //                     focus_angle as f64,
-    //                 );
-
-    //                 let mut indications = {
-    //                     let mut walker = flat_graph
-    //                         .g
-    //                         .neighbors_directed(index, Direction::Outgoing)
-    //                         .detach();
-    //                     let mut indications = Vec::with_capacity(*num_indications as usize);
-
-    //                     while let Some((edge, node)) = walker.next(&flat_graph.g) {
-    //                         let Edge(n) = flat_graph.g[edge];
-    //                         indications.push((n, node));
-    //                     }
-
-    //                     indications
-    //                 };
-    //                 indications.sort_by_key(|(n, _)| *n);
-
-    //                 let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = indications
-    //                     .iter()
-    //                     .partition(|(i, _)| i < focused_indication);
-
-    //                 circle_positioner
-    //                     .into_iter()
-    //                     .zip(focused_and_after.iter().chain(before_focused.iter()))
-    //                     .for_each(|(circle, (_, node))| {
-    //                         let Circle { center, radius } = circle;
-    //                         let Point { x, y } = center;
-
-    //                         todo.push_back((*node, radius as f32, center, depth + 1));
-    //                         circle_constraint_builder.with_instance(
-    //                             Sphere {
-    //                                 center: cgmath::Vector3::new(x as f32, y as f32, 0.0),
-    //                                 radius: radius as f32,
-    //                             },
-    //                             node,
-    //                         );
-    //                     });
-    //             }
-    //         }
-    // }
-    // }
 }
