@@ -1,3 +1,5 @@
+use petgraph::graph::NodeIndex;
+
 use crate::flat_graph;
 use super::indication_tree;
 
@@ -9,8 +11,8 @@ pub struct History {
 }
 
 pub struct Element {
-    pub flat_graph_index: flat_graph::Index,
-    pub indication_tree_index: indication_tree::Index,
+    pub flat_graph_index: NodeIndex<u32>,
+    pub indication_tree_index: NodeIndex<u32>,
 }
 
 impl History {

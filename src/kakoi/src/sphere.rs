@@ -35,6 +35,17 @@ impl Sphere {
             corner_distance_square < self.radius * self.radius
         }
     }
+
+    pub fn can_observe(&self, other: &Self, aspect_ratio: f32) -> bool {
+        let ratio = 1.0 / self.radius;
+
+        let other = Self {
+            center: ratio * (other.center - self.center),
+            radius: ratio * other.radius,
+        };
+
+        other.radius > 0.01 && other.is_on_screen(aspect_ratio)
+    }
 }
 
 #[cfg(test)]
@@ -119,10 +130,42 @@ mod test {
         assert!(Sphere {
             center: cgmath::vec3(0.0, 1.4, 0.0),
             radius: 0.49
-        }.is_on_screen(2.0));
+        }
+        .is_on_screen(2.0));
         assert!(!Sphere {
             center: cgmath::vec3(0.0, 1.5, 0.0),
             radius: 0.49
-        }.is_on_screen(2.0));
+        }
+        .is_on_screen(2.0));
+    }
+
+    #[test]
+    fn is_visible_from_1() {
+        assert!(Sphere {
+            center: cgmath::vec3(0.0, 0.0, 0.0),
+            radius: 1.0,
+        }
+        .can_observe(
+            &Sphere {
+                center: cgmath::vec3(0.0, 0.0, 0.0),
+                radius: 0.5,
+            },
+            1.0
+        ));
+    }
+
+    #[test]
+    fn is_visible_from_2() {
+        assert!(Sphere {
+            center: cgmath::vec3(-5.0, 0.0, 0.0),
+            radius: 2.0,
+        }
+        .can_observe(
+            &Sphere {
+                center: cgmath::vec3(-5.0, 0.0, 0.0),
+                radius: 100.0,
+            },
+            1.0
+        ));
     }
 }

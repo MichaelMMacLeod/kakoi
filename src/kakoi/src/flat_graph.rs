@@ -4,22 +4,6 @@ use petgraph::stable_graph::StableGraph as GraphImpl;
 use petgraph::Directed;
 use std::collections::{HashMap, VecDeque};
 
-pub struct Index {
-    index: NodeIndex<u32>,
-}
-
-impl From<Index> for NodeIndex<u32> {
-    fn from(flat_graph_index: Index) -> Self {
-        flat_graph_index.index
-    }
-}
-
-impl From<NodeIndex<u32>> for Index {
-    fn from(node_index: NodeIndex<u32>) -> Self {
-        Self { index: node_index }
-    }
-}
-
 #[derive(Debug)]
 pub struct Edge(pub u32);
 

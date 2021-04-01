@@ -111,7 +111,7 @@ impl CircleConstraintBuilder {
         constraints: &'b HashMap<NodeIndex<u32>, Vec<Sphere>>,
         device: &'a wgpu::Device,
     ) -> &'b wgpu::Buffer {
-        if instances_cache.is_none() {
+        // if instances_cache.is_none() {
             let mut instances: Vec<CircleConstraintInstance> = Vec::new();
 
             let mut build_onekey_instances = |spheres| {
@@ -131,7 +131,7 @@ impl CircleConstraintBuilder {
                     usage: wgpu::BufferUsage::VERTEX,
                 }),
             );
-        }
+        // }
 
         instances_cache.as_ref().unwrap()
     }

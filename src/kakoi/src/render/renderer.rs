@@ -10,7 +10,9 @@ use crate::{
 };
 
 use super::{
+    builder::Builder,
     circle::{CircleConstraintBuilder, MIN_RADIUS},
+    indication_tree::Tree,
     text::TextConstraintBuilder,
 };
 
@@ -62,6 +64,7 @@ pub struct Renderer {
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
     cursor_position: (f32, f32),
+    builder: Builder,
 }
 
 impl Renderer {
@@ -82,7 +85,13 @@ impl Renderer {
         );
         let mut text_renderer =
             TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix, &selected_sphere);
-        Self::build_instances(&mut flat_graph, &mut circle_renderer, &mut text_renderer);
+        let builder = Builder::new(
+            &flat_graph,
+            sc_desc.width as f32 / sc_desc.height as f32,
+            &mut circle_renderer,
+            &mut text_renderer,
+        );
+        // Self::build_instances(&mut flat_graph, &mut circle_renderer, &mut text_renderer);
         Self {
             flat_graph,
             camera,
@@ -95,6 +104,7 @@ impl Renderer {
             cursor_position: (0.0, 0.0),
             width: sc_desc.width as f32,
             height: sc_desc.height as f32,
+            builder,
         }
     }
 
@@ -217,7 +227,7 @@ impl Renderer {
 
                             // let sx = sx / self.selected_sphere.radius;
                             // let sy = sy / self.selected_sphere.radius;
-                            
+
                             // let sx = sx - self.selected_sphere.center.x;
                             // let sy = sy - self.selected_sphere.center.y;
 
@@ -230,23 +240,31 @@ impl Renderer {
                         });
 
                         if let Some((node, sphere)) = selected {
-                            self.selected_node_history.push((self.selected_index, self.selected_sphere));
+                            self.selected_node_history
+                                .push((self.selected_index, self.selected_sphere));
                             self.selected_sphere = *sphere;
                             self.selected_index = *node;
+
+                            self.builder = Builder::new_with_selection(
+                                &self.flat_graph,
+                                self.camera.aspect,
+                                &self.selected_sphere,
+                                &mut self.circle_renderer,
+                                &mut self.text_renderer,
+                            );
+
                             true
                         } else {
                             false
                         }
                     }
-                    MouseButton::Right => {
-                        match self.selected_node_history.pop() {
-                            Some((index,sphere)) => {
-                                self.selected_sphere = sphere;
-                                self.selected_index = index;
-                                true
-                            },
-                            None => false,
+                    MouseButton::Right => match self.selected_node_history.pop() {
+                        Some((index, sphere)) => {
+                            self.selected_sphere = sphere;
+                            self.selected_index = index;
+                            true
                         }
+                        None => false,
                     },
                     _ => false,
                 }
@@ -259,117 +277,117 @@ impl Renderer {
         }
     }
 
-    pub fn build_instances(
-        flat_graph: &mut FlatGraph,
-        circle_constraint_builder: &mut CircleConstraintBuilder,
-        text_constraint_builder: &mut TextConstraintBuilder,
-    ) {
-        let max_depth = 50;
-        let min_radius = 0.0002;
-        let mut todo = VecDeque::new();
-        if let Some(focused_index) = flat_graph.focused {
-            todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
-            circle_constraint_builder.with_instance(
-                Sphere {
-                    center: cgmath::Vector3::new(0.0, 0.0, 0.0),
-                    radius: 1.0,
-                },
-                &focused_index,
-            );
-        }
+    // pub fn build_instances(
+    //     flat_graph: &mut FlatGraph,
+    //     circle_constraint_builder: &mut CircleConstraintBuilder,
+    //     text_constraint_builder: &mut TextConstraintBuilder,
+    // ) {
+    //     let max_depth = 50;
+    //     let min_radius = 0.0002;
+    //     let mut todo = VecDeque::new();
+    //     if let Some(focused_index) = flat_graph.focused {
+    //         todo.push_back((focused_index, 1.0, Point { x: 0.0, y: 0.0 }, 0));
+    //         circle_constraint_builder.with_instance(
+    //             Sphere {
+    //                 center: cgmath::Vector3::new(0.0, 0.0, 0.0),
+    //                 radius: 1.0,
+    //             },
+    //             &focused_index,
+    //         );
+    //     }
 
-        while let Some((index, radius, center, depth)) = todo.pop_front() {
-            Self::build_instances_helper(
-                circle_constraint_builder,
-                text_constraint_builder,
-                &mut todo,
-                &flat_graph,
-                index,
-                radius,
-                min_radius,
-                center,
-                depth,
-                max_depth,
-            );
-        }
-    }
+    //     while let Some((index, radius, center, depth)) = todo.pop_front() {
+    //         Self::build_instances_helper(
+    //             circle_constraint_builder,
+    //             text_constraint_builder,
+    //             &mut todo,
+    //             &flat_graph,
+    //             index,
+    //             radius,
+    //             min_radius,
+    //             center,
+    //             depth,
+    //             max_depth,
+    //         );
+    //     }
+    // }
 
-    fn build_instances_helper(
-        circle_constraint_builder: &mut CircleConstraintBuilder,
-        text_constraint_builder: &mut TextConstraintBuilder,
-        todo: &mut VecDeque<(NodeIndex<u32>, f32, Point, u32)>,
-        flat_graph: &FlatGraph,
-        index: NodeIndex<u32>,
-        radius: f32,
-        min_radius: f32,
-        center: Point,
-        depth: u32,
-        max_depth: u32,
-    ) {
-        if depth < max_depth && radius > min_radius {
-            match &flat_graph.g[index] {
-                Node::Leaf(text) => {
-                    text_constraint_builder.with_instance(
-                        Sphere {
-                            center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
-                            radius,
-                        },
-                        text,
-                    );
-                }
-                Node::Branch(Branch {
-                    num_indications,
-                    focused_indication,
-                    zoom,
-                }) => {
-                    let focus_angle = 2.0 * std::f32::consts::PI / *num_indications as f32
-                        * *focused_indication as f32;
-                    let circle_positioner = CirclePositioner::new(
-                        (radius * MIN_RADIUS) as f64,
-                        *num_indications as u64,
-                        *zoom as f64,
-                        center,
-                        focus_angle as f64,
-                    );
+    // fn build_instances_helper(
+    //     circle_constraint_builder: &mut CircleConstraintBuilder,
+    //     text_constraint_builder: &mut TextConstraintBuilder,
+    //     todo: &mut VecDeque<(NodeIndex<u32>, f32, Point, u32)>,
+    //     flat_graph: &FlatGraph,
+    //     index: NodeIndex<u32>,
+    //     radius: f32,
+    //     min_radius: f32,
+    //     center: Point,
+    //     depth: u32,
+    //     max_depth: u32,
+    // ) {
+    //     if depth < max_depth && radius > min_radius {
+    //         match &flat_graph.g[index] {
+    //             Node::Leaf(text) => {
+    //                 text_constraint_builder.with_instance(
+    //                     Sphere {
+    //                         center: cgmath::Vector3::new(center.x as f32, center.y as f32, 0.0),
+    //                         radius,
+    //                     },
+    //                     text,
+    //                 );
+    //             }
+    //             Node::Branch(Branch {
+    //                 num_indications,
+    //                 focused_indication,
+    //                 zoom,
+    //             }) => {
+    //                 let focus_angle = 2.0 * std::f32::consts::PI / *num_indications as f32
+    //                     * *focused_indication as f32;
+    //                 let circle_positioner = CirclePositioner::new(
+    //                     (radius * MIN_RADIUS) as f64,
+    //                     *num_indications as u64,
+    //                     *zoom as f64,
+    //                     center,
+    //                     focus_angle as f64,
+    //                 );
 
-                    let mut indications = {
-                        let mut walker = flat_graph
-                            .g
-                            .neighbors_directed(index, Direction::Outgoing)
-                            .detach();
-                        let mut indications = Vec::with_capacity(*num_indications as usize);
+    //                 let mut indications = {
+    //                     let mut walker = flat_graph
+    //                         .g
+    //                         .neighbors_directed(index, Direction::Outgoing)
+    //                         .detach();
+    //                     let mut indications = Vec::with_capacity(*num_indications as usize);
 
-                        while let Some((edge, node)) = walker.next(&flat_graph.g) {
-                            let Edge(n) = flat_graph.g[edge];
-                            indications.push((n, node));
-                        }
+    //                     while let Some((edge, node)) = walker.next(&flat_graph.g) {
+    //                         let Edge(n) = flat_graph.g[edge];
+    //                         indications.push((n, node));
+    //                     }
 
-                        indications
-                    };
-                    indications.sort_by_key(|(n, _)| *n);
+    //                     indications
+    //                 };
+    //                 indications.sort_by_key(|(n, _)| *n);
 
-                    let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = indications
-                        .iter()
-                        .partition(|(i, _)| i < focused_indication);
+    //                 let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = indications
+    //                     .iter()
+    //                     .partition(|(i, _)| i < focused_indication);
 
-                    circle_positioner
-                        .into_iter()
-                        .zip(focused_and_after.iter().chain(before_focused.iter()))
-                        .for_each(|(circle, (_, node))| {
-                            let Circle { center, radius } = circle;
-                            let Point { x, y } = center;
+    //                 circle_positioner
+    //                     .into_iter()
+    //                     .zip(focused_and_after.iter().chain(before_focused.iter()))
+    //                     .for_each(|(circle, (_, node))| {
+    //                         let Circle { center, radius } = circle;
+    //                         let Point { x, y } = center;
 
-                            todo.push_back((*node, radius as f32, center, depth + 1));
-                            circle_constraint_builder.with_instance(
-                                Sphere {
-                                    center: cgmath::Vector3::new(x as f32, y as f32, 0.0),
-                                    radius: radius as f32,
-                                },
-                                node,
-                            );
-                        });
-                }
-            }
-        }
-    }
+    //                         todo.push_back((*node, radius as f32, center, depth + 1));
+    //                         circle_constraint_builder.with_instance(
+    //                             Sphere {
+    //                                 center: cgmath::Vector3::new(x as f32, y as f32, 0.0),
+    //                                 radius: radius as f32,
+    //                             },
+    //                             node,
+    //                         );
+    //                     });
+    //             }
+    //         }
+        // }
+    // }
 }
