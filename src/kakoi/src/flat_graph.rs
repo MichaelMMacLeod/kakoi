@@ -34,10 +34,10 @@ pub struct FlatGraph {
     pub focused: Option<NodeIndex<u32>>,
 }
 
-struct Todo {
-    source: NodeIndex<u32>,
-    copy: NodeIndex<u32>,
-}
+// struct Todo {
+//     source: NodeIndex<u32>,
+//     copy: NodeIndex<u32>,
+// }
 
 pub enum Group {
     Existing {
