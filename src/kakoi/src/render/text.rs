@@ -73,7 +73,6 @@ impl TextConstraintBuilder {
             &mut self.glyph_brush,
             view_projection_matrix,
             sc_desc,
-            true,
         );
     }
 
@@ -91,7 +90,6 @@ impl TextConstraintBuilder {
             &mut self.glyph_brush,
             view_projection_matrix,
             sc_desc,
-            true,
         );
         for instance in text_constraint_instances {
             // Don't draw text that is too small to be seen clearly.
@@ -141,9 +139,8 @@ impl TextConstraintBuilder {
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
-        refresh_cache: bool,
     ) -> &'a Vec<TextConstraintInstance> {
-        if instances_cache.is_none() || refresh_cache {
+        if instances_cache.is_none() {
             let mut instances: Vec<TextConstraintInstance> = Vec::new();
 
             let mut build_onekey_instances = |text: String, spheres| {
