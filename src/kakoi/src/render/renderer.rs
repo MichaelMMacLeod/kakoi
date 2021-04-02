@@ -119,7 +119,7 @@ impl Renderer {
         self.circle_renderer
             .resize(device, sc_desc, &self.view_projection_matrix);
         self.text_renderer
-            .resize(device, sc_desc, &self.view_projection_matrix);
+            .resize(&self.store, device, sc_desc, &self.view_projection_matrix);
     }
 
     pub fn render<'a>(
@@ -137,6 +137,7 @@ impl Renderer {
             &self.view_projection_matrix,
         );
         self.text_renderer.render(
+            &self.store,
             device,
             sc_desc,
             command_encoder,

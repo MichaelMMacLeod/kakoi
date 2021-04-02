@@ -63,8 +63,8 @@ fn build_indication_tree_2<'a>(
 
         match &flat_graph.g[NodeIndex::from(*flat_graph_index)] {
             flat_graph::Node::Leaf(key) => match store.get(key).unwrap() {
-                store::Value::String(string) => {
-                    text_builder.with_instance(*sphere, string);
+                store::Value::String(_) => {
+                    text_builder.with_instance(*sphere, *key);
                 }
             },
             flat_graph::Node::Branch(flat_graph::Branch {

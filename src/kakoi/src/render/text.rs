@@ -1,11 +1,13 @@
-use crate::sphere::Sphere;
-use std::collections::HashMap;
+use crate::{sphere::Sphere, store};
 use wgpu_glyph::GlyphCruncher;
 
-// use super::renderer::InstanceRenderer;
+struct BoundedString {
+    key: store::Key,
+    sphere: Sphere,
+}
 
 pub struct TextConstraintBuilder {
-    constraints: HashMap<String, Vec<Sphere>>,
+    constraints: Vec<BoundedString>,
     instances_cache: Option<Vec<TextConstraintInstance>>,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
     staging_belt: wgpu::util::StagingBelt,
@@ -38,7 +40,7 @@ impl TextConstraintBuilder {
         };
 
         Self {
-            constraints: HashMap::new(),
+            constraints: Vec::new(),
             instances_cache: None,
             glyph_brush,
             staging_belt,
@@ -47,11 +49,8 @@ impl TextConstraintBuilder {
         }
     }
 
-    pub fn with_instance<'a>(&mut self, sphere: Sphere, text: &'a String) {
-        self.constraints
-            .entry(text.clone())
-            .or_insert_with(|| Vec::with_capacity(1))
-            .push(sphere);
+    pub fn with_instance<'a>(&mut self, sphere: Sphere, key: store::Key) {
+        self.constraints.push(BoundedString { key, sphere });
     }
 
     pub fn update<'a>(
@@ -63,11 +62,13 @@ impl TextConstraintBuilder {
 
     pub fn resize<'a>(
         &mut self,
+        store: &'a store::Store,
         _device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) {
         Self::build_instances(
+            store,
             &mut self.instances_cache,
             &self.constraints,
             &mut self.glyph_brush,
@@ -78,6 +79,7 @@ impl TextConstraintBuilder {
 
     pub fn render<'a>(
         &mut self,
+        store: &'a store::Store,
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         encoder: &'a mut wgpu::CommandEncoder,
@@ -85,6 +87,7 @@ impl TextConstraintBuilder {
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) {
         let text_constraint_instances = Self::build_instances(
+            store,
             &mut self.instances_cache,
             &self.constraints,
             &mut self.glyph_brush,
@@ -92,27 +95,25 @@ impl TextConstraintBuilder {
             sc_desc,
         );
         for instance in text_constraint_instances {
-            // Don't draw text that is too small to be seen clearly.
-            if instance.scale > 5.0 {
-                let section = wgpu_glyph::Section {
-                    screen_position: (-instance.width * 0.5, -instance.height * 0.5),
-                    bounds: (f32::INFINITY, f32::INFINITY),
-                    text: vec![wgpu_glyph::Text::new(&instance.text)
-                        .with_color([1.0, 1.0, 1.0, 1.0])
-                        .with_scale(instance.scale)],
-                    ..wgpu_glyph::Section::default()
-                };
-                self.glyph_brush.queue(&section);
-                self.glyph_brush
-                    .draw_queued_with_transform(
-                        device,
-                        &mut self.staging_belt,
-                        encoder,
-                        texture_view,
-                        instance.transformation,
-                    )
-                    .unwrap(); // It seems like this function always returns Ok(())...?
-            }
+            let text = store.get(&instance.key).unwrap().string().unwrap();
+            let section = wgpu_glyph::Section {
+                screen_position: (-instance.width * 0.5, -instance.height * 0.5),
+                bounds: (f32::INFINITY, f32::INFINITY),
+                text: vec![wgpu_glyph::Text::new(text)
+                    .with_color([1.0, 1.0, 1.0, 1.0])
+                    .with_scale(instance.scale)],
+                ..wgpu_glyph::Section::default()
+            };
+            self.glyph_brush.queue(&section);
+            self.glyph_brush
+                .draw_queued_with_transform(
+                    device,
+                    &mut self.staging_belt,
+                    encoder,
+                    texture_view,
+                    instance.transformation,
+                )
+                .unwrap(); // It seems like this function always returns Ok(())...?
         }
 
         self.staging_belt.finish();
@@ -129,13 +130,14 @@ impl TextConstraintBuilder {
     }
 
     pub fn invalidate(&mut self) {
-        self.constraints = HashMap::new();
+        self.constraints = Vec::new();
         self.instances_cache = None;
     }
 
     fn build_instances<'a, 'b>(
+        store: &'b store::Store,
         instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
-        constraints: &'a HashMap<String, Vec<Sphere>>,
+        constraints: &'a Vec<BoundedString>,
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
@@ -143,28 +145,40 @@ impl TextConstraintBuilder {
         if instances_cache.is_none() {
             let mut instances: Vec<TextConstraintInstance> = Vec::new();
 
-            let mut build_onekey_instances = |text: String, spheres| {
-                for sphere in spheres {
-                    let sphere: &Sphere = sphere;
-                    let new_sphere = sphere;
-                    if new_sphere.center.x.abs() - new_sphere.radius <= 1.0
-                        && new_sphere.center.y.abs() - new_sphere.radius <= 1.0
-                    {
-                        instances.push(TextConstraintInstance::new(
-                            text.clone(),
-                            glyph_brush,
-                            &new_sphere,
-                            view_projection_matrix,
-                            sc_desc.width as f32,
-                            sc_desc.height as f32,
-                        ));
-                    }
-                }
-            };
-
-            for (text, spheres) in constraints {
-                build_onekey_instances(text.clone(), spheres);
+            for BoundedString { key, sphere } in constraints {
+                instances.push(TextConstraintInstance::new(
+                    store,
+                    key,
+                    glyph_brush,
+                    sphere,
+                    view_projection_matrix,
+                    sc_desc.width as f32,
+                    sc_desc.height as f32,
+                ));
             }
+
+            // let mut build_onekey_instances = |text: String, spheres| {
+            //     for sphere in spheres {
+            //         let sphere: &Sphere = sphere;
+            //         let new_sphere = sphere;
+            //         if new_sphere.center.x.abs() - new_sphere.radius <= 1.0
+            //             && new_sphere.center.y.abs() - new_sphere.radius <= 1.0
+            //         {
+            //             instances.push(TextConstraintInstance::new(
+            //                 text.clone(),
+            //                 glyph_brush,
+            //                 &new_sphere,
+            //                 view_projection_matrix,
+            //                 sc_desc.width as f32,
+            //                 sc_desc.height as f32,
+            //             ));
+            //         }
+            //     }
+            // };
+
+            // for (text, spheres) in constraints {
+            //     build_onekey_instances(text.clone(), spheres);
+            // }
 
             *instances_cache = Some(instances);
         } else {
@@ -178,7 +192,7 @@ impl TextConstraintBuilder {
 }
 
 pub struct TextConstraintInstance {
-    text: String,
+    key: store::Key,
     scale: f32,
     width: f32,
     height: f32,
@@ -189,13 +203,15 @@ pub struct TextConstraintInstance {
 
 impl TextConstraintInstance {
     pub fn new(
-        text: String,
+        store: &store::Store,
+        key: &store::Key,
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         sphere: &Sphere,
         view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
+        let text = store.get(key).unwrap().string().unwrap();
         let mut section = wgpu_glyph::Section {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
@@ -213,7 +229,7 @@ impl TextConstraintInstance {
             Self::binary_search_for_text_scale(glyph_brush, &mut section, scaled_radius);
         let scale = section.text[0].scale.y;
         Self {
-            text: text,
+            key: *key,
             width,
             height,
             scale,

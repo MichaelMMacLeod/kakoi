@@ -6,6 +6,15 @@ pub enum Value {
     String(String),
 }
 
+impl Value {
+    pub fn string(&self) -> Option<&String> {
+        match self {
+            Value::String(s) => Some(s),
+            // _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Key(u64);
 
