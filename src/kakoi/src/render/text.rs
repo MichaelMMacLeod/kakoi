@@ -2,7 +2,7 @@ use crate::sphere::Sphere;
 use std::collections::HashMap;
 use wgpu_glyph::GlyphCruncher;
 
-use super::renderer::InstanceRenderer;
+// use super::renderer::InstanceRenderer;
 
 pub struct TextConstraintBuilder {
     constraints: HashMap<String, Vec<Sphere>>,
@@ -14,6 +14,122 @@ pub struct TextConstraintBuilder {
 }
 
 impl TextConstraintBuilder {
+    pub fn new<'a>(
+        device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) -> Self {
+        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
+        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
+        // base this number on an estimate of how much data we would upload into
+        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
+        // for more information.
+        let staging_belt = wgpu::util::StagingBelt::new(4096);
+
+        let local_pool = futures::executor::LocalPool::new();
+        let local_spawner = local_pool.spawner();
+
+        let glyph_brush = {
+            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+                "../resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
+            ))
+            .unwrap();
+            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, sc_desc.format)
+        };
+
+        Self {
+            constraints: HashMap::new(),
+            instances_cache: None,
+            glyph_brush,
+            staging_belt,
+            local_pool,
+            local_spawner,
+        }
+    }
+
+    pub fn with_instance<'a>(&mut self, sphere: Sphere, text: &'a String) {
+        self.constraints
+            .entry(text.clone())
+            .or_insert_with(|| Vec::with_capacity(1))
+            .push(sphere);
+    }
+
+    pub fn update<'a>(
+        &mut self,
+        _queue: &'a mut wgpu::Queue,
+        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+    }
+
+    pub fn resize<'a>(
+        &mut self,
+        _device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+        Self::build_instances(
+            &mut self.instances_cache,
+            &self.constraints,
+            &mut self.glyph_brush,
+            view_projection_matrix,
+            sc_desc,
+            true,
+        );
+    }
+
+    pub fn render<'a>(
+        &mut self,
+        device: &'a wgpu::Device,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+        encoder: &'a mut wgpu::CommandEncoder,
+        texture_view: &'a wgpu::TextureView,
+        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+    ) {
+        let text_constraint_instances = Self::build_instances(
+            &mut self.instances_cache,
+            &self.constraints,
+            &mut self.glyph_brush,
+            view_projection_matrix,
+            sc_desc,
+            true,
+        );
+        for instance in text_constraint_instances {
+            // Don't draw text that is too small to be seen clearly.
+            if instance.scale > 5.0 {
+                let section = wgpu_glyph::Section {
+                    screen_position: (-instance.width * 0.5, -instance.height * 0.5),
+                    bounds: (f32::INFINITY, f32::INFINITY),
+                    text: vec![wgpu_glyph::Text::new(&instance.text)
+                        .with_color([1.0, 1.0, 1.0, 1.0])
+                        .with_scale(instance.scale)],
+                    ..wgpu_glyph::Section::default()
+                };
+                self.glyph_brush.queue(&section);
+                self.glyph_brush
+                    .draw_queued_with_transform(
+                        device,
+                        &mut self.staging_belt,
+                        encoder,
+                        texture_view,
+                        instance.transformation,
+                    )
+                    .unwrap(); // It seems like this function always returns Ok(())...?
+            }
+        }
+
+        self.staging_belt.finish();
+    }
+
+    pub fn post_render(&mut self) {
+        use futures::task::SpawnExt;
+
+        self.local_spawner
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging belt");
+
+        self.local_pool.run_until_stalled();
+    }
+
     pub fn invalidate(&mut self) {
         self.constraints = HashMap::new();
         self.instances_cache = None;
@@ -61,124 +177,6 @@ impl TextConstraintBuilder {
         }
 
         instances_cache.as_ref().unwrap()
-    }
-}
-
-impl InstanceRenderer<String> for TextConstraintBuilder {
-    fn new<'a>(
-        device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) -> Self {
-        // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
-        // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
-        // base this number on an estimate of how much data we would upload into
-        // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
-        // for more information.
-        let staging_belt = wgpu::util::StagingBelt::new(4096);
-
-        let local_pool = futures::executor::LocalPool::new();
-        let local_spawner = local_pool.spawner();
-
-        let glyph_brush = {
-            let font = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
-                "../resources/fonts/CooperHewitt-OTF-public/CooperHewitt-Book.otf"
-            ))
-            .unwrap();
-            wgpu_glyph::GlyphBrushBuilder::using_font(font).build(&device, sc_desc.format)
-        };
-
-        Self {
-            constraints: HashMap::new(),
-            instances_cache: None,
-            glyph_brush,
-            staging_belt,
-            local_pool,
-            local_spawner,
-        }
-    }
-
-    fn with_instance<'a>(&mut self, sphere: Sphere, text: &'a String) {
-        self.constraints
-            .entry(text.clone())
-            .or_insert_with(|| Vec::with_capacity(1))
-            .push(sphere);
-    }
-
-    fn update<'a>(
-        &mut self,
-        _queue: &'a mut wgpu::Queue,
-        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) {
-    }
-
-    fn resize<'a>(
-        &mut self,
-        _device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-        view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) {
-        Self::build_instances(
-            &mut self.instances_cache,
-            &self.constraints,
-            &mut self.glyph_brush,
-            view_projection_matrix,
-            sc_desc,
-            true,
-        );
-    }
-
-    fn render<'a>(
-        &mut self,
-        device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-        encoder: &'a mut wgpu::CommandEncoder,
-        texture_view: &'a wgpu::TextureView,
-        view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) {
-        let text_constraint_instances = Self::build_instances(
-            &mut self.instances_cache,
-            &self.constraints,
-            &mut self.glyph_brush,
-            view_projection_matrix,
-            sc_desc,
-            true,
-        );
-        for instance in text_constraint_instances {
-            // Don't draw text that is too small to be seen clearly.
-            if instance.scale > 5.0 {
-                let section = wgpu_glyph::Section {
-                    screen_position: (-instance.width * 0.5, -instance.height * 0.5),
-                    bounds: (f32::INFINITY, f32::INFINITY),
-                    text: vec![wgpu_glyph::Text::new(&instance.text)
-                        .with_color([1.0, 1.0, 1.0, 1.0])
-                        .with_scale(instance.scale)],
-                    ..wgpu_glyph::Section::default()
-                };
-                self.glyph_brush.queue(&section);
-                self.glyph_brush
-                    .draw_queued_with_transform(
-                        device,
-                        &mut self.staging_belt,
-                        encoder,
-                        texture_view,
-                        instance.transformation,
-                    )
-                    .unwrap(); // It seems like this function always returns Ok(())...?
-            }
-        }
-
-        self.staging_belt.finish();
-    }
-
-    fn post_render(&mut self) {
-        use futures::task::SpawnExt;
-
-        self.local_spawner
-            .spawn(self.staging_belt.recall())
-            .expect("Recall staging belt");
-
-        self.local_pool.run_until_stalled();
     }
 }
 

@@ -11,7 +11,6 @@ use crate::{
 use super::{
     circle::{CircleConstraintBuilder, MIN_RADIUS},
     indication_tree::{self, Tree, TreeNode},
-    renderer::InstanceRenderer,
     text::TextConstraintBuilder,
 };
 
@@ -63,13 +62,11 @@ fn build_indication_tree_2<'a>(
         } = &tree_impl[NodeIndex::from(indication_tree_index)];
 
         match &flat_graph.g[NodeIndex::from(*flat_graph_index)] {
-            flat_graph::Node::Leaf(key) => {
-                match store.get(key).unwrap() {
-                    store::Value::String(string) => {
-                        text_builder.with_instance(*sphere, string);
-                    },
+            flat_graph::Node::Leaf(key) => match store.get(key).unwrap() {
+                store::Value::String(string) => {
+                    text_builder.with_instance(*sphere, string);
                 }
-            }
+            },
             flat_graph::Node::Branch(flat_graph::Branch {
                 num_indications,
                 focused_indication,
@@ -121,7 +118,7 @@ fn build_indication_tree_2<'a>(
                             tree_impl.add_edge(indication_tree_index, indicated_index, ());
                             todo.push_back(indicated_index);
 
-                            circle_builder.with_instance(other_sphere, node);
+                            circle_builder.with_instance(other_sphere);
                         }
                     });
             }
@@ -151,7 +148,7 @@ fn build_indication_tree_1<'a>(
         })
         .into();
 
-    circle_builder.with_instance(first_sphere, &first_flat_graph_index);
+    circle_builder.with_instance(first_sphere);
 
     let mut todo = VecDeque::new();
     todo.push_back(first_indication_tree_index);
