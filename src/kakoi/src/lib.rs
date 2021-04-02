@@ -7,3 +7,4 @@ pub mod sampling_config;
 pub mod state;
 pub mod window;
 pub mod sphere;
+pub mod store;

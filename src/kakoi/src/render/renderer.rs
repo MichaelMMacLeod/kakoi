@@ -1,6 +1,6 @@
 use petgraph::graph::NodeIndex;
 
-use crate::{camera::Camera, flat_graph::FlatGraph, sphere::Sphere};
+use crate::{camera::Camera, flat_graph::FlatGraph, sphere::Sphere, store};
 
 use super::{builder::Builder, circle::CircleConstraintBuilder, text::TextConstraintBuilder};
 
@@ -39,6 +39,7 @@ pub trait InstanceRenderer<D> {
 }
 
 pub struct Renderer {
+    store: store::Store,
     flat_graph: FlatGraph,
     camera: Camera,
     width: f32,
@@ -71,21 +72,24 @@ fn screen_to_view_coordinates(
 
 impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
+        let mut store = store::Store::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let flat_graph = FlatGraph::naming_example();
+        let flat_graph = FlatGraph::naming_example(&mut store);
         let selected_index = flat_graph.focused.unwrap();
         let mut circle_renderer =
             CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
         let mut text_renderer =
             TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
         let builder = Builder::new(
+            &store,
             &flat_graph,
             sc_desc.width as f32 / sc_desc.height as f32,
             &mut circle_renderer,
             &mut text_renderer,
         );
         Self {
+            store,
             flat_graph,
             camera,
             view_projection_matrix,
@@ -184,6 +188,7 @@ impl Renderer {
                             self.text_renderer.invalidate();
 
                             self.builder = Builder::new_with_selection(
+                                &self.store,
                                 &self.flat_graph,
                                 self.camera.aspect,
                                 self.selected_index,
@@ -204,6 +209,7 @@ impl Renderer {
                             self.text_renderer.invalidate();
 
                             self.builder = Builder::new_with_selection(
+                                &self.store,
                                 &self.flat_graph,
                                 self.camera.aspect,
                                 self.selected_index,

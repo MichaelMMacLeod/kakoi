@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use petgraph::graph::NodeIndex;
 
-use crate::{circle::Point, sphere::Sphere};
+use crate::{circle::Point, sphere::Sphere, store};
 use crate::{
     circle::{Circle, CirclePositioner},
     flat_graph::{self, FlatGraph},
@@ -40,6 +40,7 @@ fn indications_of<'a>(
 }
 
 fn build_indication_tree_2<'a>(
+    store: &'a store::Store,
     flat_graph: &'a FlatGraph,
     tree_impl: &'a mut indication_tree::Impl,
     root_index: NodeIndex<u32>,
@@ -62,8 +63,12 @@ fn build_indication_tree_2<'a>(
         } = &tree_impl[NodeIndex::from(indication_tree_index)];
 
         match &flat_graph.g[NodeIndex::from(*flat_graph_index)] {
-            flat_graph::Node::Leaf(text) => {
-                text_builder.with_instance(*sphere, text);
+            flat_graph::Node::Leaf(key) => {
+                match store.get(key).unwrap() {
+                    store::Value::String(string) => {
+                        text_builder.with_instance(*sphere, string);
+                    },
+                }
             }
             flat_graph::Node::Branch(flat_graph::Branch {
                 num_indications,
@@ -125,6 +130,7 @@ fn build_indication_tree_2<'a>(
 }
 
 fn build_indication_tree_1<'a>(
+    store: &'a store::Store,
     flat_graph: &'a FlatGraph,
     aspect_ratio: f32,
     selected_node: NodeIndex<u32>,
@@ -151,6 +157,7 @@ fn build_indication_tree_1<'a>(
     todo.push_back(first_indication_tree_index);
 
     build_indication_tree_2(
+        store,
         flat_graph,
         &mut tree_impl,
         first_indication_tree_index,
@@ -167,12 +174,14 @@ fn build_indication_tree_1<'a>(
 
 impl Builder {
     pub fn new<'a>(
+        store: &'a store::Store,
         flat_graph: &'a FlatGraph,
         aspect_ratio: f32,
         circle_builder: &'a mut CircleConstraintBuilder,
         text_builder: &'a mut TextConstraintBuilder,
     ) -> Self {
         Self::new_with_selection(
+            store,
             flat_graph,
             aspect_ratio,
             flat_graph.focused.unwrap(),
@@ -182,6 +191,7 @@ impl Builder {
     }
 
     pub fn new_with_selection<'a>(
+        store: &'a store::Store,
         flat_graph: &'a FlatGraph,
         aspect_ratio: f32,
         selected_node: NodeIndex<u32>,
@@ -189,6 +199,7 @@ impl Builder {
         text_builder: &'a mut TextConstraintBuilder,
     ) -> Self {
         let indication_tree = build_indication_tree_1(
+            store,
             flat_graph,
             aspect_ratio,
             selected_node,
