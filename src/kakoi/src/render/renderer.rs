@@ -65,7 +65,7 @@ fn screen_to_view_coordinates(
     if aspect > 1.0 {
         (x * aspect, y)
     } else {
-        (x, y * aspect)
+        (x, y / aspect)
     }
 }
 
