@@ -321,17 +321,19 @@ impl CircleConstraintBuilder {
     ) -> &'b wgpu::Buffer {
         let mut instances: Vec<CircleConstraintInstance> = Vec::new();
 
-        for sphere in constraints {
-            instances.push(CircleConstraintInstance::new(sphere));
+        if instances_cache.is_none() {
+            for sphere in constraints {
+                instances.push(CircleConstraintInstance::new(sphere));
+            }
+    
+            *instances_cache = Some(
+                device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("CircleConstraintInstance instance buffer"),
+                    contents: bytemuck::cast_slice(&instances),
+                    usage: wgpu::BufferUsage::VERTEX,
+                }),
+            );
         }
-
-        *instances_cache = Some(
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("CircleConstraintInstance instance buffer"),
-                contents: bytemuck::cast_slice(&instances),
-                usage: wgpu::BufferUsage::VERTEX,
-            }),
-        );
 
         instances_cache.as_ref().unwrap()
     }
