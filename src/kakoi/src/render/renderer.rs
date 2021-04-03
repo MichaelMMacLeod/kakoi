@@ -1,8 +1,12 @@
 use petgraph::graph::NodeIndex;
+use svg::node::element::Image;
 
 use crate::{camera::Camera, flat_graph::FlatGraph, store};
 
-use super::{builder::Builder, circle::CircleConstraintBuilder, text::TextConstraintBuilder};
+use super::{
+    builder::Builder, circle::CircleConstraintBuilder, image::ImageRenderer,
+    text::TextConstraintBuilder,
+};
 
 // pub trait InstanceRenderer<D> {
 //     fn new<'a>(
@@ -49,6 +53,7 @@ pub struct Renderer {
     view_projection_matrix: cgmath::Matrix4<f32>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
+    image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
     builder: Builder,
 }
@@ -71,22 +76,30 @@ fn screen_to_view_coordinates(
 }
 
 impl Renderer {
-    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
+    pub fn new<'a>(
+        device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+    ) -> Self {
         let mut store = store::Store::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let flat_graph = FlatGraph::naming_example(&mut store);
+        let flat_graph = FlatGraph::image_example(&mut store);
         let selected_index = flat_graph.focused.unwrap();
         let mut circle_renderer =
             CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
         let mut text_renderer =
             TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
+        let mut image_renderer = ImageRenderer::new(device, sc_desc, &view_projection_matrix);
         let builder = Builder::new(
+            device,
+            queue,
             &store,
             &flat_graph,
             sc_desc.width as f32 / sc_desc.height as f32,
             &mut circle_renderer,
             &mut text_renderer,
+            &mut image_renderer,
         );
         Self {
             store,
@@ -95,6 +108,7 @@ impl Renderer {
             view_projection_matrix,
             text_renderer,
             circle_renderer,
+            image_renderer,
             selected_index,
             selected_node_history: Vec::new(),
             cursor_position: (0.0, 0.0),
@@ -120,6 +134,7 @@ impl Renderer {
             .resize(device, sc_desc, &self.view_projection_matrix);
         self.text_renderer
             .resize(&self.store, device, sc_desc, &self.view_projection_matrix);
+        self.image_renderer.resize(device, &self.view_projection_matrix);
     }
 
     pub fn render<'a>(
@@ -144,6 +159,8 @@ impl Renderer {
             texture_view,
             &self.view_projection_matrix,
         );
+        self.image_renderer
+            .render(device, command_encoder, texture_view);
     }
 
     pub fn post_render(&mut self) {
@@ -151,7 +168,12 @@ impl Renderer {
         self.text_renderer.post_render();
     }
 
-    pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
+    pub fn input<'a>(
+        &mut self,
+        device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
+        event: &winit::event::WindowEvent,
+    ) -> bool {
         use winit::event::*;
         match event {
             WindowEvent::MouseInput { button, state, .. } if *state == ElementState::Pressed => {
@@ -187,14 +209,18 @@ impl Renderer {
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
+                            self.image_renderer.invalidate();
 
                             self.builder = Builder::new_with_selection(
+                                device,
+                                queue,
                                 &self.store,
                                 &self.flat_graph,
                                 self.camera.aspect,
                                 self.selected_index,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
+                                &mut self.image_renderer,
                             );
 
                             true
@@ -208,14 +234,18 @@ impl Renderer {
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
+                            self.image_renderer.invalidate();
 
                             self.builder = Builder::new_with_selection(
+                                device,
+                                queue,
                                 &self.store,
                                 &self.flat_graph,
                                 self.camera.aspect,
                                 self.selected_index,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
+                                &mut self.image_renderer,
                             );
 
                             true

@@ -36,7 +36,7 @@ impl State {
             })
             .await
             .unwrap();
-        let (device, queue) = adapter
+        let (device, mut queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
@@ -60,7 +60,7 @@ impl State {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let renderer = Renderer::new(&device, &sc_desc);
+        let renderer = Renderer::new(&device, &mut queue, &sc_desc);
 
         Self {
             surface,
@@ -82,20 +82,15 @@ impl State {
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-        self.renderer.resize(
-            &self.device,
-            &self.sc_desc,
-        );
+        self.renderer.resize(&self.device, &self.sc_desc);
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
-        self.renderer.input(event)
+        self.renderer.input(&self.device, &mut self.queue, event)
     }
 
     pub fn update(&mut self) {
-        self.renderer.update(
-            &mut self.queue
-        );
+        self.renderer.update(&mut self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
@@ -107,12 +102,8 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        self.renderer.render(
-            &self.device,
-            &self.sc_desc,
-            &mut encoder,
-            &frame.view,
-        );
+        self.renderer
+            .render(&self.device, &self.sc_desc, &mut encoder, &frame.view);
 
         self.queue.submit(std::iter::once(encoder.finish()));
 

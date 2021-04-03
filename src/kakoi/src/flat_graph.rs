@@ -341,6 +341,54 @@ impl FlatGraph {
             .collect()
     }
 
+    pub fn image_example<'a>(store: &'a mut store::Store) -> Self {
+        let mut graph = FlatGraph::new();
+        let kakoi_examples_index = {
+            let kakoi_example_1 = {
+                let kakoi_example_1 =
+                    include_bytes!("resources/images/Kakoi Example 1 [senseis.xmp.net].png");
+                image::load_from_memory(kakoi_example_1)
+                    .unwrap()
+                    .into_rgba8()
+            };
+            let kakoi_example_2 = {
+                let kakoi_example_2 =
+                    include_bytes!("resources/images/Kakoi Example 2 [senseis.xmp.net].png");
+                image::load_from_memory(kakoi_example_2)
+                    .unwrap()
+                    .into_rgba8()
+            };
+            graph
+                .enclose(
+                    Group::New,
+                    vec![
+                        Insertion::New {
+                            key: store.insert(store::Value::Image(kakoi_example_1)),
+                        },
+                        Insertion::New {
+                            key: store.insert(store::Value::Image(kakoi_example_2)),
+                        },
+                    ],
+                )
+                .unwrap()
+        };
+        let named_examples_index = graph.enclose(
+            Group::New,
+            vec![
+                Insertion::Existing {
+                    index: kakoi_examples_index,
+                },
+                Insertion::New {
+                    key: store.insert(store::Value::String(
+                        "Examples of kakoi (enclosure)\nin the board game Go.".into(),
+                    )),
+                },
+            ],
+        ).unwrap();
+        graph.focused = Some(named_examples_index);
+        graph
+    }
+
     pub fn naming_example<'a>(store: &'a mut store::Store) -> Self {
         let mut graph = FlatGraph::new();
         let consonants = Self::make_leaf_insertions(

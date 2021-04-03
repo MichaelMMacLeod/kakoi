@@ -10,6 +10,7 @@ use crate::{
 
 use super::{
     circle::{CircleConstraintBuilder, MIN_RADIUS},
+    image::ImageRenderer,
     indication_tree::{self, Tree, TreeNode},
     text::TextConstraintBuilder,
 };
@@ -39,6 +40,8 @@ fn indications_of<'a>(
 }
 
 fn build_indication_tree_2<'a>(
+    device: &'a wgpu::Device,
+    queue: &'a mut wgpu::Queue,
     store: &'a store::Store,
     flat_graph: &'a FlatGraph,
     tree_impl: &'a mut indication_tree::Impl,
@@ -46,6 +49,7 @@ fn build_indication_tree_2<'a>(
     aspect_ratio: f32,
     circle_builder: &'a mut CircleConstraintBuilder,
     text_builder: &'a mut TextConstraintBuilder,
+    image_builder: &'a mut ImageRenderer,
 ) {
     let mut todo = VecDeque::new();
     todo.push_back(root_index);
@@ -65,6 +69,10 @@ fn build_indication_tree_2<'a>(
             flat_graph::Node::Leaf(key) => match store.get(key).unwrap() {
                 store::Value::String(_) => {
                     text_builder.with_instance(*sphere, *key);
+                }
+                store::Value::Image(_) => {
+                    eprintln!("Adding an image");
+                    image_builder.with_image(device, queue, store, *sphere, *key)
                 }
             },
             flat_graph::Node::Branch(flat_graph::Branch {
@@ -127,12 +135,15 @@ fn build_indication_tree_2<'a>(
 }
 
 fn build_indication_tree_1<'a>(
+    device: &'a wgpu::Device,
+    queue: &'a mut wgpu::Queue,
     store: &'a store::Store,
     flat_graph: &'a FlatGraph,
     aspect_ratio: f32,
     selected_node: NodeIndex<u32>,
     circle_builder: &'a mut CircleConstraintBuilder,
     text_builder: &'a mut TextConstraintBuilder,
+    image_builder: &'a mut ImageRenderer,
 ) -> Tree {
     let mut tree_impl = indication_tree::Impl::new();
 
@@ -154,6 +165,8 @@ fn build_indication_tree_1<'a>(
     todo.push_back(first_indication_tree_index);
 
     build_indication_tree_2(
+        device,
+        queue,
         store,
         flat_graph,
         &mut tree_impl,
@@ -161,6 +174,7 @@ fn build_indication_tree_1<'a>(
         aspect_ratio,
         circle_builder,
         text_builder,
+        image_builder,
     );
 
     Tree {
@@ -171,37 +185,49 @@ fn build_indication_tree_1<'a>(
 
 impl Builder {
     pub fn new<'a>(
+        device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
         flat_graph: &'a FlatGraph,
         aspect_ratio: f32,
         circle_builder: &'a mut CircleConstraintBuilder,
         text_builder: &'a mut TextConstraintBuilder,
+        image_builder: &'a mut ImageRenderer,
     ) -> Self {
         Self::new_with_selection(
+            device,
+            queue,
             store,
             flat_graph,
             aspect_ratio,
             flat_graph.focused.unwrap(),
             circle_builder,
             text_builder,
+            image_builder,
         )
     }
 
     pub fn new_with_selection<'a>(
+        device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
         flat_graph: &'a FlatGraph,
         aspect_ratio: f32,
         selected_node: NodeIndex<u32>,
         circle_builder: &'a mut CircleConstraintBuilder,
         text_builder: &'a mut TextConstraintBuilder,
+        image_builder: &'a mut ImageRenderer,
     ) -> Self {
         let indication_tree = build_indication_tree_1(
+            device,
+            queue,
             store,
             flat_graph,
             aspect_ratio,
             selected_node,
             circle_builder,
             text_builder,
+            image_builder,
         );
         Self { indication_tree }
     }

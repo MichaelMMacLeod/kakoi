@@ -4,18 +4,26 @@ use std::hash::{Hash, Hasher};
 #[derive(Hash)]
 pub enum Value {
     String(String),
+    Image(image::RgbaImage),
 }
 
 impl Value {
     pub fn string(&self) -> Option<&String> {
         match self {
             Value::String(s) => Some(s),
-            // _ => None,
+            _ => None,
         }
     }
+
+    pub fn image(&self) -> Option<&image::RgbaImage> {
+        match self {
+            Value::Image(i) => Some(i),
+            _ => None,
+        }
+    } 
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Key(u64);
 
 pub struct Store {
