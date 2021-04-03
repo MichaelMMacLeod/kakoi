@@ -395,21 +395,23 @@ impl ImageRenderer {
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
 
         for (_, texture_instances) in &mut self.images {
-            eprintln!("Drawing an image.");
-            render_pass.set_bind_group(0, &texture_instances.diffuse_bind_group, &[]);
-            render_pass.set_vertex_buffer(
-                1,
-                TextureInstances::instantiate_buffer_cache(
-                    &mut texture_instances.buffer_cache,
-                    &texture_instances.instances,
-                    device,
-                )
-                .slice(..),
-            );
-            render_pass.draw(
-                0..self.vertex_buffer_data.len() as _,
-                0..texture_instances.instances.len() as _,
-            );
+            let num_instances = texture_instances.instances.len();
+            if num_instances > 0 {
+                render_pass.set_bind_group(0, &texture_instances.diffuse_bind_group, &[]);
+                render_pass.set_vertex_buffer(
+                    1,
+                    TextureInstances::instantiate_buffer_cache(
+                        &mut texture_instances.buffer_cache,
+                        &texture_instances.instances,
+                        device,
+                    )
+                    .slice(..),
+                );
+                render_pass.draw(
+                    0..self.vertex_buffer_data.len() as _,
+                    0..num_instances as _,
+                );
+            }
         }
     }
 
