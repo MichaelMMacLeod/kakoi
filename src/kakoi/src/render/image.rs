@@ -284,7 +284,6 @@ impl ImageRenderer {
         self.images
             .entry(key)
             .or_insert_with(|| {
-                eprintln!("Uploading image data");
                 let size = {
                     wgpu::Extent3d {
                         width: dimensions.0,
@@ -359,16 +358,17 @@ impl ImageRenderer {
                 &sphere,
                 dimensions.0 as f32 / dimensions.1 as f32,
             ));
-
-        eprintln!("self.images.len() = {}", self.images.len());
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, view_projection_matrix: &cgmath::Matrix4<f32>) {
         self.uniforms
             .update_view_proj((*view_projection_matrix).into());
         self.uniform_buffer = Self::build_uniform_buffer(device, self.uniforms);
-        self.uniform_bind_group =
-            Self::build_uniform_bind_group(device, &self.uniform_bind_group_layout, &self.uniform_buffer);
+        self.uniform_bind_group = Self::build_uniform_bind_group(
+            device,
+            &self.uniform_bind_group_layout,
+            &self.uniform_buffer,
+        );
     }
 
     pub fn render<'a>(
@@ -407,10 +407,7 @@ impl ImageRenderer {
                     )
                     .slice(..),
                 );
-                render_pass.draw(
-                    0..self.vertex_buffer_data.len() as _,
-                    0..num_instances as _,
-                );
+                render_pass.draw(0..self.vertex_buffer_data.len() as _, 0..num_instances as _);
             }
         }
     }

@@ -71,7 +71,6 @@ fn build_indication_tree_2<'a>(
                     text_builder.with_instance(*sphere, *key);
                 }
                 store::Value::Image(_) => {
-                    eprintln!("Adding an image");
                     image_builder.with_image(device, queue, store, *sphere, *key)
                 }
             },
