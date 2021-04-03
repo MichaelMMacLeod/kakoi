@@ -83,7 +83,7 @@ impl Renderer {
         let mut store = store::Store::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let view_projection_matrix = camera.build_view_projection_matrix();
-        let flat_graph = FlatGraph::image_example(&mut store);
+        let flat_graph = FlatGraph::naming_example(&mut store);
         let selected_index = flat_graph.focused.unwrap();
         let mut circle_renderer =
             CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
