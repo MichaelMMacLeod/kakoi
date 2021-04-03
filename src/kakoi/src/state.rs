@@ -82,7 +82,7 @@ impl State {
         self.sc_desc.width = new_size.width;
         self.sc_desc.height = new_size.height;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-        self.renderer.resize(&self.device, &self.sc_desc);
+        self.renderer.resize(&self.device, &mut self.queue, &self.sc_desc);
     }
 
     pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {

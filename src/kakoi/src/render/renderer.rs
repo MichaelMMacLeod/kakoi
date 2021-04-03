@@ -126,7 +126,12 @@ impl Renderer {
             .update(queue, &self.view_projection_matrix);
     }
 
-    pub fn resize<'a>(&mut self, device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) {
+    pub fn resize<'a>(
+        &mut self,
+        device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
+        sc_desc: &'a wgpu::SwapChainDescriptor,
+    ) {
         self.width = sc_desc.width as f32;
         self.height = sc_desc.height as f32;
         self.camera.aspect = sc_desc.width as f32 / sc_desc.height as f32;
@@ -135,7 +140,24 @@ impl Renderer {
             .resize(device, sc_desc, &self.view_projection_matrix);
         self.text_renderer
             .resize(&self.store, device, sc_desc, &self.view_projection_matrix);
-        self.image_renderer.resize(device, &self.view_projection_matrix);
+        self.image_renderer
+            .resize(device, &self.view_projection_matrix);
+        self.circle_renderer.invalidate();
+        self.text_renderer.invalidate();
+        self.image_renderer.invalidate();
+        self.builder = Builder::new_with_selection(
+            device,
+            queue,
+            &self.store,
+            &self.flat_graph,
+            self.camera.aspect,
+            self.width,
+            self.height,
+            self.selected_index,
+            &mut self.circle_renderer,
+            &mut self.text_renderer,
+            &mut self.image_renderer,
+        );
     }
 
     pub fn render<'a>(
