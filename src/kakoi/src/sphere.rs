@@ -66,6 +66,10 @@ impl Sphere {
             (scale * rectangle_aspect_ratio, scale)
         }
     }
+
+    pub fn screen_radius(&self, screen_width: f32, screen_height: f32) -> f32 {
+        self.radius * screen_width.max(screen_height) * 0.5
+    }
 }
 
 #[cfg(test)]
