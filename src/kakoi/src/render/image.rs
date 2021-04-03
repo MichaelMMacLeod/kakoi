@@ -430,14 +430,8 @@ pub struct ImageInstance {
 
 impl ImageInstance {
     pub fn new(sphere: &Sphere, aspect_ratio: f32) -> Self {
-        let scale = if aspect_ratio > 1.0 {
-            let aspect_ratio_inverse = 1.0 / aspect_ratio;
-            let s = MIN_RADIUS * 2.0 * sphere.radius / (aspect_ratio_inverse * aspect_ratio_inverse + 1.0).sqrt();
-            cgmath::Matrix4::from_nonuniform_scale(s, s * aspect_ratio_inverse, 1.0)
-        } else {
-            let s = MIN_RADIUS * 2.0 * sphere.radius / (aspect_ratio * aspect_ratio + 1.0).sqrt();
-            cgmath::Matrix4::from_nonuniform_scale(s * aspect_ratio, s, 1.0)
-        };
+        let (scale_x, scale_y) = sphere.as_rectangle_bounds(aspect_ratio);
+        let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
         let translation = cgmath::Matrix4::from_translation(sphere.center);
         Self {
             model: (translation * scale).into(),

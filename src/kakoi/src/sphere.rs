@@ -46,6 +46,26 @@ impl Sphere {
 
         other.radius > 0.01 && other.is_on_screen(aspect_ratio)
     }
+
+    // Scales up a rectangle with the given aspect ratio so that, when it is
+    // centered in the middle of this sphere, its corners will touch this 
+    // spheres' circumference.
+    //
+    // Returns the (width, height) of the scaled rectangle.
+    pub fn as_rectangle_bounds(&self, rectangle_aspect_ratio: f32) -> (f32, f32) {
+        use crate::render::circle;
+
+        if rectangle_aspect_ratio > 1.0 {
+            let aspect_ratio_inverse = 1.0 / rectangle_aspect_ratio;
+            let scale = circle::MIN_RADIUS * 2.0 * self.radius
+                / (aspect_ratio_inverse * aspect_ratio_inverse + 1.0).sqrt();
+            (scale, scale * aspect_ratio_inverse)
+        } else {
+            let scale = circle::MIN_RADIUS * 2.0 * self.radius
+                / (rectangle_aspect_ratio * rectangle_aspect_ratio + 1.0).sqrt();
+            (scale * rectangle_aspect_ratio, scale)
+        }
+    }
 }
 
 #[cfg(test)]

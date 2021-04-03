@@ -1,6 +1,8 @@
 use crate::{sphere::Sphere, store};
 use wgpu_glyph::GlyphCruncher;
 
+use super::circle::MIN_RADIUS;
+
 struct BoundedString {
     key: store::Key,
     sphere: Sphere,
@@ -270,7 +272,7 @@ impl TextConstraintInstance {
     ) -> (f32, f32) {
         use wgpu_glyph::ab_glyph::PxScale;
 
-        const SCALE_TOLERENCE: f32 = 10.0;
+        const SCALE_TOLERENCE: f32 = 1.0;
 
         let mut min_scale: PxScale = 0.0.into();
         let mut max_scale: PxScale = scaled_radius.into();
@@ -278,7 +280,7 @@ impl TextConstraintInstance {
         let mut current_scale = (min_scale.y * 0.5 + max_scale.y * 0.5).into();
         let mut width = 0.0;
         let mut height = 0.0;
-        let target = ((2.0 * scaled_radius).powf(2.0) * 0.5).sqrt();
+        let mut target = None;
 
         section.text[0].scale = current_scale;
 
@@ -297,7 +299,17 @@ impl TextConstraintInstance {
                         }
                     }
                     let max_dimension = rect_width.max(rect_height);
-                    if max_dimension > target {
+                    if target.is_none() {
+                        let aspect_ratio = width / height;
+                        let (scale_x, scale_y) = Sphere {
+                            radius: scaled_radius,
+                            // It doesn't matter what radius we choose here.
+                            center: cgmath::vec3(0.0, 0.0, 0.0),
+                        }
+                        .as_rectangle_bounds(aspect_ratio);
+                        target = Some(scale_x.max(scale_y));
+                    }
+                    if max_dimension > target.unwrap() {
                         max_scale = current_scale;
                     } else {
                         min_scale = current_scale;
