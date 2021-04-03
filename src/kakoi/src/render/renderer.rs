@@ -1,5 +1,4 @@
 use petgraph::graph::NodeIndex;
-use svg::node::element::Image;
 
 use crate::{camera::Camera, flat_graph::FlatGraph, store};
 

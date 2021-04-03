@@ -1,11 +1,6 @@
-use std::collections::HashMap;
-
-use futures::sink::Unfold;
-use wgpu::{util::DeviceExt, TextureView};
-
 use crate::{sphere::Sphere, store};
-
-use super::circle::MIN_RADIUS;
+use std::collections::HashMap;
+use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

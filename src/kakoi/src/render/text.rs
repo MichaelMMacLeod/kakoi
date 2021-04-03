@@ -1,8 +1,6 @@
 use crate::{sphere::Sphere, store};
 use wgpu_glyph::GlyphCruncher;
 
-use super::circle::MIN_RADIUS;
-
 struct BoundedString {
     key: store::Key,
     sphere: Sphere,
