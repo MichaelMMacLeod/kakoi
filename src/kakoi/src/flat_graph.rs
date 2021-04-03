@@ -358,6 +358,13 @@ impl FlatGraph {
                     .unwrap()
                     .into_rgba8()
             };
+            let kakoi_example_3 = {
+                let kakoi_example_3 =
+                    include_bytes!("resources/images/Kakoi Example 1 [senseis.xmp.net] wide.png");
+                image::load_from_memory(kakoi_example_3)
+                    .unwrap()
+                    .into_rgba8()
+            };
             graph
                 .enclose(
                     Group::New,
@@ -367,6 +374,9 @@ impl FlatGraph {
                         },
                         Insertion::New {
                             key: store.insert(store::Value::Image(kakoi_example_2)),
+                        },
+                        Insertion::New {
+                            key: store.insert(store::Value::Image(kakoi_example_3)),
                         },
                     ],
                 )

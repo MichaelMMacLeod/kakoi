@@ -5,6 +5,8 @@ use wgpu::{util::DeviceExt, TextureView};
 
 use crate::{sphere::Sphere, store};
 
+use super::circle::MIN_RADIUS;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Uniforms {
@@ -428,8 +430,14 @@ pub struct ImageInstance {
 
 impl ImageInstance {
     pub fn new(sphere: &Sphere, aspect_ratio: f32) -> Self {
-        let scale = cgmath::Matrix4::from_nonuniform_scale(aspect_ratio, 1.0 / aspect_ratio, 1.0);
-        let scale = cgmath::Matrix4::from_scale(sphere.radius) * scale;
+        let scale = if aspect_ratio > 1.0 {
+            let aspect_ratio_inverse = 1.0 / aspect_ratio;
+            let s = MIN_RADIUS * 2.0 * sphere.radius / (aspect_ratio_inverse * aspect_ratio_inverse + 1.0).sqrt();
+            cgmath::Matrix4::from_nonuniform_scale(s, s * aspect_ratio_inverse, 1.0)
+        } else {
+            let s = MIN_RADIUS * 2.0 * sphere.radius / (aspect_ratio * aspect_ratio + 1.0).sqrt();
+            cgmath::Matrix4::from_nonuniform_scale(s * aspect_ratio, s, 1.0)
+        };
         let translation = cgmath::Matrix4::from_translation(sphere.center);
         Self {
             model: (translation * scale).into(),
