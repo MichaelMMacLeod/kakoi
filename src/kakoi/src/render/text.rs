@@ -254,7 +254,7 @@ impl TextConstraintInstance {
         const SCALE_TOLERENCE: f32 = 1.0;
 
         let mut min_scale: PxScale = 0.0.into();
-        let mut max_scale: PxScale = scaled_radius.into();
+        let mut max_scale: PxScale = (scaled_radius * 2.0).into();
         let mut previous_scale: Option<PxScale> = None;
         let mut current_scale = (min_scale.y * 0.5 + max_scale.y * 0.5).into();
         let mut width = 0.0;
