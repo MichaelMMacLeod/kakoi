@@ -46,7 +46,6 @@ fn build_indication_tree_2<'a>(
     flat_graph: &'a FlatGraph,
     tree_impl: &'a mut indication_tree::Impl,
     root_index: NodeIndex<u32>,
-    aspect_ratio: f32,
     screen_width: f32,
     screen_height: f32,
     circle_builder: &'a mut CircleConstraintBuilder,
@@ -55,11 +54,6 @@ fn build_indication_tree_2<'a>(
 ) {
     let mut todo = VecDeque::new();
     todo.push_back(root_index);
-
-    let unit_sphere = Sphere {
-        center: cgmath::vec3(0.0, 0.0, 0.0),
-        radius: 1.0,
-    };
 
     while let Some(indication_tree_index) = todo.pop_front() {
         let TreeNode {
@@ -140,7 +134,6 @@ fn build_indication_tree_1<'a>(
     queue: &'a mut wgpu::Queue,
     store: &'a store::Store,
     flat_graph: &'a FlatGraph,
-    aspect_ratio: f32,
     screen_width: f32,
     screen_height: f32,
     selected_node: NodeIndex<u32>,
@@ -174,7 +167,6 @@ fn build_indication_tree_1<'a>(
         flat_graph,
         &mut tree_impl,
         first_indication_tree_index,
-        aspect_ratio,
         screen_width,
         screen_height,
         circle_builder,
@@ -194,7 +186,6 @@ impl Builder {
         queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
         flat_graph: &'a FlatGraph,
-        aspect_ratio: f32,
         screen_width: f32,
         screen_height: f32,
         circle_builder: &'a mut CircleConstraintBuilder,
@@ -206,7 +197,6 @@ impl Builder {
             queue,
             store,
             flat_graph,
-            aspect_ratio,
             screen_width,
             screen_height,
             flat_graph.focused.unwrap(),
@@ -221,7 +211,6 @@ impl Builder {
         queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
         flat_graph: &'a FlatGraph,
-        aspect_ratio: f32,
         screen_width: f32,
         screen_height: f32,
         selected_node: NodeIndex<u32>,
@@ -234,7 +223,6 @@ impl Builder {
             queue,
             store,
             flat_graph,
-            aspect_ratio,
             screen_width,
             screen_height,
             selected_node,

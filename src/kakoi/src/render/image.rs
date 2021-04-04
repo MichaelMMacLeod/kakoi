@@ -1,4 +1,4 @@
-use crate::{sphere::Sphere, store};
+use crate::{camera::Camera, sphere::Sphere, store};
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 
@@ -9,15 +9,10 @@ struct Uniforms {
 }
 
 impl Uniforms {
-    fn new() -> Self {
-        use cgmath::SquareMatrix;
+    fn new(view_projection_matrix: cgmath::Matrix4<f32>) -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: view_projection_matrix.into(),
         }
-    }
-
-    fn update_view_proj<'a>(&mut self, view_projection_matrix: cgmath::Matrix4<f32>) {
-        self.view_proj = view_projection_matrix.into();
     }
 }
 
@@ -82,9 +77,6 @@ impl Vertex {
 }
 
 struct TextureInstances {
-    texture: wgpu::Texture,
-    view: wgpu::TextureView,
-    sampler: wgpu::Sampler,
     diffuse_bind_group: wgpu::BindGroup,
     instances: Vec<ImageInstance>,
     buffer_cache: Option<wgpu::Buffer>,
@@ -115,10 +107,9 @@ pub struct ImageRenderer {
     vertex_buffer_data: Vec<Vertex>,
     vertex_buffer: wgpu::Buffer,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    uniforms: Uniforms,
     uniform_buffer: wgpu::Buffer,
+    uniform_buffer_stale: bool,
     uniform_bind_group: wgpu::BindGroup,
-    uniform_bind_group_layout: wgpu::BindGroupLayout,
     render_pipeline: wgpu::RenderPipeline,
 }
 
@@ -138,19 +129,16 @@ impl ImageRenderer {
         })
     }
 
-    fn build_uniform_buffer<'a>(device: &'a wgpu::Device, uniforms: Uniforms) -> wgpu::Buffer {
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    fn build_uniform_buffer<'a>(device: &'a wgpu::Device) -> wgpu::Buffer {
+        device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("image renderer uniform buffer"),
-            contents: bytemuck::cast_slice(&[uniforms]),
+            size: std::mem::size_of::<Uniforms>() as wgpu::BufferAddress,
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            mapped_at_creation: false,
         })
     }
 
-    pub fn new<'a>(
-        device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-        view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) -> Self {
+    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let vertex_buffer_data = Vertex::square();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("image renderer vertex buffer"),
@@ -163,10 +151,7 @@ impl ImageRenderer {
         let fs_module =
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/image.frag.spv"));
 
-        let mut uniforms = Uniforms::new();
-        uniforms.update_view_proj((*view_projection_matrix).into());
-
-        let uniform_buffer = Self::build_uniform_buffer(device, uniforms);
+        let uniform_buffer = Self::build_uniform_buffer(device);
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -258,10 +243,9 @@ impl ImageRenderer {
             vertex_buffer_data,
             vertex_buffer,
             texture_bind_group_layout,
-            uniforms,
+            uniform_buffer_stale: true,
             uniform_buffer,
             uniform_bind_group,
-            uniform_bind_group_layout,
             render_pipeline,
         }
     }
@@ -342,9 +326,6 @@ impl ImageRenderer {
                 });
 
                 TextureInstances {
-                    texture,
-                    view,
-                    sampler,
                     diffuse_bind_group,
                     instances: Vec::with_capacity(1),
                     buffer_cache: None,
@@ -357,22 +338,27 @@ impl ImageRenderer {
             ));
     }
 
-    pub fn resize(&mut self, queue: &wgpu::Queue, view_projection_matrix: &cgmath::Matrix4<f32>) {
-        self.uniforms
-            .update_view_proj((*view_projection_matrix).into());
-        queue.write_buffer(
-            &self.uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[self.uniforms]),
-        );
+    pub fn resize(&mut self) {
+        self.uniform_buffer_stale = true;
     }
 
     pub fn render<'a>(
         &mut self,
         device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
         command_encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
+        camera: &'a mut Camera,
     ) {
+        if self.uniform_buffer_stale {
+            queue.write_buffer(
+                &self.uniform_buffer,
+                0,
+                bytemuck::cast_slice(&[Uniforms::new(*camera.view_projection_matrix())]),
+            );
+            self.uniform_buffer_stale = false;
+        }
+
         let mut render_pass = command_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("image renderer render pass"),
             color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {

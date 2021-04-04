@@ -89,10 +89,6 @@ impl State {
         self.renderer.input(&self.device, &mut self.queue, event)
     }
 
-    pub fn update(&mut self) {
-        self.renderer.update(&mut self.queue);
-    }
-
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
@@ -103,7 +99,7 @@ impl State {
             });
 
         self.renderer
-            .render(&self.device, &self.sc_desc, &mut encoder, &frame.view);
+            .render(&self.device, &mut self.queue, &self.sc_desc, &mut encoder, &frame.view);
 
         self.queue.submit(std::iter::once(encoder.finish()));
 

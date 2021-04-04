@@ -1,4 +1,4 @@
-use crate::{sphere::Sphere, store};
+use crate::{camera::Camera, sphere::Sphere, store};
 use wgpu_glyph::GlyphCruncher;
 
 struct BoundedString {
@@ -19,7 +19,6 @@ impl TextConstraintBuilder {
     pub fn new<'a>(
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
-        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) -> Self {
         // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
         // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
@@ -53,28 +52,10 @@ impl TextConstraintBuilder {
         self.constraints.push(BoundedString { key, sphere });
     }
 
-    pub fn update<'a>(
-        &mut self,
-        _queue: &'a mut wgpu::Queue,
-        _view_projection_matrix: &'a cgmath::Matrix4<f32>,
-    ) {
-    }
-
     pub fn resize<'a>(
         &mut self,
-        store: &'a store::Store,
-        _device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-        view_projection_matrix: &'a cgmath::Matrix4<f32>,
     ) {
-        Self::build_instances(
-            store,
-            &mut self.instances_cache,
-            &self.constraints,
-            &mut self.glyph_brush,
-            view_projection_matrix,
-            sc_desc,
-        );
+        self.instances_cache = None;
     }
 
     pub fn render<'a>(
@@ -84,14 +65,14 @@ impl TextConstraintBuilder {
         sc_desc: &'a wgpu::SwapChainDescriptor,
         encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
-        view_projection_matrix: &'a cgmath::Matrix4<f32>,
+        camera: &'a mut Camera,
     ) {
         let text_constraint_instances = Self::build_instances(
             store,
             &mut self.instances_cache,
             &self.constraints,
             &mut self.glyph_brush,
-            view_projection_matrix,
+            camera.view_projection_matrix(),
             sc_desc,
         );
         for instance in text_constraint_instances {

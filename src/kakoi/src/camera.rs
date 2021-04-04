@@ -1,13 +1,14 @@
 use cgmath::{perspective, Deg, Matrix4, Point3, Vector3};
 
 pub struct Camera {
-    pub eye: Point3<f32>,
-    pub target: Point3<f32>,
-    pub up: Vector3<f32>,
-    pub aspect: f32,
-    pub fovy: f32,
-    pub znear: f32,
-    pub zfar: f32,
+    eye: Point3<f32>,
+    target: Point3<f32>,
+    up: Vector3<f32>,
+    aspect: f32,
+    fovy: f32,
+    znear: f32,
+    zfar: f32,
+    view_projection_matrix_cache: Option<cgmath::Matrix4<f32>>,
 }
 
 #[rustfmt::skip]
@@ -28,16 +29,42 @@ impl Camera {
             fovy: 45.0,
             znear: 0.0001,
             zfar: 100.0,
+            view_projection_matrix_cache: None,
         }
     }
-    pub fn build_view_projection_matrix(&self) -> Matrix4<f32> {
-        let target = cgmath::Point3::new(self.eye.x, self.eye.y, 0.0);
-        let view = if self.aspect > 1.0 {
-            Matrix4::look_at_rh(self.eye, target, self.up)
-        } else {
-            Matrix4::look_at_rh((self.eye.x, self.eye.y, 2.5 / self.aspect).into(), target, self.up)
-        };
-        let proj = perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar);
-        OPENGL_TO_WGPU_MATRIX * proj * view
+
+    pub fn aspect(&self) -> f32 {
+        self.aspect
+    }
+
+    pub fn set_aspect(&mut self, aspect: f32) {
+        self.aspect = aspect;
+        self.view_projection_matrix_cache = None;
+    } 
+
+    pub fn eye(&self) -> &Point3<f32> {
+        &self.eye
+    }
+
+    pub fn target(&self) -> &Point3<f32> {
+        &self.target
+    }
+
+    pub fn view_projection_matrix(&mut self) -> &Matrix4<f32> {
+        if self.view_projection_matrix_cache.is_none() {
+            let view = if self.aspect() > 1.0 {
+                Matrix4::look_at_rh(*self.eye(), self.target, self.up)
+            } else {
+                Matrix4::look_at_rh(
+                    (self.eye.x, self.eye.y, 2.5 / self.aspect).into(),
+                    self.target,
+                    self.up,
+                )
+            };
+            let proj = perspective(Deg(self.fovy), self.aspect, self.znear, self.zfar);
+            self.view_projection_matrix_cache = Some(OPENGL_TO_WGPU_MATRIX * proj * view);
+        }
+
+        self.view_projection_matrix_cache.as_ref().unwrap()
     }
 }

@@ -7,40 +7,6 @@ use super::{
     text::TextConstraintBuilder,
 };
 
-// pub trait InstanceRenderer<D> {
-//     fn new<'a>(
-//         device: &'a wgpu::Device,
-//         sc_desc: &'a wgpu::SwapChainDescriptor,
-//         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-//     ) -> Self;
-
-//     fn with_instance<'a>(&mut self, bounds: Sphere, data: &'a D);
-
-//     fn update<'a>(
-//         &mut self,
-//         queue: &'a mut wgpu::Queue,
-//         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-//     );
-
-//     fn resize<'a>(
-//         &mut self,
-//         device: &'a wgpu::Device,
-//         sc_desc: &'a wgpu::SwapChainDescriptor,
-//         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-//     );
-
-//     fn render<'a>(
-//         &mut self,
-//         device: &'a wgpu::Device,
-//         sc_desc: &'a wgpu::SwapChainDescriptor,
-//         command_encoder: &'a mut wgpu::CommandEncoder,
-//         texture_view: &'a wgpu::TextureView,
-//         view_projection_matrix: &'a cgmath::Matrix4<f32>,
-//     );
-
-//     fn post_render(&mut self);
-// }
-
 pub struct Renderer {
     store: store::Store,
     flat_graph: FlatGraph,
@@ -49,7 +15,6 @@ pub struct Renderer {
     height: f32,
     selected_index: NodeIndex<u32>,
     selected_node_history: Vec<NodeIndex<u32>>,
-    view_projection_matrix: cgmath::Matrix4<f32>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
     image_renderer: ImageRenderer,
@@ -82,20 +47,16 @@ impl Renderer {
     ) -> Self {
         let mut store = store::Store::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-        let view_projection_matrix = camera.build_view_projection_matrix();
         let flat_graph = FlatGraph::naming_example(&mut store);
         let selected_index = flat_graph.focused.unwrap();
-        let mut circle_renderer =
-            CircleConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
-        let mut text_renderer =
-            TextConstraintBuilder::new(device, sc_desc, &view_projection_matrix);
-        let mut image_renderer = ImageRenderer::new(device, sc_desc, &view_projection_matrix);
+        let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
+        let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
+        let mut image_renderer = ImageRenderer::new(device, sc_desc);
         let builder = Builder::new(
             device,
             queue,
             &store,
             &flat_graph,
-            sc_desc.width as f32 / sc_desc.height as f32,
             sc_desc.width as f32,
             sc_desc.height as f32,
             &mut circle_renderer,
@@ -106,7 +67,6 @@ impl Renderer {
             store,
             flat_graph,
             camera,
-            view_projection_matrix,
             text_renderer,
             circle_renderer,
             image_renderer,
@@ -119,13 +79,6 @@ impl Renderer {
         }
     }
 
-    pub fn update<'a>(&mut self, queue: &'a mut wgpu::Queue) {
-        self.circle_renderer
-            .update(queue, &self.view_projection_matrix);
-        self.text_renderer
-            .update(queue, &self.view_projection_matrix);
-    }
-
     pub fn resize<'a>(
         &mut self,
         device: &'a wgpu::Device,
@@ -134,14 +87,11 @@ impl Renderer {
     ) {
         self.width = sc_desc.width as f32;
         self.height = sc_desc.height as f32;
-        self.camera.aspect = sc_desc.width as f32 / sc_desc.height as f32;
-        self.view_projection_matrix = self.camera.build_view_projection_matrix();
-        self.circle_renderer
-            .resize(device, sc_desc, &self.view_projection_matrix);
-        self.text_renderer
-            .resize(&self.store, device, sc_desc, &self.view_projection_matrix);
-        self.image_renderer
-            .resize(queue, &self.view_projection_matrix);
+        self.camera
+            .set_aspect(sc_desc.width as f32 / sc_desc.height as f32);
+        self.circle_renderer.resize();
+        self.text_renderer.resize();
+        self.image_renderer.resize();
         self.circle_renderer.invalidate();
         self.text_renderer.invalidate();
         self.image_renderer.invalidate();
@@ -150,7 +100,6 @@ impl Renderer {
             queue,
             &self.store,
             &self.flat_graph,
-            self.camera.aspect,
             self.width,
             self.height,
             self.selected_index,
@@ -163,16 +112,18 @@ impl Renderer {
     pub fn render<'a>(
         &mut self,
         device: &'a wgpu::Device,
+        queue: &'a mut wgpu::Queue,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         command_encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
     ) {
         self.circle_renderer.render(
             device,
+            queue,
             sc_desc,
             command_encoder,
             texture_view,
-            &self.view_projection_matrix,
+            &mut self.camera,
         );
         self.text_renderer.render(
             &self.store,
@@ -180,10 +131,15 @@ impl Renderer {
             sc_desc,
             command_encoder,
             texture_view,
-            &self.view_projection_matrix,
+            &mut self.camera,
         );
-        self.image_renderer
-            .render(device, command_encoder, texture_view);
+        self.image_renderer.render(
+            device,
+            queue,
+            command_encoder,
+            texture_view,
+            &mut self.camera,
+        );
     }
 
     pub fn post_render(&mut self) {
@@ -239,7 +195,6 @@ impl Renderer {
                                 queue,
                                 &self.store,
                                 &self.flat_graph,
-                                self.camera.aspect,
                                 self.width,
                                 self.height,
                                 self.selected_index,
@@ -266,7 +221,6 @@ impl Renderer {
                                 queue,
                                 &self.store,
                                 &self.flat_graph,
-                                self.camera.aspect,
                                 self.width,
                                 self.height,
                                 self.selected_index,

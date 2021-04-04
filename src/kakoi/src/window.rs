@@ -36,7 +36,6 @@ pub fn create_window() {
                 }
             },
             Event::RedrawRequested(_) => {
-                state.update();
                 match state.render() {
                     Ok(_) => {}
                     Err(wgpu::SwapChainError::Lost) => state.recreate_swap_chain(),
