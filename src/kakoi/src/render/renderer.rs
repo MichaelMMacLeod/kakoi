@@ -141,7 +141,7 @@ impl Renderer {
         self.text_renderer
             .resize(&self.store, device, sc_desc, &self.view_projection_matrix);
         self.image_renderer
-            .resize(device, &self.view_projection_matrix);
+            .resize(queue, &self.view_projection_matrix);
         self.circle_renderer.invalidate();
         self.text_renderer.invalidate();
         self.image_renderer.invalidate();

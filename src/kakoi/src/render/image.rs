@@ -357,14 +357,13 @@ impl ImageRenderer {
             ));
     }
 
-    pub fn resize(&mut self, device: &wgpu::Device, view_projection_matrix: &cgmath::Matrix4<f32>) {
+    pub fn resize(&mut self, queue: &wgpu::Queue, view_projection_matrix: &cgmath::Matrix4<f32>) {
         self.uniforms
             .update_view_proj((*view_projection_matrix).into());
-        self.uniform_buffer = Self::build_uniform_buffer(device, self.uniforms);
-        self.uniform_bind_group = Self::build_uniform_bind_group(
-            device,
-            &self.uniform_bind_group_layout,
+        queue.write_buffer(
             &self.uniform_buffer,
+            0,
+            bytemuck::cast_slice(&[self.uniforms]),
         );
     }
 
