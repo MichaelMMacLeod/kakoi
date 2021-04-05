@@ -8,3 +8,4 @@ pub mod state;
 pub mod window;
 pub mod sphere;
 pub mod store;
+pub mod newstore;
