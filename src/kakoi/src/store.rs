@@ -3,13 +3,11 @@ use std::hash::Hash;
 
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
-#[derive(Hash)]
 pub struct Indication {
     pub target: Key,
     pub route: EdgeIndex<u32>,
 }
 
-#[derive(Hash)]
 pub struct Association {
     pub indications: Vec<Indication>,
     pub focused_indication: usize,
@@ -33,7 +31,6 @@ impl Association {
     }
 }
 
-#[derive(Hash)]
 pub enum Value {
     Association(Association),
     String(String),
