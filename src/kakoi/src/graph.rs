@@ -23,6 +23,7 @@ pub struct Graph {
 }
 
 impl Graph {
+    #[allow(unused)]
     fn new() -> Self {
         let g = GraphImpl::new();
         Self { g, focused: None }

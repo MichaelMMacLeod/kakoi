@@ -1,11 +1,11 @@
 use petgraph::{graph::NodeIndex, stable_graph::StableGraph, Directed};
 
-use crate::sphere::Sphere;
+use crate::{sphere::Sphere, store};
 
 #[derive(Debug)]
 pub struct TreeNode {
     pub sphere: Sphere,
-    pub flat_graph_index: NodeIndex<u32>,
+    pub key: store::Key,
 }
 
 pub type TreeEdge = ();
@@ -18,7 +18,7 @@ pub struct Tree {
 }
 
 impl Tree {
-    pub fn indications_of(&self, node: NodeIndex<u32>) -> Vec<(Sphere, NodeIndex<u32>)> {
+    pub fn indications_of(&self, node: NodeIndex<u32>) -> Vec<(Sphere, store::Key)> {
         let mut walker = self
             .g
             .neighbors_directed(node, petgraph::Direction::Outgoing)
@@ -29,7 +29,7 @@ impl Tree {
         while let Some((_, indication)) = walker.next(&self.g) {
             indications.push((
                 self.g[indication].sphere,
-                self.g[indication].flat_graph_index,
+                self.g[indication].key,
             ));
         }
 

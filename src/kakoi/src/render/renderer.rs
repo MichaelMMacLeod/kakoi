@@ -1,5 +1,3 @@
-use petgraph::graph::NodeIndex;
-
 use crate::{camera::Camera, flat_graph::FlatGraph, store};
 
 use super::{
@@ -9,12 +7,13 @@ use super::{
 
 pub struct Renderer {
     store: store::Store,
+    #[allow(unused)]
     flat_graph: FlatGraph,
     camera: Camera,
     width: f32,
     height: f32,
-    selected_index: NodeIndex<u32>,
-    selected_node_history: Vec<NodeIndex<u32>>,
+    selected_index: store::Key,
+    selected_node_history: Vec<store::Key>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
     image_renderer: ImageRenderer,
@@ -56,7 +55,7 @@ impl Renderer {
             device,
             queue,
             &store,
-            &flat_graph,
+            selected_index,
             sc_desc.width as f32,
             sc_desc.height as f32,
             &mut circle_renderer,
@@ -99,7 +98,6 @@ impl Renderer {
             device,
             queue,
             &self.store,
-            &self.flat_graph,
             self.width,
             self.height,
             self.selected_index,
@@ -184,7 +182,7 @@ impl Renderer {
 
                         if let Some(node) = selected_node {
                             self.selected_node_history.push(self.selected_index);
-                            self.selected_index = *node;
+                            self.selected_index = store::Key::from(*node);
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
@@ -194,7 +192,6 @@ impl Renderer {
                                 device,
                                 queue,
                                 &self.store,
-                                &self.flat_graph,
                                 self.width,
                                 self.height,
                                 self.selected_index,
@@ -220,7 +217,6 @@ impl Renderer {
                                 device,
                                 queue,
                                 &self.store,
-                                &self.flat_graph,
                                 self.width,
                                 self.height,
                                 self.selected_index,

@@ -4,34 +4,14 @@ use petgraph::stable_graph::StableGraph as GraphImpl;
 use petgraph::Directed;
 
 #[derive(Debug)]
-pub struct Edge(pub u32);
+pub struct Edge;
 
 #[derive(Debug)]
-pub struct Branch {
-    pub num_indications: u32,
-    pub focused_indication: u32,
-    pub zoom: f32,
-}
-
-impl Branch {
-    fn new(num_indications: u32) -> Self {
-        Self {
-            num_indications,
-            focused_indication: 0,
-            zoom: 0.0,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Node {
-    Branch(Branch),
-    Leaf(store::Key),
-}
+pub struct Node;
 
 pub struct FlatGraph {
     pub g: GraphImpl<Node, Edge, Directed, u32>,
-    pub focused: Option<NodeIndex<u32>>,
+    pub focused: Option<store::Key>,
 }
 
 // struct Todo {
@@ -40,17 +20,13 @@ pub struct FlatGraph {
 // }
 
 pub enum Group {
-    Existing {
-        index: NodeIndex<u32>,
-        position: u32,
-    },
+    Existing { key: store::Key, index: usize },
     New,
 }
 
-#[derive(Clone, Copy)]
 pub enum Insertion {
-    Existing { index: NodeIndex<u32> },
-    New { key: store::Key },
+    Existing(store::Key),
+    New(store::Value),
 }
 
 impl FlatGraph {
@@ -61,108 +37,92 @@ impl FlatGraph {
         }
     }
 
-    // Prepares a group for the addition of an indication at a specified
-    // position.
-    //
-    // `enclose` must point to a Node::Branch. This is checked, and will panic
-    // if not satisfied.
-    fn prepare_group(&mut self, enclose: NodeIndex<u32>, position: u32) {
-        // TODO: check for overflow bugs here
-
-        let branch = &mut self.g[enclose];
-        match branch {
-            Node::Branch(Branch {
-                num_indications, ..
-            }) => {
-                *num_indications += 1;
+    fn get_target(&mut self, store: &mut store::Store, insertion: Insertion) -> store::Key {
+        match insertion {
+            Insertion::New(value) => {
+                let target = store::Key::from(self.g.add_node(Node));
+                store.entry(target).or_insert(value);
+                target
             }
-            Node::Leaf(_) => panic!("attempted to insert into leaf"),
+            Insertion::Existing(target) => target,
         }
+    }
 
-        use petgraph::visit::EdgeRef;
-        let edges = self
+    fn insert_target_at(
+        &mut self,
+        store: &mut store::Store,
+        source: store::Key,
+        target: store::Key,
+        index: usize,
+    ) {
+        let route = self
             .g
-            .edges(enclose)
-            .into_iter()
-            .map(|r| r.id())
-            .collect::<Vec<_>>();
-        for edge in edges {
-            let edge = &mut self.g[edge];
-            match edge {
-                Edge(n) if *n >= position => {
-                    *edge = Edge(*n + 1);
+            .add_edge(NodeIndex::from(source), NodeIndex::from(target), Edge);
+        store
+            .entry(source)
+            .and_modify(|value| match value.association_mut() {
+                Some(store::Association { indications, .. }) => {
+                    indications.insert(index, store::Indication { target, route });
                 }
-                _ => {}
-            }
-        }
+                None => panic!("attempt to insert into non-association"),
+            });
     }
 
-    // Adds indications of `members`, in order, into the group specified by
-    // `enclose`.
-    //
-    // `enclose` must point to a Node::Branch. This is not checked.
-    //
-    // `members` should be of length at least two. This is not checked.
-    fn populate_empty_group(&mut self, enclose: NodeIndex<u32>, members: Vec<Insertion>) {
-        let mut current_position = 0;
-
-        for member in members {
-            match member {
-                Insertion::Existing { index: indication } => {
-                    self.g.add_edge(enclose, indication, Edge(current_position));
-                }
-                Insertion::New { key } => {
-                    let indication = self.g.add_node(Node::Leaf(key));
-                    self.g.add_edge(enclose, indication, Edge(current_position));
-                }
-            }
-            current_position += 1;
-        }
+    fn create_association(
+        &mut self,
+        store: &mut store::Store,
+        insertions: &mut Vec<Insertion>,
+    ) -> store::Key {
+        let association = store::Key::from(self.g.add_node(Node));
+        let indications = insertions
+            .drain(..)
+            .map(|insertion| {
+                let target = self.get_target(store, insertion);
+                let route =
+                    self.g
+                        .add_edge(NodeIndex::from(association), NodeIndex::from(target), Edge);
+                store::Indication { target, route }
+            })
+            .collect();
+        store
+            .entry(association)
+            .or_insert(store::Value::Association(store::Association::new(
+                indications,
+                0,
+                store::Association::to_zoom(0.0),
+            )));
+        association
     }
 
-    // Creates or locates a group that indicates `members`, possibly by
+    // Creates or locates a group that indicates `insertions`, possibly by
     // modifying an existing group. Returns its index if such a group would have
     // at least one indication, otherwise, returns None.
     //
     // The returned index can point to either a Node::Branch or a Node::Leaf,
     // depending on the arguments.
-    pub fn enclose(&mut self, into: Group, members: Vec<Insertion>) -> Option<NodeIndex<u32>> {
-        use std::convert::TryInto;
-
-        let num_indications = members.len().try_into().unwrap();
-
+    pub fn enclose(
+        &mut self,
+        store: &mut store::Store,
+        into: Group,
+        insertions: &mut Vec<Insertion>,
+    ) -> Option<store::Key> {
         match into {
-            Group::Existing { index, position } => match num_indications {
-                0 => Some(index),
-                1 => {
-                    let node_to_insert = match &members[0] {
-                        Insertion::New { key } => self.g.add_node(Node::Leaf(*key)),
-                        Insertion::Existing { index } => *index,
-                    };
-                    self.prepare_group(index, position);
-                    self.g.add_edge(index, node_to_insert, Edge(position));
-                    Some(index)
-                }
-                _ => {
-                    let node_to_insert =
-                        self.g.add_node(Node::Branch(Branch::new(num_indications)));
-                    self.prepare_group(index, position);
-                    self.g.add_edge(index, node_to_insert, Edge(position));
-                    self.populate_empty_group(node_to_insert, members);
-                    Some(index)
-                }
-            },
-            Group::New => match num_indications {
+            Group::New => match insertions.len() {
                 0 => None,
-                1 => match &members[0] {
-                    Insertion::New { key } => Some(self.g.add_node(Node::Leaf(*key))),
-                    Insertion::Existing { index } => Some(*index),
-                },
+                1 => Some(self.get_target(store, insertions.drain(..).next().unwrap())),
+                _ => Some(self.create_association(store, insertions)),
+            },
+            Group::Existing { key: source, index } => match insertions.len() {
+                0 => Some(source),
+                1 => {
+                    let target = self.get_target(store, insertions.drain(..).next().unwrap());
+                    self.insert_target_at(store, source, target, index);
+                    Some(source)
+                }
                 _ => {
-                    let node_to_insert =
-                        self.g.add_node(Node::Branch(Branch::new(num_indications)));
-                    self.populate_empty_group(node_to_insert, members);
-                    Some(node_to_insert)
+                    let target = self.create_association(store, insertions);
+                    self.insert_target_at(store, source, target, index);
+                    Some(source)
                 }
             },
         }
@@ -331,49 +291,39 @@ impl FlatGraph {
     //     graph
     // }
 
-    fn make_leaf_insertions<'a>(store: &'a mut store::Store, leafs: &[&str]) -> Vec<Insertion> {
+    fn make_leaf_insertions<'a>(leafs: &[&str]) -> Vec<Insertion> {
         leafs
             .iter()
-            .map(|&c| {
-                let key = store.insert(store::Value::String(c.into()));
-                Insertion::New { key }
-            })
+            .map(|&c| Insertion::New(store::Value::String(c.into())))
             .collect()
     }
 
     pub fn naming_example<'a>(store: &'a mut store::Store) -> Self {
         let mut graph = FlatGraph::new();
-        let consonants = Self::make_leaf_insertions(
-            store,
-            &[
-                "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t",
-                "v", "w", "x", "y", "z",
-            ],
-        );
-        let consonant_index = graph.enclose(Group::New, consonants).unwrap();
-        let vowels = Self::make_leaf_insertions(store, &["a", "e", "i", "o", "u"]);
-        let vowel_index = graph.enclose(Group::New, vowels).unwrap();
+        let mut consonants = Self::make_leaf_insertions(&[
+            "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v",
+            "w", "x", "y", "z",
+        ]);
+        let consonant_index = graph.enclose(store, Group::New, &mut consonants).unwrap();
+        let mut vowels = Self::make_leaf_insertions(&["a", "e", "i", "o", "u"]);
+        let vowel_index = graph.enclose(store, Group::New, &mut vowels).unwrap();
         let named_consonant_index = graph
             .enclose(
+                store,
                 Group::New,
-                vec![
-                    Insertion::Existing {
-                        index: consonant_index,
-                    },
-                    Insertion::New {
-                        key: store.insert(store::Value::String("Consonant".into())),
-                    },
+                &mut vec![
+                    Insertion::Existing(consonant_index),
+                    Insertion::New(store::Value::String("Consonant".into())),
                 ],
             )
             .unwrap();
         let named_vowel_index = graph
             .enclose(
+                store,
                 Group::New,
-                vec![
-                    Insertion::Existing { index: vowel_index },
-                    Insertion::New {
-                        key: store.insert(store::Value::String("Vowel".into())),
-                    },
+                &mut vec![
+                    Insertion::Existing(vowel_index),
+                    Insertion::New(store::Value::String("Vowel".into())),
                 ],
             )
             .unwrap();
@@ -394,78 +344,64 @@ impl FlatGraph {
                         .into_rgba8()
                 };
                 let kakoi_example_3 = {
-                    let kakoi_example_3 =
-                        include_bytes!("resources/images/Kakoi Example 1 [senseis.xmp.net] wide.png");
+                    let kakoi_example_3 = include_bytes!(
+                        "resources/images/Kakoi Example 1 [senseis.xmp.net] wide.png"
+                    );
                     image::load_from_memory(kakoi_example_3)
                         .unwrap()
                         .into_rgba8()
                 };
                 graph
                     .enclose(
+                        store,
                         Group::New,
-                        vec![
-                            Insertion::New {
-                                key: store.insert(store::Value::Image(kakoi_example_1)),
-                            },
-                            Insertion::New {
-                                key: store.insert(store::Value::Image(kakoi_example_2)),
-                            },
-                            Insertion::New {
-                                key: store.insert(store::Value::Image(kakoi_example_3)),
-                            },
+                        &mut vec![
+                            Insertion::New(store::Value::Image(kakoi_example_1)),
+                            Insertion::New(store::Value::Image(kakoi_example_2)),
+                            Insertion::New(store::Value::Image(kakoi_example_3)),
                         ],
                     )
                     .unwrap()
             };
-            graph.enclose(
-                Group::New,
-                vec![
-                    Insertion::Existing {
-                        index: kakoi_examples_index,
-                    },
-                    Insertion::New {
-                        key: store.insert(store::Value::String(
-                            "kakoi".into(),
-                        )),
-                    },
-                ],
-            ).unwrap()
+            graph
+                .enclose(
+                    store,
+                    Group::New,
+                    &mut vec![
+                        Insertion::Existing(kakoi_examples_index),
+                        Insertion::New(store::Value::String("kakoi".into())),
+                    ],
+                )
+                .unwrap()
         };
         let name_index = graph
             .enclose(
+                store,
                 Group::New,
-                vec![
-                    Insertion::Existing {
-                        index: named_consonant_index,
-                    },
-                    Insertion::Existing {
-                        index: named_vowel_index,
-                    },
-                    Insertion::Existing {
-                        index: named_kakoi_examples_index,
-                    }
+                &mut vec![
+                    Insertion::Existing(named_consonant_index),
+                    Insertion::Existing(named_vowel_index),
+                    Insertion::Existing(named_kakoi_examples_index),
                 ],
             )
             .unwrap();
         let named_name_index = graph
             .enclose(
+                store,
                 Group::New,
-                vec![
-                    Insertion::Existing { index: name_index },
-                    Insertion::New {
-                        key: store.insert(store::Value::String("Naming".into())),
-                    },
+                &mut vec![
+                    Insertion::Existing(name_index),
+                    Insertion::New(store::Value::String("Naming".into())),
                 ],
             )
             .unwrap();
         graph.enclose(
+            store,
             Group::Existing {
-                index: name_index,
-                position: 0,
+                key: name_index,
+                index: 0,
             },
-            vec![Insertion::Existing {
-                index: named_name_index,
-            }],
+            &mut vec![Insertion::Existing(named_name_index)],
         );
         graph.focused = Some(name_index);
         graph

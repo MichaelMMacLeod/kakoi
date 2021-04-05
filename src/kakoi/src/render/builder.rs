@@ -2,11 +2,8 @@ use std::collections::VecDeque;
 
 use petgraph::graph::NodeIndex;
 
+use crate::circle::{Circle, CirclePositioner};
 use crate::{circle::Point, sphere::Sphere, store};
-use crate::{
-    circle::{Circle, CirclePositioner},
-    flat_graph::{self, FlatGraph},
-};
 
 use super::{
     circle::{CircleConstraintBuilder, MIN_RADIUS},
@@ -19,31 +16,30 @@ pub struct Builder {
     pub indication_tree: Tree,
 }
 
-fn indications_of<'a>(
-    flat_graph: &'a FlatGraph,
-    index: NodeIndex<u32>,
-    num_indications: usize,
-) -> Vec<(u32, NodeIndex<u32>)> {
-    let mut walker = flat_graph
-        .g
-        .neighbors_directed(index, petgraph::Direction::Outgoing)
-        .detach();
+// fn indications_of<'a>(
+//     flat_graph: &'a FlatGraph,
+//     index: NodeIndex<u32>,
+//     num_indications: usize,
+// ) -> Vec<(u32, NodeIndex<u32>)> {
+//     let mut walker = flat_graph
+//         .g
+//         .neighbors_directed(index, petgraph::Direction::Outgoing)
+//         .detach();
 
-    let mut indications = Vec::with_capacity(num_indications);
+//     let mut indications = Vec::with_capacity(num_indications);
 
-    while let Some((edge, node)) = walker.next(&flat_graph.g) {
-        let flat_graph::Edge(n) = flat_graph.g[edge];
-        indications.push((n, node));
-    }
+//     while let Some((edge, node)) = walker.next(&flat_graph.g) {
+//         let flat_graph::Edge(n) = flat_graph.g[edge];
+//         indications.push((n, node));
+//     }
 
-    indications
-}
+//     indications
+// }
 
 fn build_indication_tree_2<'a>(
     device: &'a wgpu::Device,
     queue: &'a mut wgpu::Queue,
     store: &'a store::Store,
-    flat_graph: &'a FlatGraph,
     tree_impl: &'a mut indication_tree::Impl,
     root_index: NodeIndex<u32>,
     screen_width: f32,
@@ -58,32 +54,26 @@ fn build_indication_tree_2<'a>(
     while let Some(indication_tree_index) = todo.pop_front() {
         let TreeNode {
             sphere,
-            flat_graph_index,
+            // flat_graph_index,
+            key,
         } = &tree_impl[NodeIndex::from(indication_tree_index)];
 
-        match &flat_graph.g[NodeIndex::from(*flat_graph_index)] {
-            flat_graph::Node::Leaf(key) => match store.get(key).unwrap() {
-                store::Value::String(_) => {
-                    text_builder.with_instance(*sphere, *key);
-                }
-                store::Value::Image(_) => {
-                    image_builder.with_image(device, queue, store, *sphere, *key)
-                }
-            },
-            flat_graph::Node::Branch(flat_graph::Branch {
-                num_indications,
-                focused_indication,
-                zoom,
-            }) => {
-                let num_indications = *num_indications;
-                let zoom = *zoom;
-                let focused_indication = *focused_indication;
-
-                let focus_angle =
-                    2.0 * std::f32::consts::PI / num_indications as f32 * focused_indication as f32;
+        match store.get(key).unwrap() {
+            store::Value::String(_) => {
+                text_builder.with_instance(*sphere, *key);
+            }
+            store::Value::Image(_) => {
+                image_builder.with_image(device, queue, store, *sphere, *key);
+            }
+            store::Value::Association(association) => {
+                let indications = &association.indications;
+                let focused_indication = association.focused_indication;
+                let zoom = association.zoom();
+                let focus_angle = 2.0 * std::f32::consts::PI / indications.len() as f32
+                    * focused_indication as f32;
                 let circle_positioner = CirclePositioner::new(
                     (sphere.radius * MIN_RADIUS) as f64,
-                    num_indications as u64,
+                    indications.len() as u64,
                     zoom as f64,
                     Point {
                         x: sphere.center.x as f64,
@@ -91,15 +81,10 @@ fn build_indication_tree_2<'a>(
                     },
                     focus_angle as f64,
                 );
-
-                let mut indications =
-                    indications_of(flat_graph, *flat_graph_index, num_indications as usize);
-                indications.sort_by_key(|(n, _)| *n);
-
-                let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = indications
-                    .iter()
+                let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = (0..)
+                    .into_iter()
+                    .zip(indications.iter())
                     .partition(|(i, _)| *i < focused_indication);
-
                 circle_positioner
                     .into_iter()
                     .zip(focused_and_after.iter().chain(before_focused.iter()))
@@ -115,7 +100,7 @@ fn build_indication_tree_2<'a>(
 
                         if other_sphere.screen_radius(screen_width, screen_height) > 1.0 {
                             let indicated_index = tree_impl.add_node(indication_tree::TreeNode {
-                                flat_graph_index: *node,
+                                key: node.target,
                                 sphere: other_sphere,
                             });
                             tree_impl.add_edge(indication_tree_index, indicated_index, ());
@@ -133,29 +118,28 @@ fn build_indication_tree_1<'a>(
     device: &'a wgpu::Device,
     queue: &'a mut wgpu::Queue,
     store: &'a store::Store,
-    flat_graph: &'a FlatGraph,
     screen_width: f32,
     screen_height: f32,
-    selected_node: NodeIndex<u32>,
+    selected_key: store::Key,
     circle_builder: &'a mut CircleConstraintBuilder,
     text_builder: &'a mut TextConstraintBuilder,
     image_builder: &'a mut ImageRenderer,
 ) -> Tree {
     let mut tree_impl = indication_tree::Impl::new();
 
-    let first_flat_graph_index = selected_node;
-    let first_sphere = Sphere {
-        center: cgmath::vec3(0.0, 0.0, 0.0),
-        radius: 1.0,
+    let first_indication_tree_index = {
+        let first_sphere = Sphere {
+            center: cgmath::vec3(0.0, 0.0, 0.0),
+            radius: 1.0,
+        };
+        circle_builder.with_instance(first_sphere);
+        tree_impl
+            .add_node(TreeNode {
+                key: selected_key,
+                sphere: first_sphere,
+            })
+            .into()
     };
-    let first_indication_tree_index = tree_impl
-        .add_node(TreeNode {
-            flat_graph_index: first_flat_graph_index,
-            sphere: first_sphere,
-        })
-        .into();
-
-    circle_builder.with_instance(first_sphere);
 
     let mut todo = VecDeque::new();
     todo.push_back(first_indication_tree_index);
@@ -164,7 +148,6 @@ fn build_indication_tree_1<'a>(
         device,
         queue,
         store,
-        flat_graph,
         &mut tree_impl,
         first_indication_tree_index,
         screen_width,
@@ -185,7 +168,7 @@ impl Builder {
         device: &'a wgpu::Device,
         queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
-        flat_graph: &'a FlatGraph,
+        selected_node: store::Key,
         screen_width: f32,
         screen_height: f32,
         circle_builder: &'a mut CircleConstraintBuilder,
@@ -196,10 +179,9 @@ impl Builder {
             device,
             queue,
             store,
-            flat_graph,
             screen_width,
             screen_height,
-            flat_graph.focused.unwrap(),
+            selected_node,
             circle_builder,
             text_builder,
             image_builder,
@@ -210,10 +192,9 @@ impl Builder {
         device: &'a wgpu::Device,
         queue: &'a mut wgpu::Queue,
         store: &'a store::Store,
-        flat_graph: &'a FlatGraph,
         screen_width: f32,
         screen_height: f32,
-        selected_node: NodeIndex<u32>,
+        selected_node: store::Key,
         circle_builder: &'a mut CircleConstraintBuilder,
         text_builder: &'a mut TextConstraintBuilder,
         image_builder: &'a mut ImageRenderer,
@@ -222,7 +203,6 @@ impl Builder {
             device,
             queue,
             store,
-            flat_graph,
             screen_width,
             screen_height,
             selected_node,
