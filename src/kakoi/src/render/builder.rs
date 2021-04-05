@@ -65,6 +65,49 @@ fn build_indication_tree_2<'a>(
             store::Value::Image(_) => {
                 image_builder.with_image(device, queue, store, *sphere, *key);
             }
+            store::Value::Overlay(overlay) => {
+                let focus = overlay.focus();
+                let message = overlay.message();
+                let message_visible = overlay.message_visible();
+                let indications = if message_visible {
+                    vec![focus, message]
+                } else {
+                    vec![focus]
+                };
+                CirclePositioner::new(
+                    (sphere.radius * MIN_RADIUS) as f64,
+                    indications.len() as u64,
+                    0.5,
+                    Point {
+                        x: sphere.center.x as f64,
+                        y: sphere.center.y as f64,
+                    },
+                    0.0,
+                )
+                .into_iter()
+                .zip(indications.into_iter())
+                .for_each(
+                    |(
+                        Circle {
+                            center: Point { x, y },
+                            radius,
+                        },
+                        indication,
+                    )| {
+                        let other_sphere = Sphere {
+                            center: (x as f32, y as f32, 0.0).into(),
+                            radius: radius as f32,
+                        };
+                        let indicated_index = tree_impl.add_node(indication_tree::TreeNode {
+                            key: *indication,
+                            sphere: other_sphere,
+                        });
+                        tree_impl.add_edge(indication_tree_index, indicated_index, ());
+                        todo.push_back(indicated_index);
+                        circle_builder.with_instance(other_sphere);
+                    },
+                );
+            }
             store::Value::Association(association) => {
                 let indications = &association.indications;
                 let focused_indication = association.focused_indication;

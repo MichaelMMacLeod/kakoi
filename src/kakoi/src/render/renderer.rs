@@ -1,4 +1,4 @@
-use crate::{camera::Camera, flat_graph::FlatGraph, store};
+use crate::{camera::Camera, flat_graph, store};
 
 use super::{
     builder::Builder, circle::CircleConstraintBuilder, image::ImageRenderer,
@@ -8,7 +8,7 @@ use super::{
 pub struct Renderer {
     store: store::Store,
     #[allow(unused)]
-    flat_graph: FlatGraph,
+    flat_graph: flat_graph::FlatGraph,
     camera: Camera,
     width: f32,
     height: f32,
@@ -46,8 +46,21 @@ impl Renderer {
     ) -> Self {
         let mut store = store::Store::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-        let flat_graph = FlatGraph::naming_example(&mut store);
-        let selected_index = flat_graph.focused.unwrap();
+        let mut graph = flat_graph::FlatGraph::naming_example(&mut store);
+        let message = graph
+            .enclose(
+                &mut store,
+                flat_graph::Group::New,
+                &mut [flat_graph::Insertion::New(store::Value::String(
+                    "Welcome to\nKAKOI!".into(),
+                ))]
+                .into(),
+            )
+            .unwrap();
+        let overlay = {
+            let focused = graph.focused.unwrap();
+            store::Overlay::new(&mut store, &mut graph, focused, message)
+        };
         let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
         let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
         let mut image_renderer = ImageRenderer::new(device, sc_desc);
@@ -55,7 +68,7 @@ impl Renderer {
             device,
             queue,
             &store,
-            selected_index,
+            overlay,
             sc_desc.width as f32,
             sc_desc.height as f32,
             &mut circle_renderer,
@@ -64,12 +77,12 @@ impl Renderer {
         );
         Self {
             store,
-            flat_graph,
+            flat_graph: graph,
             camera,
             text_renderer,
             circle_renderer,
             image_renderer,
-            selected_index,
+            selected_index: overlay,
             selected_node_history: Vec::new(),
             cursor_position: (0.0, 0.0),
             width: sc_desc.width as f32,
@@ -163,10 +176,43 @@ impl Renderer {
                             self.height,
                         );
 
+                        let overlay_focus_tree_index = {
+                            let overlay_focus = *self
+                                .store
+                                .get(&self.selected_index)
+                                .unwrap()
+                                .overlay()
+                                .unwrap()
+                                .focus();
+
+                            let mut walker = self
+                                .builder
+                                .indication_tree
+                                .g
+                                .neighbors_directed(
+                                    self.builder.indication_tree.root,
+                                    petgraph::Direction::Outgoing,
+                                )
+                                .detach();
+
+                            let mut result = None;
+
+                            while let Some((_, indication)) = walker.next(&self.builder.indication_tree.g) {
+                                let node = &self.builder.indication_tree.g[indication];
+
+                                if node.key == overlay_focus {
+                                    result = Some(indication);
+                                    break;
+                                }
+                            }
+
+                            result.unwrap()
+                        };
+
                         let indications = self
                             .builder
                             .indication_tree
-                            .indications_of(self.builder.indication_tree.root);
+                            .indications_of(overlay_focus_tree_index);
 
                         let selected_node = indications.iter().find_map(|(sphere, node)| {
                             let dx = sphere.center.x - cx;
@@ -181,8 +227,16 @@ impl Renderer {
                         });
 
                         if let Some(node) = selected_node {
-                            self.selected_node_history.push(self.selected_index);
-                            self.selected_index = store::Key::from(*node);
+                            {
+                                let mut flat_graph = &mut self.flat_graph;
+                                let selected_index = self.selected_index;
+                                let selected_node_history = &mut self.selected_node_history;
+                                self.store.entry(self.selected_index).and_modify(|value| {
+                                    let overlay = value.overlay_mut().unwrap();
+                                    selected_node_history.push(*overlay.focus());
+                                    overlay.set_focus(&mut flat_graph, selected_index, *node);
+                                });
+                            }
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
@@ -207,7 +261,14 @@ impl Renderer {
                     }
                     MouseButton::Right => match self.selected_node_history.pop() {
                         Some(index) => {
-                            self.selected_index = index;
+                            {
+                                let mut flat_graph = &mut self.flat_graph;
+                                let selected_index = self.selected_index;
+                                self.store.entry(self.selected_index).and_modify(|value| {
+                                    let overlay = value.overlay_mut().unwrap();
+                                    overlay.set_focus(&mut flat_graph, selected_index, index);
+                                });
+                            }
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
