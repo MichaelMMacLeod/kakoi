@@ -78,22 +78,18 @@ impl Vertex {
 
 struct BoundTextureInstances {
     diffuse_bind_group: wgpu::BindGroup,
-    texture_instances: RawTextureInstances,
+    raw_texture_instances: Vec<RawTextureInstance>,
     buffer_cache: Option<wgpu::Buffer>,
 }
 
-struct RawTextureInstances {
-    instances: Vec<ImageInstanceRaw>,
-}
-
 struct TextureInstances {
-    instances: Vec<ImageInstance>,
+    instances: Vec<TextureInstance>,
 }
 
-impl TextureInstances {
+impl BoundTextureInstances {
     fn instantiate_buffer_cache<'a, 'b>(
         buffer_cache: &'b mut Option<wgpu::Buffer>,
-        instances: &'b Vec<ImageInstanceRaw>,
+        instances: &'b Vec<RawTextureInstance>,
         device: &'a wgpu::Device,
     ) -> &'b wgpu::Buffer {
         if buffer_cache.is_none() {
@@ -123,30 +119,6 @@ pub struct ImageRenderer {
 }
 
 impl ImageRenderer {
-    fn build_uniform_bind_group<'a>(
-        device: &'a wgpu::Device,
-        uniform_bind_group_layout: &'a wgpu::BindGroupLayout,
-        uniform_buffer: &'a wgpu::Buffer,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-            label: Some("image renderer uniform bind group"),
-        })
-    }
-
-    fn build_uniform_buffer<'a>(device: &'a wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("image renderer uniform buffer"),
-            size: std::mem::size_of::<Uniforms>() as wgpu::BufferAddress,
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
-            mapped_at_creation: false,
-        })
-    }
-
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let vertex_buffer_data = Vertex::square();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -160,7 +132,12 @@ impl ImageRenderer {
         let fs_module =
             device.create_shader_module(&wgpu::include_spirv!("../shaders/build/image.frag.spv"));
 
-        let uniform_buffer = Self::build_uniform_buffer(device);
+        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("image renderer uniform buffer"),
+            size: std::mem::size_of::<Uniforms>() as wgpu::BufferAddress,
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            mapped_at_creation: false,
+        });
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -177,8 +154,14 @@ impl ImageRenderer {
                 label: Some("image renderer uniform bind group layout"),
             });
 
-        let uniform_bind_group =
-            Self::build_uniform_bind_group(device, &uniform_bind_group_layout, &uniform_buffer);
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+            label: Some("image renderer uniform bind group"),
+        });
 
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -220,7 +203,7 @@ impl ImageRenderer {
             vertex: wgpu::VertexState {
                 module: &vs_module,
                 entry_point: "main",
-                buffers: &[Vertex::desc(), ImageInstanceRaw::desc()],
+                buffers: &[Vertex::desc(), RawTextureInstance::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
@@ -260,104 +243,14 @@ impl ImageRenderer {
         }
     }
 
-    pub fn with_image<'a>(
-        &mut self,
-        sphere: Sphere,
-        key: newstore::ImageKey,
-        // device: &'a wgpu::Device,
-        // queue: &'a mut wgpu::Queue,
-        // store: &'a newstore::Store,
-        // sphere: Sphere,
-        // key: store::Key,
-    ) {
-        // let dimensions = store.get_image(&key).dimensions();
+    pub fn with_image<'a>(&mut self, sphere: Sphere, key: newstore::ImageKey) {
         self.unbound
             .entry(key)
-            .or_insert(TextureInstances { instances: vec![] })
+            .or_insert(TextureInstances {
+                instances: Vec::with_capacity(1),
+            })
             .instances
-            .push(
-                ImageInstance { sphere: sphere },
-                // dimensions.0 as f32 / dimensions.1 as f32,
-            );
-
-        // });
-        // let image = store.get(&key).unwrap().image().unwrap();
-        // let texture_bind_group_layout = &self.texture_bind_group_layout;
-
-        // self.images
-        //     .entry(key)
-        //     .or_insert_with(|| {
-        //         let size = {
-        //             wgpu::Extent3d {
-        //                 width: dimensions.0,
-        //                 height: dimensions.1,
-        //                 depth: 1,
-        //             }
-        //         };
-
-        //         let texture = device.create_texture(&wgpu::TextureDescriptor {
-        //             label: None,
-        //             size,
-        //             mip_level_count: 1,
-        //             sample_count: 1,
-        //             dimension: wgpu::TextureDimension::D2,
-        //             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        //             usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
-        //         });
-
-        //         queue.write_texture(
-        //             wgpu::TextureCopyView {
-        //                 texture: &texture,
-        //                 mip_level: 0,
-        //                 origin: wgpu::Origin3d::ZERO,
-        //             },
-        //             image,
-        //             wgpu::TextureDataLayout {
-        //                 offset: 0,
-        //                 bytes_per_row: 4 * dimensions.0,
-        //                 rows_per_image: dimensions.1,
-        //             },
-        //             size,
-        //         );
-
-        //         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        //         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        //             address_mode_u: wgpu::AddressMode::ClampToEdge,
-        //             address_mode_v: wgpu::AddressMode::ClampToEdge,
-        //             address_mode_w: wgpu::AddressMode::ClampToEdge,
-        //             mag_filter: wgpu::FilterMode::Linear,
-        //             min_filter: wgpu::FilterMode::Nearest,
-        //             mipmap_filter: wgpu::FilterMode::Nearest,
-        //             ..Default::default()
-        //         });
-
-        //         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        //             layout: texture_bind_group_layout,
-        //             entries: &[
-        //                 wgpu::BindGroupEntry {
-        //                     binding: 0,
-        //                     resource: wgpu::BindingResource::TextureView(&view),
-        //                 },
-        //                 wgpu::BindGroupEntry {
-        //                     binding: 1,
-        //                     resource: wgpu::BindingResource::Sampler(&sampler),
-        //                 },
-        //             ],
-        //             label: Some("image renderer diffuse bind group"),
-        //         });
-
-        //         TextureInstances {
-        //             diffuse_bind_group,
-        //             instances: Vec::with_capacity(1),
-        //             buffer_cache: None,
-        //         }
-        //     })
-        //     .instances
-        //     .push(ImageInstance::new(
-        //         &sphere,
-        //         dimensions.0 as f32 / dimensions.1 as f32,
-        //     ));
+            .push(TextureInstance { sphere: sphere });
     }
 
     pub fn resize(&mut self) {
@@ -470,16 +363,15 @@ impl ImageRenderer {
                 .or_insert_with(|| BoundTextureInstances {
                     diffuse_bind_group,
                     buffer_cache: None,
-                    texture_instances: RawTextureInstances {
-                        instances: Vec::with_capacity(unbound_image_instance.instances.len()),
-                    },
+                    raw_texture_instances: Vec::with_capacity(
+                        unbound_image_instance.instances.len(),
+                    ),
                 })
-                .texture_instances
-                .instances
+                .raw_texture_instances
                 .append(
                     &mut unbound_image_instance
                         .instances
-                        .into_iter()
+                        .drain(..)
                         .map(|i| i.to_raw(aspect_ratio))
                         .collect(),
                 );
@@ -489,14 +381,18 @@ impl ImageRenderer {
             let BoundTextureInstances {
                 diffuse_bind_group,
                 buffer_cache,
-                texture_instances: RawTextureInstances { instances },
+                raw_texture_instances: instances,
             } = bound_texture_instances;
             if instances.len() > 0 {
                 render_pass.set_bind_group(0, diffuse_bind_group, &[]);
                 render_pass.set_vertex_buffer(
                     1,
-                    TextureInstances::instantiate_buffer_cache(buffer_cache, instances, device)
-                        .slice(..),
+                    BoundTextureInstances::instantiate_buffer_cache(
+                        buffer_cache,
+                        instances,
+                        device,
+                    )
+                    .slice(..),
                 );
                 render_pass.draw(
                     0..self.vertex_buffer_data.len() as _,
@@ -504,56 +400,34 @@ impl ImageRenderer {
                 );
             }
         }
-        // for (_, texture_instances) in &mut self.images {
-        //     let num_instances = texture_instances.instances.len();
-        //     if num_instances > 0 {
-        //         render_pass.set_bind_group(0, &texture_instances.diffuse_bind_group, &[]);
-        //         render_pass.set_vertex_buffer(
-        //             1,
-        //             TextureInstances::instantiate_buffer_cache(
-        //                 &mut texture_instances.buffer_cache,
-        //                 &texture_instances.instances,
-        //                 device,
-        //             )
-        //             .slice(..),
-        //         );
-        //         render_pass.draw(0..self.vertex_buffer_data.len() as _, 0..num_instances as _);
-        //     }
-        // }
     }
 
     pub fn invalidate(&mut self) {
         self.unbound.clear();
-        // self.bound.clear();
         for (_, bound_texture_instance) in &mut self.bound {
             bound_texture_instance.buffer_cache = None;
-            bound_texture_instance.texture_instances.instances.clear();
+            bound_texture_instance.raw_texture_instances.clear();
         }
-
-        // for (_, texture_instance) in &mut self.images {
-        //     texture_instance.instances.clear();
-        //     texture_instance.buffer_cache = None;
-        // }
     }
 }
 
-struct ImageInstance {
+struct TextureInstance {
     sphere: Sphere,
 }
 
-impl ImageInstance {
-    fn to_raw(&self, aspect_ratio: f32) -> ImageInstanceRaw {
-        ImageInstanceRaw::new(&self.sphere, aspect_ratio)
+impl TextureInstance {
+    fn to_raw(&self, aspect_ratio: f32) -> RawTextureInstance {
+        RawTextureInstance::new(&self.sphere, aspect_ratio)
     }
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ImageInstanceRaw {
+pub struct RawTextureInstance {
     model: [[f32; 4]; 4],
 }
 
-impl ImageInstanceRaw {
+impl RawTextureInstance {
     pub fn new(sphere: &Sphere, aspect_ratio: f32) -> Self {
         let (scale_x, scale_y) = sphere.as_rectangle_bounds(aspect_ratio);
         let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
