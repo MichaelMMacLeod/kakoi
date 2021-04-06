@@ -4,7 +4,7 @@ use crate::{
     circle::{Circle, CirclePositioner, Point},
     render::{
         circle::{CircleConstraintBuilder, MIN_RADIUS},
-        // image::ImageRenderer,
+        image::ImageRenderer,
         text::TextConstraintBuilder,
     },
     sphere::Sphere,
@@ -13,7 +13,7 @@ use crate::{
 macro_rules! implement_key_types {
     ( $( { $x:ident $accessor:ident } )* ) => {
         $(
-            #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+            #[derive(PartialEq, Eq, Debug, Clone, Copy, Hash)]
             pub struct $x {
                 index: usize,
             }
@@ -31,7 +31,7 @@ macro_rules! implement_key_types {
             }
         )*
 
-        #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+        #[derive(PartialEq, Eq, Debug, Clone, Copy, Hash)]
         pub enum Key {
             $(
                 $x($x),
@@ -205,6 +205,35 @@ impl Store {
             store.insert_set(vowels)
         };
 
+        let kakoi_set = {
+            let kakoi_example_1 = {
+                let kakoi_example_1 =
+                    include_bytes!("resources/images/Kakoi Example 1 [senseis.xmp.net].png");
+                image::load_from_memory(kakoi_example_1)
+                    .unwrap()
+                    .into_rgba8()
+            };
+            let kakoi_example_2 = {
+                let kakoi_example_2 =
+                    include_bytes!("resources/images/Kakoi Example 2 [senseis.xmp.net].png");
+                image::load_from_memory(kakoi_example_2)
+                    .unwrap()
+                    .into_rgba8()
+            };
+            let kakoi_example_3 = {
+                let kakoi_example_3 =
+                    include_bytes!("resources/images/Kakoi Example 1 [senseis.xmp.net] wide.png");
+                image::load_from_memory(kakoi_example_3)
+                    .unwrap()
+                    .into_rgba8()
+            };
+            let kakoi = vec![kakoi_example_1, kakoi_example_2, kakoi_example_3]
+                .drain(..)
+                .map(|s| Key::from(store.insert_image(s)))
+                .collect::<Vec<_>>();
+            store.insert_set(kakoi)
+        };
+
         let named_consonant_set = {
             let consonant = store.insert_string("Consonant");
             store.insert_set(vec![Key::from(consonant_set), Key::from(consonant)])
@@ -215,9 +244,15 @@ impl Store {
             store.insert_set(vec![Key::from(vowel_set), Key::from(vowel)])
         };
 
+        let named_kakoi_set = {
+            let kakoi = store.insert_string("Kakoi");
+            store.insert_set(vec![Key::from(kakoi_set), Key::from(kakoi)])
+        };
+
         let name_set = store.insert_set(vec![
             Key::from(named_consonant_set),
             Key::from(named_vowel_set),
+            Key::from(named_kakoi_set),
         ]);
 
         let named_name_set = {
@@ -373,7 +408,7 @@ impl Store {
         screen_height: f32,
         circle_builder: &mut CircleConstraintBuilder,
         text_builder: &mut TextConstraintBuilder,
-        // image_builder: &mut ImageRenderer,
+        image_builder: &mut ImageRenderer,
     ) -> IndicationTreeKey {
         let result_key = {
             let s = Sphere {
@@ -381,10 +416,7 @@ impl Store {
                 radius: 1.0,
             };
             circle_builder.with_instance(s);
-            self.insert_indication_tree(
-                start_key,
-            s,
-            )
+            self.insert_indication_tree(start_key, s)
         };
 
         let mut todo = VecDeque::new();
@@ -495,7 +527,7 @@ impl Store {
                     vec![]
                 }
                 Structure::Image(_) => {
-                    // image_builder.with_image(*tree_sphere, *data_key.image_key().unwrap());
+                    image_builder.with_image(*tree_sphere, *data_key.image_key().unwrap());
                     vec![]
                 }
             };

@@ -3,7 +3,7 @@ use crate::{camera::Camera, newstore};
 use super::{
     // builder::Builder,
     circle::CircleConstraintBuilder,
-    // image::ImageRenderer,
+    image::ImageRenderer,
     text::TextConstraintBuilder,
 };
 
@@ -18,7 +18,7 @@ pub struct Renderer {
     selected_node_history: Vec<newstore::Key>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
-    // image_renderer: ImageRenderer,
+    image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
     indication_tree: newstore::IndicationTreeKey,
     // builder: Builder,
@@ -51,6 +51,7 @@ impl Renderer {
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
         let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
+        let mut image_renderer = ImageRenderer::new(device, sc_desc);
         let indication_tree_key = store.build_indication_tree(
             newstore::Key::from(overlay_key),
             // device,
@@ -59,6 +60,7 @@ impl Renderer {
             sc_desc.height as f32,
             &mut circle_renderer,
             &mut text_renderer,
+            &mut image_renderer,
         );
         Self {
             store,
@@ -69,6 +71,7 @@ impl Renderer {
             selected_node_history: vec![],
             text_renderer,
             circle_renderer,
+            image_renderer,
             cursor_position: (0.0, 0.0),
             indication_tree: indication_tree_key,
         }
@@ -86,10 +89,10 @@ impl Renderer {
             .set_aspect(sc_desc.width as f32 / sc_desc.height as f32);
         self.circle_renderer.resize();
         self.text_renderer.resize();
-        // self.image_renderer.resize();
+        self.image_renderer.resize();
         self.circle_renderer.invalidate();
         self.text_renderer.invalidate();
-        // self.image_renderer.invalidate();
+        self.image_renderer.invalidate();
         self.store.remove_indication_tree(self.indication_tree);
         self.indication_tree = self.store.build_indication_tree(
             newstore::Key::from(self.selected_index),
@@ -99,6 +102,7 @@ impl Renderer {
             self.height,
             &mut self.circle_renderer,
             &mut self.text_renderer,
+            &mut self.image_renderer,
         );
     }
 
@@ -126,13 +130,14 @@ impl Renderer {
             texture_view,
             &mut self.camera,
         );
-        // self.image_renderer.render(
-        //     device,
-        //     queue,
-        //     command_encoder,
-        //     texture_view,
-        //     &mut self.camera,
-        // );
+        self.image_renderer.render(
+            device,
+            queue,
+            command_encoder,
+            texture_view,
+            &mut self.camera,
+            &self.store,
+        );
     }
 
     pub fn post_render(&mut self) {
@@ -160,7 +165,8 @@ impl Renderer {
 
                         let overlay_focus_tree_index = {
                             // let overlay = self.store.get_overlay(&self.selected_index);
-                            let overlay_focus = self.store.get_overlay(&self.selected_index).focus();
+                            let overlay_focus =
+                                self.store.get_overlay(&self.selected_index).focus();
                             self.store
                                 .get_indication_tree(&self.indication_tree)
                                 .indications
@@ -259,7 +265,7 @@ impl Renderer {
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
-                            // self.image_renderer.invalidate();
+                            self.image_renderer.invalidate();
 
                             // self.builder = Builder::new_with_selection(
                             //     device,
@@ -282,6 +288,7 @@ impl Renderer {
                                 self.height,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
+                                &mut self.image_renderer,
                             );
 
                             true
@@ -304,7 +311,7 @@ impl Renderer {
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
-                            // self.image_renderer.invalidate();
+                            self.image_renderer.invalidate();
 
                             // self.builder = Builder::new_with_selection(
                             //     device,
@@ -327,6 +334,7 @@ impl Renderer {
                                 self.height,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
+                                &mut self.image_renderer,
                             );
 
                             true
