@@ -1,8 +1,8 @@
-use crate::{camera::Camera, sphere::Sphere, store};
+use crate::{camera::Camera, newstore, sphere::Sphere};
 use wgpu_glyph::GlyphCruncher;
 
 struct BoundedString {
-    key: store::Key,
+    key: newstore::StringKey,
     sphere: Sphere,
 }
 
@@ -48,7 +48,7 @@ impl TextConstraintBuilder {
         }
     }
 
-    pub fn with_instance<'a>(&mut self, sphere: Sphere, key: store::Key) {
+    pub fn with_instance<'a>(&mut self, sphere: Sphere, key: newstore::StringKey) {
         self.constraints.push(BoundedString { key, sphere });
     }
 
@@ -60,7 +60,7 @@ impl TextConstraintBuilder {
 
     pub fn render<'a>(
         &mut self,
-        store: &'a store::Store,
+        store: &'a newstore::Store,
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         encoder: &'a mut wgpu::CommandEncoder,
@@ -76,7 +76,7 @@ impl TextConstraintBuilder {
             sc_desc,
         );
         for instance in text_constraint_instances {
-            let text = store.get(&instance.key).unwrap().string().unwrap();
+            let text = store.get_string(&instance.key);
             let section = wgpu_glyph::Section {
                 screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                 bounds: (f32::INFINITY, f32::INFINITY),
@@ -116,7 +116,7 @@ impl TextConstraintBuilder {
     }
 
     fn build_instances<'a, 'b>(
-        store: &'b store::Store,
+        store: &'b newstore::Store,
         instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
         constraints: &'a Vec<BoundedString>,
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
@@ -138,29 +138,6 @@ impl TextConstraintBuilder {
                 ));
             }
 
-            // let mut build_onekey_instances = |text: String, spheres| {
-            //     for sphere in spheres {
-            //         let sphere: &Sphere = sphere;
-            //         let new_sphere = sphere;
-            //         if new_sphere.center.x.abs() - new_sphere.radius <= 1.0
-            //             && new_sphere.center.y.abs() - new_sphere.radius <= 1.0
-            //         {
-            //             instances.push(TextConstraintInstance::new(
-            //                 text.clone(),
-            //                 glyph_brush,
-            //                 &new_sphere,
-            //                 view_projection_matrix,
-            //                 sc_desc.width as f32,
-            //                 sc_desc.height as f32,
-            //             ));
-            //         }
-            //     }
-            // };
-
-            // for (text, spheres) in constraints {
-            //     build_onekey_instances(text.clone(), spheres);
-            // }
-
             *instances_cache = Some(instances);
         } else {
             for instance in instances_cache.as_mut().unwrap() {
@@ -173,7 +150,7 @@ impl TextConstraintBuilder {
 }
 
 pub struct TextConstraintInstance {
-    key: store::Key,
+    key: newstore::StringKey,
     scale: f32,
     width: f32,
     height: f32,
@@ -184,15 +161,15 @@ pub struct TextConstraintInstance {
 
 impl TextConstraintInstance {
     pub fn new(
-        store: &store::Store,
-        key: &store::Key,
+        store: &newstore::Store,
+        key: &newstore::StringKey,
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         sphere: &Sphere,
         view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
-        let text = store.get(key).unwrap().string().unwrap();
+        let text = store.get_string(key);
         let mut section = wgpu_glyph::Section {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),

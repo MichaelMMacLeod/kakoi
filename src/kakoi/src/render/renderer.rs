@@ -1,24 +1,27 @@
-use crate::{camera::Camera, flat_graph, store};
+use crate::{camera::Camera, newstore};
 
 use super::{
-    builder::Builder, circle::CircleConstraintBuilder, image::ImageRenderer,
+    // builder::Builder,
+    circle::CircleConstraintBuilder,
+    // image::ImageRenderer,
     text::TextConstraintBuilder,
 };
 
 pub struct Renderer {
-    store: store::Store,
-    #[allow(unused)]
-    flat_graph: flat_graph::FlatGraph,
+    store: newstore::Store,
+    // #[allow(unused)]
+    // flat_graph: flat_graph::FlatGraph,
     camera: Camera,
     width: f32,
     height: f32,
-    selected_index: store::Key,
-    selected_node_history: Vec<store::Key>,
+    selected_index: newstore::OverlayKey,
+    selected_node_history: Vec<newstore::Key>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
-    image_renderer: ImageRenderer,
+    // image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
-    builder: Builder,
+    indication_tree: newstore::IndicationTreeKey,
+    // builder: Builder,
 }
 
 fn screen_to_view_coordinates(
@@ -44,50 +47,30 @@ impl Renderer {
         queue: &'a mut wgpu::Queue,
         sc_desc: &'a wgpu::SwapChainDescriptor,
     ) -> Self {
-        let mut store = store::Store::new();
+        let (mut store, overlay_key) = newstore::Store::naming_example();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-        let mut graph = flat_graph::FlatGraph::naming_example(&mut store);
-        let message = graph
-            .enclose(
-                &mut store,
-                flat_graph::Group::New,
-                &mut [flat_graph::Insertion::New(store::Value::String(
-                    "Welcome to\nKAKOI!".into(),
-                ))]
-                .into(),
-            )
-            .unwrap();
-        let overlay = {
-            let focused = graph.focused.unwrap();
-            store::Overlay::new(&mut store, &mut graph, focused, message)
-        };
         let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
         let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
-        let mut image_renderer = ImageRenderer::new(device, sc_desc);
-        let builder = Builder::new(
+        let indication_tree_key = store.build_indication_tree(
+            newstore::Key::from(overlay_key),
             device,
             queue,
-            &store,
-            overlay,
             sc_desc.width as f32,
             sc_desc.height as f32,
             &mut circle_renderer,
             &mut text_renderer,
-            &mut image_renderer,
         );
         Self {
             store,
-            flat_graph: graph,
             camera,
-            text_renderer,
-            circle_renderer,
-            image_renderer,
-            selected_index: overlay,
-            selected_node_history: Vec::new(),
-            cursor_position: (0.0, 0.0),
             width: sc_desc.width as f32,
             height: sc_desc.height as f32,
-            builder,
+            selected_index: overlay_key,
+            selected_node_history: vec![],
+            text_renderer,
+            circle_renderer,
+            cursor_position: (0.0, 0.0),
+            indication_tree: indication_tree_key,
         }
     }
 
@@ -103,20 +86,19 @@ impl Renderer {
             .set_aspect(sc_desc.width as f32 / sc_desc.height as f32);
         self.circle_renderer.resize();
         self.text_renderer.resize();
-        self.image_renderer.resize();
+        // self.image_renderer.resize();
         self.circle_renderer.invalidate();
         self.text_renderer.invalidate();
-        self.image_renderer.invalidate();
-        self.builder = Builder::new_with_selection(
+        // self.image_renderer.invalidate();
+        self.store.remove_indication_tree(self.indication_tree);
+        self.indication_tree = self.store.build_indication_tree(
+            newstore::Key::from(self.selected_index),
             device,
             queue,
-            &self.store,
             self.width,
             self.height,
-            self.selected_index,
             &mut self.circle_renderer,
             &mut self.text_renderer,
-            &mut self.image_renderer,
         );
     }
 
@@ -144,13 +126,13 @@ impl Renderer {
             texture_view,
             &mut self.camera,
         );
-        self.image_renderer.render(
-            device,
-            queue,
-            command_encoder,
-            texture_view,
-            &mut self.camera,
-        );
+        // self.image_renderer.render(
+        //     device,
+        //     queue,
+        //     command_encoder,
+        //     texture_view,
+        //     &mut self.camera,
+        // );
     }
 
     pub fn post_render(&mut self) {
@@ -177,81 +159,129 @@ impl Renderer {
                         );
 
                         let overlay_focus_tree_index = {
-                            let overlay_focus = *self
-                                .store
-                                .get(&self.selected_index)
+                            // let overlay = self.store.get_overlay(&self.selected_index);
+                            let overlay_focus = self.store.get_overlay(&self.selected_index).focus();
+                            self.store
+                                .get_indication_tree(&self.indication_tree)
+                                .indications
+                                .iter()
+                                .find(|k| {
+                                    // dbg!(self.store.get_indication_tree(k).key.index(), newstore::Key::from(self.selected_index));
+                                    self.store.get_indication_tree(k).key.index()
+                                        == overlay_focus.index()
+                                })
                                 .unwrap()
-                                .overlay()
-                                .unwrap()
-                                .focus();
+                            // let t = ;
 
-                            let mut walker = self
-                                .builder
-                                .indication_tree
-                                .g
-                                .neighbors_directed(
-                                    self.builder.indication_tree.root,
-                                    petgraph::Direction::Outgoing,
-                                )
-                                .detach();
+                            // let overlay_focus = *self
+                            //     .store
+                            //     .get(&self.selected_index)
+                            //     .unwrap()
+                            //     .overlay()
+                            //     .unwrap()
+                            //     .focus();
 
-                            let mut result = None;
+                            // let mut walker = self
+                            //     .builder
+                            //     .indication_tree
+                            //     .g
+                            //     .neighbors_directed(
+                            //         self.builder.indication_tree.root,
+                            //         petgraph::Direction::Outgoing,
+                            //     )
+                            //     .detach();
 
-                            while let Some((_, indication)) = walker.next(&self.builder.indication_tree.g) {
-                                let node = &self.builder.indication_tree.g[indication];
+                            // let mut result = None;
 
-                                if node.key == overlay_focus {
-                                    result = Some(indication);
-                                    break;
-                                }
-                            }
+                            // while let Some((_, indication)) =
+                            //     walker.next(&self.builder.indication_tree.g)
+                            // {
+                            //     let node = &self.builder.indication_tree.g[indication];
 
-                            result.unwrap()
+                            //     if node.key == overlay_focus {
+                            //         result = Some(indication);
+                            //         break;
+                            //     }
+                            // }
+
+                            // result.unwrap()
                         };
 
-                        let indications = self
-                            .builder
-                            .indication_tree
-                            .indications_of(overlay_focus_tree_index);
+                        // let indications = ;
 
-                        let selected_node = indications.iter().find_map(|(sphere, node)| {
-                            let dx = sphere.center.x - cx;
-                            let dy = sphere.center.y - cy;
-                            let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
+                        // let indications = self
+                        //     .builder
+                        //     .indication_tree
+                        //     .indications_of(overlay_focus_tree_index);
 
-                            if inside_rad {
-                                Some(node)
-                            } else {
-                                None
-                            }
-                        });
+                        // let selected_node = indications.find_map(|(sphere, node)| {
+                        let selected_node = self
+                            .store
+                            .get_indication_tree(overlay_focus_tree_index)
+                            .indications
+                            .iter()
+                            .map(|k| self.store.get_indication_tree(k))
+                            .collect::<Vec<_>>()
+                            .into_iter()
+                            .find_map(
+                                |newstore::IndicationTree {
+                                     key: node, sphere, ..
+                                 }| {
+                                    let dx = sphere.center.x - cx;
+                                    let dy = sphere.center.y - cy;
+                                    let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
+
+                                    if inside_rad {
+                                        Some(node)
+                                    } else {
+                                        None
+                                    }
+                                },
+                            );
 
                         if let Some(node) = selected_node {
                             {
-                                let mut flat_graph = &mut self.flat_graph;
-                                let selected_index = self.selected_index;
-                                let selected_node_history = &mut self.selected_node_history;
-                                self.store.entry(self.selected_index).and_modify(|value| {
-                                    let overlay = value.overlay_mut().unwrap();
-                                    selected_node_history.push(*overlay.focus());
-                                    overlay.set_focus(&mut flat_graph, selected_index, *node);
-                                });
+                                let node = *node;
+                                let current_focus =
+                                    *self.store.get_overlay(&self.selected_index).focus();
+                                self.store
+                                    .overlay_indicate_focus(&self.selected_index, &node);
+                                self.selected_node_history.push(current_focus);
+                                // let mut flat_graph = &mut self.flat_graph;
+                                // let selected_index = self.selected_index;
+                                // let selected_node_history = &mut self.selected_node_history;
+                                // self.store.entry(self.selected_index).and_modify(|value| {
+                                //     let overlay = value.overlay_mut().unwrap();
+                                //     selected_node_history.push(*overlay.focus());
+                                //     overlay.set_focus(&mut flat_graph, selected_index, *node);
+                                // });
                             }
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
-                            self.image_renderer.invalidate();
+                            // self.image_renderer.invalidate();
 
-                            self.builder = Builder::new_with_selection(
+                            // self.builder = Builder::new_with_selection(
+                            //     device,
+                            //     queue,
+                            //     &self.store,
+                            //     self.width,
+                            //     self.height,
+                            //     self.selected_index,
+                            //     &mut self.circle_renderer,
+                            //     &mut self.text_renderer,
+                            //     &mut self.image_renderer,
+                            // );
+
+                            self.store.remove_indication_tree(self.indication_tree);
+                            self.indication_tree = self.store.build_indication_tree(
+                                newstore::Key::from(self.selected_index),
                                 device,
                                 queue,
-                                &self.store,
                                 self.width,
                                 self.height,
-                                self.selected_index,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
-                                &mut self.image_renderer,
                             );
 
                             true
@@ -262,28 +292,41 @@ impl Renderer {
                     MouseButton::Right => match self.selected_node_history.pop() {
                         Some(index) => {
                             {
-                                let mut flat_graph = &mut self.flat_graph;
-                                let selected_index = self.selected_index;
-                                self.store.entry(self.selected_index).and_modify(|value| {
-                                    let overlay = value.overlay_mut().unwrap();
-                                    overlay.set_focus(&mut flat_graph, selected_index, index);
-                                });
+                                self.store
+                                    .overlay_indicate_focus(&self.selected_index, &index);
+                                // let mut flat_graph = &mut self.flat_graph;
+                                // let selected_index = self.selected_index;
+                                // self.store.entry(self.selected_index).and_modify(|value| {
+                                //     let overlay = value.overlay_mut().unwrap();
+                                //     overlay.set_focus(&mut flat_graph, selected_index, index);
+                                // });
                             }
 
                             self.circle_renderer.invalidate();
                             self.text_renderer.invalidate();
-                            self.image_renderer.invalidate();
+                            // self.image_renderer.invalidate();
 
-                            self.builder = Builder::new_with_selection(
+                            // self.builder = Builder::new_with_selection(
+                            //     device,
+                            //     queue,
+                            //     &self.store,
+                            //     self.width,
+                            //     self.height,
+                            //     self.selected_index,
+                            //     &mut self.circle_renderer,
+                            //     &mut self.text_renderer,
+                            //     &mut self.image_renderer,
+                            // );
+
+                            self.store.remove_indication_tree(self.indication_tree);
+                            self.indication_tree = self.store.build_indication_tree(
+                                newstore::Key::from(self.selected_index),
                                 device,
                                 queue,
-                                &self.store,
                                 self.width,
                                 self.height,
-                                self.selected_index,
                                 &mut self.circle_renderer,
                                 &mut self.text_renderer,
-                                &mut self.image_renderer,
                             );
 
                             true
