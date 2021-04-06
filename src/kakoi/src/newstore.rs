@@ -1,7 +1,7 @@
 macro_rules! implement_key_types {
     ( $($x:ident)* ) => {
         $(
-            #[derive(Clone, Copy)]
+            #[derive(Debug, Clone, Copy)]
             pub struct $x {
                 index: usize,
             }
@@ -19,7 +19,7 @@ macro_rules! implement_key_types {
             }
         )*
 
-        #[derive(Clone, Copy)]
+        #[derive(Debug, Clone, Copy)]
         pub enum Key {
             $(
                 $x($x),
@@ -40,6 +40,7 @@ macro_rules! implement_key_types {
 
 implement_key_types! { SetKey StringKey ImageKey OverlayKey }
 
+#[derive(Debug)]
 pub struct Set {
     indications: Vec<Key>,
 }
@@ -68,12 +69,14 @@ impl Set {
     }
 }
 
+#[derive(Debug)]
 pub struct Overlay {
-    focus: (SetKey, usize),
-    message: (SetKey, usize),
+    focus: (Key, usize),
+    message: (Key, usize),
     message_visible: bool,
 }
 
+#[derive(Debug)]
 pub enum Structure {
     Set(Set),
     Overlay(Overlay),
@@ -117,6 +120,7 @@ impl Structure {
         }
     }
 
+    #[allow(unused)]
     fn unchecked_string_mut(&mut self) -> &mut String {
         match self {
             Self::String(s) => s,
@@ -124,6 +128,7 @@ impl Structure {
         }
     }
 
+    #[allow(unused)]
     fn unchecked_image_mut(&mut self) -> &mut image::RgbaImage {
         match self {
             Self::Image(s) => s,
@@ -139,11 +144,13 @@ impl Structure {
     }
 }
 
+#[derive(Debug)]
 pub struct Value {
     indications: Structure,
     inclusions: Set,
 }
 
+#[derive(Debug)]
 pub struct Store {
     values: Vec<Value>,
 }
@@ -151,6 +158,57 @@ pub struct Store {
 impl Store {
     pub fn new() -> Self {
         Self { values: Vec::new() }
+    }
+
+    pub fn naming_example() -> (Self, OverlayKey) {
+        let mut store = Self::new();
+
+        let consonant_set = {
+            let consonants = [
+                "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t",
+                "v", "w", "x", "y", "z",
+            ]
+            .iter()
+            .map(|s| Key::from(store.insert_string(s)))
+            .collect::<Vec<_>>();
+            store.insert_set(consonants)
+        };
+
+        let vowel_set = {
+            let vowels = ["a", "e", "i", "o", "u"]
+                .iter()
+                .map(|s| Key::from(store.insert_string(s)))
+                .collect::<Vec<_>>();
+            store.insert_set(vowels)
+        };
+
+        let named_consonant_set = {
+            let consonant = store.insert_string("Consonant");
+            store.insert_set(vec![Key::from(consonant_set), Key::from(consonant)])
+        };
+
+        let named_vowel_set = {
+            let vowel = store.insert_string("Vowel");
+            store.insert_set(vec![Key::from(vowel_set), Key::from(vowel)])
+        };
+
+        let name_set = store.insert_set(vec![
+            Key::from(named_consonant_set),
+            Key::from(named_vowel_set),
+        ]);
+
+        let named_name_set = {
+            let name = store.insert_string("Name");
+            store.insert_set(vec![Key::from(name_set), Key::from(name)])
+        };
+
+        store.set_indicate(&name_set, &Key::from(named_name_set));
+
+        let message = store.insert_string("Welcome to Kakoi");
+
+        let overlay = store.insert_overlay(Key::from(name_set), Key::from(message), true);
+
+        (store, overlay)
     }
 
     pub fn get(&self, key: Key) -> &Value {
@@ -214,13 +272,19 @@ impl Store {
 
     pub fn insert_overlay(
         &mut self,
-        focus: SetKey,
-        focus_index: usize,
-        message: SetKey,
-        message_index: usize,
+        focus: Key,
+        message: Key,
         message_visible: bool,
     ) -> OverlayKey {
         let key = self.next_key();
+        let focus_index = self
+            .get_mut(Key::from(focus))
+            .inclusions
+            .indicate(Key::from(key));
+        let message_index = self
+            .get_mut(Key::from(message))
+            .inclusions
+            .indicate(Key::from(key));
         let value = Value {
             indications: Structure::Overlay(Overlay {
                 focus: (focus, focus_index),
@@ -242,7 +306,7 @@ impl Store {
     pub fn overlay_indicate_focus(
         &mut self,
         overlay_key: &OverlayKey,
-        new_focus_key: &SetKey,
+        new_focus_key: &Key,
         new_focus_index: usize,
     ) {
         let (focus_key, focus_index) = {
@@ -265,6 +329,7 @@ impl Store {
         &mut self.values[key.index()]
     }
 
+    #[allow(unused)]
     fn get_string_mut(&mut self, key: &StringKey) -> &mut String {
         self.values[key.index].indications.unchecked_string_mut()
     }
@@ -273,6 +338,7 @@ impl Store {
         self.values[key.index].indications.unchecked_set_mut()
     }
 
+    #[allow(unused)]
     fn get_image_mut(&mut self, key: &ImageKey) -> &mut image::RgbaImage {
         self.values[key.index].indications.unchecked_image_mut()
     }
@@ -281,6 +347,17 @@ impl Store {
         self.values[key.index].indications.unchecked_overlay_mut()
     }
 }
+
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     #[test]
+//     fn test_0() {
+//         for (value, i) in Store::naming_example().values.iter().zip(0..) {
+//             dbg!(i, value);
+//         }
+//     }
+// }
 
 // pub enum Group {
 //     Existing { key: SetKey, index: usize },
