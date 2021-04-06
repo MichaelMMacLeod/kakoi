@@ -48,6 +48,7 @@ macro_rules! implement_key_types {
             }
 
             $(
+                #[allow(unused)]
                 fn $accessor(&self) -> Option<&$x> {
                     match self {
                         Self::$x(x) => Some(x),
