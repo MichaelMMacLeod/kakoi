@@ -44,7 +44,7 @@ fn screen_to_view_coordinates(
 impl Renderer {
     pub fn new<'a>(
         device: &'a wgpu::Device,
-        queue: &'a mut wgpu::Queue,
+        // queue: &'a mut wgpu::Queue,
         sc_desc: &'a wgpu::SwapChainDescriptor,
     ) -> Self {
         let (mut store, overlay_key) = newstore::Store::naming_example();
@@ -53,8 +53,8 @@ impl Renderer {
         let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
         let indication_tree_key = store.build_indication_tree(
             newstore::Key::from(overlay_key),
-            device,
-            queue,
+            // device,
+            // queue,
             sc_desc.width as f32,
             sc_desc.height as f32,
             &mut circle_renderer,
@@ -76,8 +76,8 @@ impl Renderer {
 
     pub fn resize<'a>(
         &mut self,
-        device: &'a wgpu::Device,
-        queue: &'a mut wgpu::Queue,
+        // device: &'a wgpu::Device,
+        // queue: &'a mut wgpu::Queue,
         sc_desc: &'a wgpu::SwapChainDescriptor,
     ) {
         self.width = sc_desc.width as f32;
@@ -93,8 +93,8 @@ impl Renderer {
         self.store.remove_indication_tree(self.indication_tree);
         self.indication_tree = self.store.build_indication_tree(
             newstore::Key::from(self.selected_index),
-            device,
-            queue,
+            // device,
+            // queue,
             self.width,
             self.height,
             &mut self.circle_renderer,
@@ -142,8 +142,8 @@ impl Renderer {
 
     pub fn input<'a>(
         &mut self,
-        device: &'a wgpu::Device,
-        queue: &'a mut wgpu::Queue,
+        // device: &'a wgpu::Device,
+        // queue: &'a mut wgpu::Queue,
         event: &winit::event::WindowEvent,
     ) -> bool {
         use winit::event::*;
@@ -276,8 +276,8 @@ impl Renderer {
                             self.store.remove_indication_tree(self.indication_tree);
                             self.indication_tree = self.store.build_indication_tree(
                                 newstore::Key::from(self.selected_index),
-                                device,
-                                queue,
+                                // device,
+                                // queue,
                                 self.width,
                                 self.height,
                                 &mut self.circle_renderer,
@@ -321,8 +321,8 @@ impl Renderer {
                             self.store.remove_indication_tree(self.indication_tree);
                             self.indication_tree = self.store.build_indication_tree(
                                 newstore::Key::from(self.selected_index),
-                                device,
-                                queue,
+                                // device,
+                                // queue,
                                 self.width,
                                 self.height,
                                 &mut self.circle_renderer,
