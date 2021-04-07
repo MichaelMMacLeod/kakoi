@@ -1,11 +1,9 @@
 pub mod camera;
 pub mod circle;
-pub mod flat_graph;
 pub mod graph;
 pub mod render;
 pub mod sampling_config;
 pub mod state;
 pub mod window;
 pub mod sphere;
-pub mod store;
 pub mod newstore;
