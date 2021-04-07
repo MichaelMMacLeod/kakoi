@@ -8,7 +8,8 @@ struct BoundedString {
 
 pub struct TextConstraintBuilder {
     constraints: Vec<BoundedString>,
-    instances_cache: Option<Vec<TextConstraintInstance>>,
+    instances_cache: Vec<TextConstraintInstance>,
+    instances_cache_stale: bool,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
@@ -16,10 +17,7 @@ pub struct TextConstraintBuilder {
 }
 
 impl TextConstraintBuilder {
-    pub fn new<'a>(
-        device: &'a wgpu::Device,
-        sc_desc: &'a wgpu::SwapChainDescriptor,
-    ) -> Self {
+    pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
         // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
         // base this number on an estimate of how much data we would upload into
@@ -40,7 +38,8 @@ impl TextConstraintBuilder {
 
         Self {
             constraints: Vec::new(),
-            instances_cache: None,
+            instances_cache: Vec::new(),
+            instances_cache_stale: true,
             glyph_brush,
             staging_belt,
             local_pool,
@@ -52,10 +51,8 @@ impl TextConstraintBuilder {
         self.constraints.push(BoundedString { key, sphere });
     }
 
-    pub fn resize<'a>(
-        &mut self,
-    ) {
-        self.instances_cache = None;
+    pub fn resize<'a>(&mut self) {
+        self.instances_cache_stale = true;
     }
 
     pub fn render<'a>(
@@ -67,15 +64,17 @@ impl TextConstraintBuilder {
         texture_view: &'a wgpu::TextureView,
         camera: &'a mut Camera,
     ) {
-        let text_constraint_instances = Self::build_instances(
+        Self::build_instances(
             store,
             &mut self.instances_cache,
+            self.instances_cache_stale,
             &self.constraints,
             &mut self.glyph_brush,
             camera.view_projection_matrix(),
             sc_desc,
         );
-        for instance in text_constraint_instances {
+        self.instances_cache_stale = false;
+        for instance in &self.instances_cache {
             let text = store.get_string(&instance.key);
             let section = wgpu_glyph::Section {
                 screen_position: (-instance.width * 0.5, -instance.height * 0.5),
@@ -111,23 +110,23 @@ impl TextConstraintBuilder {
     }
 
     pub fn invalidate(&mut self) {
-        self.constraints = Vec::new();
-        self.instances_cache = None;
+        self.constraints.clear();
+        self.instances_cache_stale = true;
     }
 
     fn build_instances<'a, 'b>(
         store: &'b newstore::Store,
-        instances_cache: &'a mut Option<Vec<TextConstraintInstance>>,
+        instances_cache: &'a mut Vec<TextConstraintInstance>,
+        instances_cache_stale: bool,
         constraints: &'a Vec<BoundedString>,
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
-    ) -> &'a Vec<TextConstraintInstance> {
-        if instances_cache.is_none() {
-            let mut instances: Vec<TextConstraintInstance> = Vec::new();
-
+    ) {
+        if instances_cache_stale {
+            instances_cache.clear();
             for BoundedString { key, sphere } in constraints {
-                instances.push(TextConstraintInstance::new(
+                instances_cache.push(TextConstraintInstance::new(
                     store,
                     key,
                     glyph_brush,
@@ -137,15 +136,11 @@ impl TextConstraintBuilder {
                     sc_desc.height as f32,
                 ));
             }
-
-            *instances_cache = Some(instances);
         } else {
-            for instance in instances_cache.as_mut().unwrap() {
+            for instance in instances_cache {
                 instance.set_view_projection_matrix(view_projection_matrix);
             }
         }
-
-        instances_cache.as_ref().unwrap()
     }
 }
 
