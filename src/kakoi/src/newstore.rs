@@ -405,8 +405,6 @@ impl Store {
     pub fn build_indication_tree(
         &mut self,
         start_key: Key,
-        // device: &wgpu::Device,
-        // queue: &mut wgpu::Queue,
         screen_width: f32,
         screen_height: f32,
         circle_builder: &mut CircleConstraintBuilder,
