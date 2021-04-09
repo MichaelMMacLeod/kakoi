@@ -198,10 +198,13 @@ impl Store {
         };
 
         let vowel_set = {
-            let vowels = ["a", "e", "i", "o", "u"]
-                .iter()
-                .map(|s| Key::from(store.insert_string(s)))
-                .collect::<Vec<_>>();
+            let vowels = [
+                "a",
+                //  "e", "i", "o", "u"
+            ]
+            .iter()
+            .map(|s| Key::from(store.insert_string(s)))
+            .collect::<Vec<_>>();
             store.insert_set(vowels)
         };
 
@@ -438,6 +441,14 @@ impl Store {
                     } = s;
                     let focus_angle = 2.0 * std::f32::consts::PI / indications.len() as f32
                         * *focused_indication as f32;
+                    let tree_sphere = if indications.len() == 1 {
+                        Sphere {
+                            center: tree_sphere.center,
+                            radius: tree_sphere.radius * MIN_RADIUS,
+                        }
+                    } else {
+                        *tree_sphere
+                    };
                     let circle_positioner = CirclePositioner::new(
                         (tree_sphere.radius * MIN_RADIUS) as f64,
                         indications.len() as u64,
