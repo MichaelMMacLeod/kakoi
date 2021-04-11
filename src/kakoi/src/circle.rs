@@ -14,11 +14,13 @@ enum Layout {
     Zoomed(ZoomedConfig),
 }
 
+#[derive(Clone, Copy)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
+#[derive(Clone, Copy)]
 pub struct Circle {
     pub center: Point,
     pub radius: f64,

@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{
     circle::{Circle, CirclePositioner, Point},
@@ -66,6 +66,7 @@ implement_key_types! {
     {StringKey string_key}
     {ImageKey image_key}
     {OverlayKey overlay_key}
+    {MapKey map_key}
 }
 
 #[derive(Debug)]
@@ -124,12 +125,28 @@ impl Overlay {
 type Image = image::RgbaImage;
 
 #[derive(Debug)]
+pub struct Map {
+    hash_map: HashMap<Key, Key>,
+    index_map: HashMap<Key, (usize, usize)>,
+}
+
+impl Map {
+    fn new() -> Self {
+        Self {
+            hash_map: HashMap::new(),
+            index_map: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Structure {
     Set(Set),
     IndicationTree(IndicationTree),
     Overlay(Overlay),
     String(String),
     Image(Image),
+    Map(Map),
 }
 
 macro_rules! implement_structure_accessors {
@@ -160,6 +177,7 @@ impl Structure {
         { unchecked_overlay unchecked_overlay_mut Overlay }
         { unchecked_string unchecked_string_mut String }
         { unchecked_image unchecked_image_mut Image }
+        { unchecked_map unchecked_map_mut Map }
     }
 }
 
@@ -265,7 +283,25 @@ impl Store {
 
         store.set_indicate(&name_set, &Key::from(named_name_set));
 
-        let message = store.insert_string("Welcome to Kakoi");
+        let message = {
+            let message = store.insert_map();
+
+            let register_a = store.insert_string("a");
+            let register_b = store.insert_string("b");
+
+            store.map_set_key_value(
+                &message,
+                &Key::from(register_a),
+                &Key::from(named_kakoi_set),
+            );
+            store.map_set_key_value(
+                &message,
+                &Key::from(register_b),
+                &Key::from(named_vowel_set),
+            );
+
+            message
+        };
 
         let overlay = store.insert_overlay(Key::from(name_set), Key::from(message), true);
 
@@ -306,6 +342,14 @@ impl Store {
             .unwrap()
             .indications
             .unchecked_overlay()
+    }
+
+    pub fn get_map(&self, key: &MapKey) -> &Map {
+        self.values[key.index]
+            .as_ref()
+            .unwrap()
+            .indications
+            .unchecked_map()
     }
 
     pub fn get_indication_tree(&self, key: &IndicationTreeKey) -> &IndicationTree {
@@ -388,6 +432,16 @@ impl Store {
         key
     }
 
+    pub fn insert_map(&mut self) -> MapKey {
+        let (key, storage_instruction) = self.next_key::<MapKey>();
+        let value = Value {
+            indications: Box::new(Structure::Map(Map::new())),
+            inclusions: Set::new_empty(),
+        };
+        self.add_value(value, key.index, storage_instruction);
+        key
+    }
+
     pub fn insert_indication_tree(&mut self, key: Key, sphere: Sphere) -> IndicationTreeKey {
         let (result_key, storage_instruction) = self.next_key::<IndicationTreeKey>();
         let value = Value {
@@ -431,6 +485,69 @@ impl Store {
             } = self.get_indication_tree(&indication_tree_key);
 
             let other_todos = match &*self.get(*data_key).indications {
+                Structure::Map(m) => {
+                    let focus_angle = 0.0;
+                    let tree_sphere = if m.hash_map.len() == 1 {
+                        Sphere {
+                            center: tree_sphere.center,
+                            radius: tree_sphere.radius * MIN_RADIUS,
+                        }
+                    } else {
+                        *tree_sphere
+                    };
+                    let circle_positioner = CirclePositioner::new(
+                        (tree_sphere.radius * MIN_RADIUS) as f64,
+                        m.hash_map.len() as u64,
+                        0.0,
+                        Point {
+                            x: tree_sphere.center.x as f64,
+                            y: tree_sphere.center.y as f64,
+                        },
+                        focus_angle as f64,
+                    );
+                    circle_positioner
+                        .into_iter()
+                        .zip(m.hash_map.iter())
+                        .map(|(circle, (key, value))| {
+                            let Circle { center, radius } = circle;
+                            let Point { x, y } = center;
+                            let radius = radius as f32;
+
+                            let other_sphere = Sphere {
+                                center: cgmath::vec3(x as f32, y as f32, 0.0),
+                                radius,
+                            };
+
+                            circle_builder.with_instance(other_sphere);
+
+                            let sub_circle_positioner = CirclePositioner::new(
+                                circle.radius,
+                                2,
+                                0.0,
+                                circle.center,
+                                0.0,
+                            );
+                            sub_circle_positioner
+                                .into_iter()
+                                .zip(vec![key, value])
+                                .map(|(circle, key)| {
+                                    let Circle { center, radius } = circle;
+                                    let Point { x, y } = center;
+                                    let radius = radius as f32;
+
+                                    let other_sphere = Sphere {
+                                        center: cgmath::vec3(x as f32, y as f32, 0.0),
+                                        radius,
+                                    };
+
+                                    circle_builder.with_instance(other_sphere);
+                                    (*key, other_sphere)
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .flatten()
+                        .collect::<Vec<_>>()
+                }
                 Structure::Set(s) => {
                     let Set {
                         indications,
@@ -573,6 +690,21 @@ impl Store {
         overlay.focus.1 = new_focus_index;
     }
 
+    pub fn map_set_key_value(&mut self, map_key: &MapKey, key: &Key, value: &Key) {
+        if let Some(&(u, v)) = self.get_map(map_key).index_map.get(key) {
+            self.get_mut(*key).inclusions.forget(u);
+            let &k = self.get_map(map_key).hash_map.get(key).unwrap();
+            self.get_mut(k).inclusions.forget(v);
+        }
+        let u = self.get_mut(*key).inclusions.indicate(Key::from(*map_key));
+        let v = self
+            .get_mut(*value)
+            .inclusions
+            .indicate(Key::from(*map_key));
+        self.get_map_mut(map_key).hash_map.insert(*key, *value);
+        self.get_map_mut(map_key).index_map.insert(*key, (u, v));
+    }
+
     pub fn remove_indication_tree(&mut self, indication_tree_key: IndicationTreeKey) {
         let mut todo = VecDeque::new();
         todo.push_back(indication_tree_key);
@@ -660,6 +792,14 @@ impl Store {
             .unwrap()
             .indications
             .unchecked_indication_tree_mut()
+    }
+
+    fn get_map_mut(&mut self, key: &MapKey) -> &mut Map {
+        self.values[key.index]
+            .as_mut()
+            .unwrap()
+            .indications
+            .unchecked_map_mut()
     }
 }
 
