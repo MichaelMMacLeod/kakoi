@@ -1,4 +1,6 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque};
+use std::hash::{Hash, Hasher};
 
 use crate::{
     circle::{Circle, CirclePositioner, Point},
@@ -191,6 +193,7 @@ pub struct Value {
 pub struct Store {
     values: Vec<Option<Value>>,
     free_values: Vec<usize>,
+    lookup_table: HashMap<u64, Key>,
 }
 
 impl Store {
@@ -198,6 +201,7 @@ impl Store {
         Self {
             values: vec![],
             free_values: vec![],
+            lookup_table: HashMap::new(),
         }
     }
 
@@ -308,6 +312,24 @@ impl Store {
         (store, overlay)
     }
 
+    pub fn get_by_value<V: Hash>(&self, value: &V) -> Option<&Key> {
+        self.get_by_hash(&self.get_hash_of(value))
+    }
+
+    fn get_hash_of<V: Hash>(&self, value: &V) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn get_by_hash(&self, hash: &u64) -> Option<&Key> {
+        self.lookup_table.get(hash)
+    }
+
+    fn insert_into_lookup_table(&mut self, hash: u64, key: Key) {
+        self.lookup_table.entry(hash).or_insert(key);
+    }
+
     pub fn get(&self, key: Key) -> &Value {
         self.values[key.index()].as_ref().unwrap()
     }
@@ -362,8 +384,10 @@ impl Store {
 
     pub fn insert_string(&mut self, string: &str) -> StringKey {
         let (key, storage_instruction) = self.next_key::<StringKey>();
+        let data = string.into();
+        self.insert_into_lookup_table(self.get_hash_of(&data), Key::from(key));
         let value = Value {
-            indications: Box::new(Structure::String(string.into())),
+            indications: Box::new(Structure::String(data)),
             inclusions: Set::new_empty(),
         };
         self.add_value(value, key.index, storage_instruction);
@@ -372,6 +396,7 @@ impl Store {
 
     pub fn insert_image(&mut self, image: image::RgbaImage) -> ImageKey {
         let (key, storage_instruction) = self.next_key::<ImageKey>();
+        self.insert_into_lookup_table(self.get_hash_of(&image), Key::from(key));
         let value = Value {
             indications: Box::new(Structure::Image(image)),
             inclusions: Set::new_empty(),
@@ -520,13 +545,8 @@ impl Store {
 
                             circle_builder.with_instance(other_sphere);
 
-                            let sub_circle_positioner = CirclePositioner::new(
-                                circle.radius,
-                                2,
-                                0.0,
-                                circle.center,
-                                0.0,
-                            );
+                            let sub_circle_positioner =
+                                CirclePositioner::new(circle.radius, 2, 0.0, circle.center, 0.0);
                             sub_circle_positioner
                                 .into_iter()
                                 .zip(vec![key, value])
