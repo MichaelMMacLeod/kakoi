@@ -289,25 +289,7 @@ impl Store {
 
         store.set_indicate(&name_set, &Key::from(named_name_set));
 
-        let message = {
-            let message = store.insert_map();
-
-            let register_a = store.insert_string("a");
-            let register_b = store.insert_string("b");
-
-            store.map_set_key_value(
-                &message,
-                &Key::from(register_a),
-                &Key::from(named_kakoi_set),
-            );
-            store.map_set_key_value(
-                &message,
-                &Key::from(register_b),
-                &Key::from(named_vowel_set),
-            );
-
-            message
-        };
+        let message = store.insert_map();
 
         let overlay = store.insert_overlay(Key::from(name_set), Key::from(message), true);
 
