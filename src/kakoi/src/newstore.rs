@@ -50,8 +50,7 @@ macro_rules! implement_key_types {
             }
 
             $(
-                #[allow(unused)]
-                fn $accessor(&self) -> Option<&$x> {
+                pub fn $accessor(&self) -> Option<&$x> {
                     match self {
                         Self::$x(x) => Some(x),
                         _ => None,
@@ -122,6 +121,9 @@ impl Overlay {
     pub fn focus(&self) -> &Key {
         &self.focus.0
     }
+    pub fn message(&self) -> &Key {
+        &self.message.0
+    }
 }
 
 type Image = image::RgbaImage;
@@ -129,14 +131,14 @@ type Image = image::RgbaImage;
 #[derive(Debug)]
 pub struct Map {
     hash_map: HashMap<Key, Key>,
-    index_map: HashMap<Key, (usize, usize)>,
+    // index_map: HashMap<Key, (usize, usize)>,
 }
 
 impl Map {
     fn new() -> Self {
         Self {
             hash_map: HashMap::new(),
-            index_map: HashMap::new(),
+            // index_map: HashMap::new(),
         }
     }
 }
@@ -711,18 +713,18 @@ impl Store {
     }
 
     pub fn map_set_key_value(&mut self, map_key: &MapKey, key: &Key, value: &Key) {
-        if let Some(&(u, v)) = self.get_map(map_key).index_map.get(key) {
-            self.get_mut(*key).inclusions.forget(u);
-            let &k = self.get_map(map_key).hash_map.get(key).unwrap();
-            self.get_mut(k).inclusions.forget(v);
-        }
-        let u = self.get_mut(*key).inclusions.indicate(Key::from(*map_key));
-        let v = self
-            .get_mut(*value)
-            .inclusions
-            .indicate(Key::from(*map_key));
+        // if let Some(&(u, v)) = self.get_map(map_key).index_map.get(key) {
+        //     self.get_mut(*key).inclusions.forget(u);
+        //     let &k = self.get_map(map_key).hash_map.get(key).unwrap();
+        //     self.get_mut(k).inclusions.forget(v);
+        // }
+        // let u = self.get_mut(*key).inclusions.indicate(Key::from(*map_key));
+        // let v = self
+        //     .get_mut(*value)
+        //     .inclusions
+        //     .indicate(Key::from(*map_key));
         self.get_map_mut(map_key).hash_map.insert(*key, *value);
-        self.get_map_mut(map_key).index_map.insert(*key, (u, v));
+        // self.get_map_mut(map_key).index_map.insert(*key, (u, v));
     }
 
     pub fn remove_indication_tree(&mut self, indication_tree_key: IndicationTreeKey) {

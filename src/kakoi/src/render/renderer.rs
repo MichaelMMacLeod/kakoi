@@ -135,6 +135,34 @@ impl Renderer {
     pub fn input<'a>(&mut self, event: &winit::event::WindowEvent) -> bool {
         use winit::event::*;
         match event {
+            WindowEvent::KeyboardInput { input, .. } => {
+                input.virtual_keycode.map_or(false, |virtual_key_code| {
+                    if input.state == ElementState::Released {
+                        let register_map = *self
+                            .store
+                            .get_overlay(&self.selected_index)
+                            .message()
+                            .map_key()
+                            .unwrap();
+                        let selected_key = *self.store.get_overlay(&self.selected_index).focus();
+                        let register_string = format!("{:?}", virtual_key_code);
+                        let register_key = if let Some(&register_key) = self.store.get_by_value(&register_string) {
+                            register_key
+                        } else {
+                            newstore::Key::from(self.store.insert_string(&register_string))
+                        };
+                        self.store.map_set_key_value(
+                            &register_map,
+                            &register_key,
+                            &selected_key,
+                        );
+                        self.rebuild_indication_tree();
+                        true
+                    } else {
+                        false
+                    }
+                })
+            }
             WindowEvent::MouseInput { button, state, .. } if *state == ElementState::Pressed => {
                 match button {
                     MouseButton::Left => {
