@@ -136,6 +136,7 @@ impl Renderer {
         use winit::event::*;
         match event {
             WindowEvent::KeyboardInput { input, .. } => {
+                eprintln!("{:?}", input);
                 input.virtual_keycode.map_or(false, |virtual_key_code| {
                     if input.state == ElementState::Released {
                         let register_map = *self

@@ -7,3 +7,4 @@ pub mod state;
 pub mod window;
 pub mod sphere;
 pub mod newstore;
+pub mod keymap;
