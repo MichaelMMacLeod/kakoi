@@ -34,11 +34,13 @@ mod test {
         #[derive(Debug, PartialEq, Eq, Clone)]
         enum Action {
             Open,
-            Close
+            Close,
+            MoveDown,
         }
         let mut input_map = InputMap::new();
         input_map.bind(vec!["space", "o"], Action::Open);
         input_map.bind(vec!["space", "c"], Action::Close);
+        input_map.bind(vec!["j"], Action::MoveDown);
         let mut input_state = InputState::new(input_map);
         assert!(input_state.input("space").is_none());
         assert_eq!(input_state.input("o"), Some(&Action::Open));
@@ -48,5 +50,6 @@ mod test {
         assert!(input_state.input("space").is_none());
         assert!(input_state.input("space").is_none());
         assert_eq!(input_state.input("o"), Some(&Action::Open));
+        assert_eq!(input_state.input("j"), Some(&Action::MoveDown));
     }
 }
