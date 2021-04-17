@@ -1,4 +1,4 @@
-use std::collections::hash_map::DefaultHasher;
+use std::collections::{hash_map::DefaultHasher, HashSet};
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
 
@@ -72,34 +72,32 @@ implement_key_types! {
 
 #[derive(Debug)]
 pub struct Set {
-    indications: Vec<Key>,
-    focused_indication: usize,
-    zoom: f32,
+    indications: HashSet<Key>,
+    // focused_indication: Key,
+    // zoom: f32,
 }
 
-impl IntoIterator for Set {
-    type Item = Key;
-    type IntoIter = std::vec::IntoIter<Key>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.indications.into_iter()
-    }
-}
+// impl IntoIterator for Set {
+//     type Item = Key;
+//     type IntoIter = std::vec::IntoIter<Key>;
+//     fn into_iter(self) -> Self::IntoIter {
+//         self.indications.into_iter()
+//     }
+// }
 
 impl Set {
     fn new_empty() -> Self {
         Set {
-            indications: vec![],
-            focused_indication: 0,
-            zoom: 0.0,
+            indications: HashSet::new(),
+            // focused_indication: 0,
+            // zoom: 0.0,
         }
     }
-    fn indicate(&mut self, key: Key) -> usize {
-        let v = self.indications.len();
-        self.indications.push(key);
-        v
+    fn indicate(&mut self, key: Key) {
+        self.indications.insert(key);
     }
-    fn forget(&mut self, index: usize) {
-        self.indications.swap_remove(index);
+    fn forget(&mut self, key: Key) {
+        self.indications.remove(&key);
     }
 }
 
@@ -112,17 +110,17 @@ pub struct IndicationTree {
 
 #[derive(Debug)]
 pub struct Overlay {
-    focus: (Key, usize),
-    message: (Key, usize),
+    focus: Key,
+    message: Key,
     message_visible: bool,
 }
 
 impl Overlay {
     pub fn focus(&self) -> &Key {
-        &self.focus.0
+        &self.focus
     }
     pub fn message(&self) -> &Key {
-        &self.message.0
+        &self.message
     }
 }
 
@@ -403,11 +401,7 @@ impl Store {
             })
             .collect();
         let value = Value {
-            indications: Box::new(Structure::Set(Set {
-                indications,
-                focused_indication: 0,
-                zoom: 0.0,
-            })),
+            indications: Box::new(Structure::Set(Set { indications })),
             inclusions: Set::new_empty(),
         };
         self.add_value(value, key.index, storage_instruction);
@@ -421,18 +415,16 @@ impl Store {
         message_visible: bool,
     ) -> OverlayKey {
         let (key, storage_instruction) = self.next_key::<OverlayKey>();
-        let focus_index = self
-            .get_mut(Key::from(focus))
+        self.get_mut(Key::from(focus))
             .inclusions
             .indicate(Key::from(key));
-        let message_index = self
-            .get_mut(Key::from(message))
+        self.get_mut(Key::from(message))
             .inclusions
             .indicate(Key::from(key));
         let value = Value {
             indications: Box::new(Structure::Overlay(Overlay {
-                focus: (focus, focus_index),
-                message: (message, message_index),
+                focus,
+                message,
                 message_visible,
             })),
             inclusions: Set::new_empty(),
@@ -553,13 +545,9 @@ impl Store {
                         .collect::<Vec<_>>()
                 }
                 Structure::Set(s) => {
-                    let Set {
-                        indications,
-                        focused_indication,
-                        zoom,
-                    } = s;
+                    let Set { indications } = s;
                     let focus_angle = 2.0 * std::f32::consts::PI / indications.len() as f32
-                        * *focused_indication as f32;
+                        * 0.0;
                     let tree_sphere = if indications.len() == 1 {
                         Sphere {
                             center: tree_sphere.center,
@@ -571,7 +559,7 @@ impl Store {
                     let circle_positioner = CirclePositioner::new(
                         (tree_sphere.radius * MIN_RADIUS) as f64,
                         indications.len() as u64,
-                        *zoom as f64,
+                        0.0,
                         Point {
                             x: tree_sphere.center.x as f64,
                             y: tree_sphere.center.y as f64,
@@ -581,7 +569,7 @@ impl Store {
                     let (before_focused, focused_and_after): (Vec<_>, Vec<_>) = (0..)
                         .into_iter()
                         .zip(indications.iter())
-                        .partition(|(i, _)| i < focused_indication);
+                        .partition(|(i, _)| *i < 0);
                     circle_positioner
                         .into_iter()
                         .zip(
@@ -611,8 +599,8 @@ impl Store {
                 Structure::IndicationTree(_) => unimplemented!(),
                 Structure::Overlay(o) => {
                     let Overlay {
-                        focus: (focus, _),
-                        message: (message, _),
+                        focus,
+                        message,
                         message_visible,
                     } = o;
 
@@ -681,17 +669,16 @@ impl Store {
     }
 
     pub fn overlay_indicate_focus(&mut self, overlay_key: &OverlayKey, new_focus_key: &Key) {
-        let (focus_key, focus_index) = {
+        let focus_key = {
             let overlay = self.get_overlay(overlay_key);
             overlay.focus
         };
         self.get_mut(Key::from(focus_key))
             .inclusions
-            .forget(focus_index);
-        let new_focus_index = self.get_mut(*new_focus_key).inclusions.indicate(focus_key);
+            .forget(focus_key);
+        self.get_mut(*new_focus_key).inclusions.indicate(focus_key);
         let overlay = self.get_overlay_mut(overlay_key);
-        overlay.focus.0 = *new_focus_key;
-        overlay.focus.1 = new_focus_index;
+        overlay.focus = *new_focus_key;
     }
 
     pub fn map_set_key_value(&mut self, map_key: &MapKey, key: &Key, value: &Key) {
