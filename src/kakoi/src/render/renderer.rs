@@ -92,14 +92,14 @@ impl Renderer {
             texture_view,
             &mut self.camera,
         );
-        self.text_renderer.render(
-            &self.store,
-            device,
-            sc_desc,
-            command_encoder,
-            texture_view,
-            &mut self.camera,
-        );
+        // self.text_renderer.render(
+        //     &self.store,
+        //     device,
+        //     sc_desc,
+        //     command_encoder,
+        //     texture_view,
+        //     &mut self.camera,
+        // );
         self.image_renderer.render(
             device,
             queue,

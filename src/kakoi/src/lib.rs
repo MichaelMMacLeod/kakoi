@@ -10,3 +10,4 @@ pub mod newstore;
 pub mod keymap;
 pub mod arena;
 pub mod tree;
+pub mod spatial_tree;

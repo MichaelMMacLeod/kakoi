@@ -5,7 +5,7 @@ struct Node<K: slotmap::Key, D> {
     children: Vec<K>,
 }
 
-struct Tree<K: slotmap::Key, D> {
+pub struct Tree<K: slotmap::Key, D> {
     slot_map: SlotMap<K, Node<K, D>>,
 }
 

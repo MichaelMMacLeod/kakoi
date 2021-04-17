@@ -1,4 +1,6 @@
+use crate::tree::Tree;
 use slotmap::{new_key_type, SlotMap};
+use crate::sphere::Sphere;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     hash::{Hash, Hasher},
@@ -9,13 +11,13 @@ new_key_type! {
 }
 
 #[derive(PartialEq, Eq, Hash)]
-enum MapRoute {
+pub enum MapRoute {
     Key,
     ValueOf(ArenaKey),
 }
 
 #[derive(PartialEq, Eq, Hash)]
-enum Route {
+pub enum Route {
     Set,
     Map(MapRoute),
 }
@@ -28,9 +30,9 @@ pub enum Structure {
     String(String),
 }
 
-struct Value {
-    structure: Box<Structure>,
-    inclusions: HashSet<(ArenaKey, Route)>,
+pub struct Value {
+    pub structure: Box<Structure>,
+    pub inclusions: HashSet<(ArenaKey, Route)>,
 }
 
 struct Arena {
@@ -300,11 +302,7 @@ fn map_insert(
     }
 }
 
-fn map_get(
-    slot_map: &SlotMap<ArenaKey, Value>,
-    map: ArenaKey,
-    key: ArenaKey,
-) -> Option<ArenaKey> {
+fn map_get(slot_map: &SlotMap<ArenaKey, Value>, map: ArenaKey, key: ArenaKey) -> Option<ArenaKey> {
     match slot_map.get(map).unwrap().structure.as_ref() {
         Structure::Map(hash_map) => hash_map.get(&key).copied(),
         _ => panic!(),
@@ -362,7 +360,11 @@ impl Arena {
         });
     }
 
-    pub fn set_insert<S: Into<String>>(&mut self, set_register: S, insertion_register: S) -> Option<()> {
+    pub fn set_insert<S: Into<String>>(
+        &mut self,
+        set_register: S,
+        insertion_register: S,
+    ) -> Option<()> {
         let set_register = insert_string(
             &mut self.slot_map,
             &mut self.lookup_map,
@@ -378,11 +380,15 @@ impl Arena {
         let insertion = map_get(&self.slot_map, self.register_map, insertion_register)?;
 
         set_insert(&mut self.slot_map, set, insertion);
-        
+
         Some(())
     }
 
-    pub fn set_union<S: Into<String>>(&mut self, set_modified_register: S, set_other_register: S) -> Option<()> {
+    pub fn set_union<S: Into<String>>(
+        &mut self,
+        set_modified_register: S,
+        set_other_register: S,
+    ) -> Option<()> {
         let set_modified_register = insert_string(
             &mut self.slot_map,
             &mut self.lookup_map,
@@ -402,7 +408,11 @@ impl Arena {
         Some(())
     }
 
-    pub fn set_difference<S: Into<String>>(&mut self, set_modified_register: S, set_other_register: S) -> Option<()> {
+    pub fn set_difference<S: Into<String>>(
+        &mut self,
+        set_modified_register: S,
+        set_other_register: S,
+    ) -> Option<()> {
         let set_modified_register = insert_string(
             &mut self.slot_map,
             &mut self.lookup_map,

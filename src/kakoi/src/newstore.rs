@@ -641,7 +641,7 @@ impl Store {
                     .collect::<Vec<_>>()
                 }
                 Structure::String(_) => {
-                    text_builder.with_instance(*tree_sphere, *data_key.string_key().unwrap());
+                    // text_builder.with_instance(*tree_sphere, *data_key.string_key().unwrap());
                     vec![]
                 }
                 Structure::Image(_) => {

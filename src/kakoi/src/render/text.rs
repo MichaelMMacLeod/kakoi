@@ -1,13 +1,11 @@
-use crate::{camera::Camera, newstore, sphere::Sphere};
+use crate::{camera::Camera, sphere::Sphere};
+use slotmap::SlotMap;
+use crate::arena::{ArenaKey, Value, Structure};
+use crate::spatial_tree::SpatialTreeData;
 use wgpu_glyph::GlyphCruncher;
 
-struct BoundedString {
-    key: newstore::StringKey,
-    sphere: Sphere,
-}
-
 pub struct TextConstraintBuilder {
-    constraints: Vec<BoundedString>,
+    constraints: Vec<SpatialTreeData>,
     instances_cache: Vec<TextConstraintInstance>,
     instances_cache_stale: bool,
     glyph_brush: wgpu_glyph::GlyphBrush<()>,
@@ -47,8 +45,8 @@ impl TextConstraintBuilder {
         }
     }
 
-    pub fn with_instance<'a>(&mut self, sphere: Sphere, key: newstore::StringKey) {
-        self.constraints.push(BoundedString { key, sphere });
+    pub fn with_instance<'a>(&mut self, spatial_tree_data: SpatialTreeData) {
+        self.constraints.push(spatial_tree_data);
     }
 
     pub fn resize<'a>(&mut self) {
@@ -57,7 +55,7 @@ impl TextConstraintBuilder {
 
     pub fn render<'a>(
         &mut self,
-        store: &'a newstore::Store,
+        store: &'a SlotMap<ArenaKey, Value>,
         device: &'a wgpu::Device,
         sc_desc: &'a wgpu::SwapChainDescriptor,
         encoder: &'a mut wgpu::CommandEncoder,
@@ -75,7 +73,10 @@ impl TextConstraintBuilder {
         );
         self.instances_cache_stale = false;
         for instance in &self.instances_cache {
-            let text = store.get_string(&instance.key);
+            let text = match store.get(instance.key).unwrap().structure.as_ref() {
+                Structure::String(s) => s,
+                _ => panic!(),
+            };
             let section = wgpu_glyph::Section {
                 screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                 bounds: (f32::INFINITY, f32::INFINITY),
@@ -115,17 +116,17 @@ impl TextConstraintBuilder {
     }
 
     fn build_instances<'a, 'b>(
-        store: &'b newstore::Store,
+        store: &'b SlotMap<ArenaKey, Value>,
         instances_cache: &'a mut Vec<TextConstraintInstance>,
         instances_cache_stale: bool,
-        constraints: &'a Vec<BoundedString>,
+        constraints: &'a Vec<SpatialTreeData>,
         glyph_brush: &'b mut wgpu_glyph::GlyphBrush<()>,
         view_projection_matrix: &'a cgmath::Matrix4<f32>,
         sc_desc: &'b wgpu::SwapChainDescriptor,
     ) {
         if instances_cache_stale {
             instances_cache.clear();
-            for BoundedString { key, sphere } in constraints {
+            for SpatialTreeData { key, sphere } in constraints {
                 instances_cache.push(TextConstraintInstance::new(
                     store,
                     key,
@@ -145,7 +146,7 @@ impl TextConstraintBuilder {
 }
 
 pub struct TextConstraintInstance {
-    key: newstore::StringKey,
+    key: ArenaKey,
     scale: f32,
     width: f32,
     height: f32,
@@ -156,15 +157,18 @@ pub struct TextConstraintInstance {
 
 impl TextConstraintInstance {
     pub fn new(
-        store: &newstore::Store,
-        key: &newstore::StringKey,
+        store: &SlotMap<ArenaKey, Value>,
+        key: &ArenaKey,
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
         sphere: &Sphere,
         view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
-        let text = store.get_string(key);
+        let text = match store.get(*key).unwrap().structure.as_ref() {
+            Structure::String(s) => s,
+            _ => panic!(),
+        };
         let mut section = wgpu_glyph::Section {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
