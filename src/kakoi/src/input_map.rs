@@ -14,13 +14,13 @@ struct InputMapData<A> {
 }
 
 #[derive(Debug)]
-struct InputMap<A> {
+pub struct InputMap<A> {
     forest: Forest<InputMapKey, InputMapData<A>>,
     root: InputMapKey,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum Lookup<'a, A> {
+pub enum Lookup<'a, A> {
     Complete(Result<&'a A, ()>),
     Incomplete,
 }
