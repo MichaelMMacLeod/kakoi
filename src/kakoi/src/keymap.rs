@@ -1,57 +1,167 @@
+use crate::forest::Forest;
+use slotmap::new_key_type;
 use std::collections::HashMap;
-
 use winit::event::VirtualKeyCode;
 
-struct KeySequence(String);
-
-struct RawKeySequence {
-    raw_sequence: Vec<VirtualKeyCode>,
+new_key_type! {
+    pub struct InputMapKey;
 }
 
-impl RawKeySequence {
-    fn to_key_sequence(&self) -> KeySequence {
-        KeySequence(self.raw_sequence
-            .iter()
-            .zip(0..)
-            .map(|(v, i)| {
-                if i == self.raw_sequence.len() - 1 {
-                    format!("{}", vk_to_string(*v))
-                } else {
-                    format!("{} ", vk_to_string(*v))
-                }
-            })
-            .collect())
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct InputMapData<A> {
+    input: String,
+    action: Option<A>,
+}
 
-        // `intersperse' is, as of 2021-04-14, nightly-only. When it gets 
-        // stabilized, we can use it instead.
+#[derive(Debug)]
+struct InputMap<A> {
+    forest: Forest<InputMapKey, InputMapData<A>>,
+    root: InputMapKey,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum Lookup<'a, A> {
+    Complete(Result<&'a A, ()>),
+    Incomplete,
+}
+
+impl<A> InputMap<A> {
+    pub fn new() -> Self {
+        let mut forest = Forest::new();
+        let root = forest.insert_root(InputMapData {
+            input: "".into(),
+            action: None,
+        });
+        Self { forest, root }
     }
-}
 
-struct InputState {
-    current_sequence: KeySequence,
-    keymap: KeyMap, 
-}
+    pub fn bind<S: Into<String>>(&mut self, sequence: Vec<S>, action: A) {
+        let mut previous = self.root;
+        sequence.into_iter().for_each(|input| {
+            let input = input.into();
+            previous = {
+                let children = self.forest.children(previous).unwrap().to_owned();
+                children
+                    .into_iter()
+                    .find(|&s| match self.forest.get_mut(s).unwrap() {
+                        InputMapData {
+                            input: next_input,
+                            action,
+                        } => {
+                            if input == *next_input {
+                                *action = None;
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    })
+                    .unwrap_or_else(|| {
+                        self.forest.insert_child(
+                            previous,
+                            InputMapData {
+                                input,
+                                action: None,
+                            },
+                        )
+                    })
+            };
+        });
+        if previous != self.root {
+            self.forest.get_mut(previous).unwrap().action = Some(action);
+        }
+    }
 
-struct KeyMap {
-    map: HashMap<KeySequence, fn()>
+    pub fn lookup<S: Into<String>>(&self, sequence: Vec<S>) -> Lookup<A> {
+        let mut previous = self.root;
+        let sequence_length = sequence.len();
+
+        let consumed_elements = sequence
+            .into_iter()
+            .map(|s| s.into())
+            .take_while(|input| {
+                self.forest
+                    .children(previous)
+                    .unwrap()
+                    .to_owned()
+                    .into_iter()
+                    .find(|&child_key| {
+                        let InputMapData {
+                            input: child_input, ..
+                        } = self.forest.get(child_key).unwrap();
+                        if child_input == input {
+                            previous = child_key;
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .is_some()
+            })
+            .count();
+
+        if previous == self.root {
+            if sequence_length == 0 {
+                Lookup::Incomplete
+            } else {
+                Lookup::Complete(Result::Err(()))
+            }
+        } else {
+            let InputMapData { action, .. } = self.forest.get(previous).unwrap();
+            if consumed_elements == sequence_length {
+                if let Some(action) = action.as_ref() {
+                    Lookup::Complete(Result::Ok(action))
+                } else {
+                    Lookup::Incomplete
+                }
+            } else {
+                Lookup::Complete(Result::Err(()))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
     #[test]
-    fn key_sequence_string_1() {
+    fn input_map_0() {
+        #[derive(Debug, PartialEq, Eq)]
+        enum Action {
+            Open,
+            Close,
+        }
+        let mut input_map = InputMap::new();
+        input_map.bind(vec!["space", "o"], Action::Open);
+        input_map.bind(vec!["space", "c"], Action::Close);
+
         assert_eq!(
-            "space a o r f",
-            RawKeySequence {
-                raw_sequence: vec![
-                    VirtualKeyCode::Space,
-                    VirtualKeyCode::A,
-                    VirtualKeyCode::O,
-                    VirtualKeyCode::R,
-                    VirtualKeyCode::F
-                ]
-            }.to_key_sequence().0
+            Lookup::Complete(Result::Ok(&Action::Open)),
+            input_map.lookup(vec!["space", "o"])
+        );
+        assert_eq!(
+            Lookup::Complete(Result::Ok(&Action::Close)),
+            input_map.lookup(vec!["space", "c"])
+        );
+        assert_eq!(Lookup::Incomplete, input_map.lookup(vec!["space"]));
+        assert_eq!(Lookup::Complete(Result::Err(())), input_map.lookup(vec!["x"]));
+
+        input_map.bind(vec!["space", "o", "o"], Action::Open);
+        input_map.bind(vec!["space", "o", "c"], Action::Close);
+
+        assert_eq!(Lookup::Incomplete, input_map.lookup(vec!["space", "o"]));
+        assert_eq!(
+            Lookup::Complete(Result::Ok(&Action::Close)),
+            input_map.lookup(vec!["space", "c"])
+        );
+        assert_eq!(
+            Lookup::Complete(Result::Ok(&Action::Open)),
+            input_map.lookup(vec!["space", "o", "o"])
+        );
+        assert_eq!(
+            Lookup::Complete(Result::Ok(&Action::Close)),
+            input_map.lookup(vec!["space", "o", "c"])
         );
     }
 }

@@ -1,10 +1,12 @@
 use slotmap::SlotMap;
 
+#[derive(Debug)]
 struct Node<K: slotmap::Key, D> {
     data: D,
     children: Vec<K>,
 }
 
+#[derive(Debug)]
 pub struct Forest<K: slotmap::Key, D> {
     slot_map: SlotMap<K, Node<K, D>>,
 }
