@@ -1,6 +1,4 @@
-use crate::tree::Tree;
 use slotmap::{new_key_type, SlotMap};
-use crate::sphere::Sphere;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
     hash::{Hash, Hasher},
@@ -35,8 +33,8 @@ pub struct Value {
     pub inclusions: HashSet<(ArenaKey, Route)>,
 }
 
-struct Arena {
-    slot_map: SlotMap<ArenaKey, Value>,
+pub struct Arena {
+    pub slot_map: SlotMap<ArenaKey, Value>,
     register_map: ArenaKey,
     selected_register: ArenaKey,
     lookup_map: HashMap<u64, ArenaKey>,
@@ -325,6 +323,11 @@ impl Arena {
             selected_register,
             lookup_map,
         }
+    }
+
+    pub fn register<S: Into<String>>(&mut self, register: S) -> Option<ArenaKey> {
+        let register = insert_string(&mut self.slot_map, &mut self.lookup_map, register.into());
+        map_get(&self.slot_map, self.register_map, register)
     }
 
     pub fn bind_register<S: Into<String>>(&mut self, register: S, value: ArenaKey) {

@@ -1,5 +1,7 @@
-use crate::{camera::Camera, newstore, sphere::Sphere};
+use crate::arena::{ArenaKey, Structure, Value};
+use crate::{camera::Camera, spatial_tree::SpatialTreeData, sphere::Sphere};
 use std::collections::HashMap;
+use slotmap::SlotMap;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -107,8 +109,8 @@ impl BoundTextureInstances {
 }
 
 pub struct ImageRenderer {
-    bound: HashMap<newstore::ImageKey, BoundTextureInstances>,
-    unbound: HashMap<newstore::ImageKey, TextureInstances>,
+    bound: HashMap<ArenaKey, BoundTextureInstances>,
+    unbound: HashMap<ArenaKey, TextureInstances>,
     vertex_buffer_data: Vec<Vertex>,
     vertex_buffer: wgpu::Buffer,
     texture_bind_group_layout: wgpu::BindGroupLayout,
@@ -243,14 +245,16 @@ impl ImageRenderer {
         }
     }
 
-    pub fn with_image<'a>(&mut self, sphere: Sphere, key: newstore::ImageKey) {
+    pub fn with_image<'a>(&mut self, spatial_tree_data: SpatialTreeData) {
         self.unbound
-            .entry(key)
+            .entry(spatial_tree_data.key)
             .or_insert(TextureInstances {
                 instances: Vec::with_capacity(1),
             })
             .instances
-            .push(TextureInstance { sphere: sphere });
+            .push(TextureInstance {
+                sphere: spatial_tree_data.sphere,
+            });
     }
 
     pub fn resize(&mut self) {
@@ -264,7 +268,7 @@ impl ImageRenderer {
         command_encoder: &'a mut wgpu::CommandEncoder,
         texture_view: &'a wgpu::TextureView,
         camera: &'a mut Camera,
-        store: &'a newstore::Store,
+        store: &'a SlotMap<ArenaKey, Value>,
     ) {
         if self.uniform_buffer_stale {
             queue.write_buffer(
@@ -295,7 +299,10 @@ impl ImageRenderer {
         let texture_bind_group_layout = &self.texture_bind_group_layout;
 
         for (image_key, mut unbound_image_instance) in self.unbound.drain() {
-            let image = store.get_image(&image_key);
+            let image = match store.get(image_key).unwrap().structure.as_ref() {
+                Structure::Image(i) => i,
+                _ => panic!(),
+            };
             let dimensions = image.dimensions();
             let aspect_ratio = dimensions.0 as f32 / dimensions.1 as f32;
 

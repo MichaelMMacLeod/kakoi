@@ -1,11 +1,14 @@
 use crate::arena::Structure;
 use crate::arena::Value;
+use crate::circle::{Circle, CirclePositioner, Point};
+use crate::render::circle::{CircleConstraintBuilder, MIN_RADIUS};
+use crate::render::image::ImageRenderer;
 use crate::sphere::Sphere;
 use crate::tree::Tree;
 use crate::{arena::ArenaKey, render::text::TextConstraintBuilder};
 use slotmap::new_key_type;
 use slotmap::SlotMap;
-use std::collections::vec_deque::VecDeque;
+use std::collections::{vec_deque::VecDeque, HashMap, HashSet};
 
 new_key_type! {
     pub struct SpatialTreeKey;
@@ -17,27 +20,24 @@ pub struct SpatialTreeData {
     pub sphere: Sphere,
 }
 
-// pub fn build_string_handler<'b, B: 'b, W: FnMut(&'b mut B, SpatialTreeData)>(
-//     builder: &'b mut B,
-//     with_instance: W,
-// ) -> impl FnMut(&'b SlotMap<ArenaKey, Value>, SpatialTreeData) -> Vec<SpatialTreeData> {
-//     |slot_map, spatial_tree_data| {
-//         with_instance(builder, spatial_tree_data);
-//         vec![]
-//     }
-// }
+pub struct SpatialTree {
+    tree: Tree<SpatialTreeKey, SpatialTreeData>,
+    root: Option<SpatialTreeKey>,
+}
 
-// build_string_handler(TextInstanceBuilder::with_instance)
-
-pub fn build_spatial_tree(
+fn build(
+    tree: &mut Tree<SpatialTreeKey, SpatialTreeData>,
+    root: Option<SpatialTreeKey>,
     slot_map: &SlotMap<ArenaKey, Value>,
     start: ArenaKey,
     string_handler: &mut TextConstraintBuilder,
-    image_handler: Handler,
-    set_handler: Handler,
-    map_handler: Handler,
-) -> (Tree<SpatialTreeKey, SpatialTreeData>, SpatialTreeKey) {
-    let mut tree: Tree<SpatialTreeKey, SpatialTreeData> = Tree::new();
+    image_handler: &mut ImageRenderer,
+    circle_handler: &mut CircleConstraintBuilder,
+    screen_width: f32,
+    screen_height: f32,
+) -> SpatialTreeKey {
+    root.map(|root| tree.remove_root(root));
+
     let root = tree.insert_root(SpatialTreeData {
         key: start,
         sphere: Sphere {
@@ -50,24 +50,126 @@ pub fn build_spatial_tree(
 
     while let Some(spatial_tree_key) = todo.pop_front() {
         let spatial_tree_data = tree.get(spatial_tree_key).copied().unwrap();
-        match slot_map
-            .get(spatial_tree_data.key)
-            .unwrap()
-            .structure
-            .as_ref()
+        if spatial_tree_data
+            .sphere
+            .screen_radius(screen_width, screen_height)
+            > 1.0
         {
-            Structure::String(_) => handle_string(string_handler, spatial_tree_data),
-            Structure::Image(_) => image_handler(slot_map, spatial_tree_data),
-            Structure::Set(_) => set_handler(slot_map, spatial_tree_data),
-            Structure::Map(_) => map_handler(slot_map, spatial_tree_data),
+            match slot_map
+                .get(spatial_tree_data.key)
+                .unwrap()
+                .structure
+                .as_ref()
+            {
+                Structure::String(_) => handle_string(string_handler, spatial_tree_data),
+                Structure::Image(_) => handle_image(image_handler, spatial_tree_data),
+                Structure::Set(set) => handle_set(circle_handler, spatial_tree_data, set),
+                Structure::Map(map) => handle_map(circle_handler, spatial_tree_data, map),
+            }
+            .into_iter()
+            .for_each(|child_data| {
+                todo.push_back(tree.insert_child(spatial_tree_key, child_data));
+            });
         }
-        .into_iter()
-        .for_each(|child_data| {
-            todo.push_back(tree.insert_child(spatial_tree_key, child_data));
-        });
     }
 
-    (tree, root)
+    root
+}
+
+impl SpatialTree {
+    pub fn rebuild(
+        &mut self,
+        slot_map: &SlotMap<ArenaKey, Value>,
+        start: ArenaKey,
+        string_handler: &mut TextConstraintBuilder,
+        image_handler: &mut ImageRenderer,
+        circle_handler: &mut CircleConstraintBuilder,
+        screen_width: f32,
+        screen_height: f32,
+    ) {
+        self.root = Some(build(
+            &mut self.tree,
+            self.root,
+            slot_map,
+            start,
+            string_handler,
+            image_handler,
+            circle_handler,
+            screen_width,
+            screen_height,
+        ));
+    }
+
+    pub fn new(
+        slot_map: &SlotMap<ArenaKey, Value>,
+        start: ArenaKey,
+        string_handler: &mut TextConstraintBuilder,
+        image_handler: &mut ImageRenderer,
+        circle_handler: &mut CircleConstraintBuilder,
+        screen_width: f32,
+        screen_height: f32,
+    ) -> Self {
+        let mut tree: Tree<SpatialTreeKey, SpatialTreeData> = Tree::new();
+        let root = Some(build(
+            &mut tree,
+            None,
+            slot_map,
+            start,
+            string_handler,
+            image_handler,
+            circle_handler,
+            screen_width,
+            screen_height,
+        ));
+        SpatialTree {
+            tree,
+            root,
+        }
+    }
+
+    pub fn click(
+        &self,
+        screen_width: f32,
+        screen_height: f32,
+        mouse_x: f32,
+        mouse_y: f32,
+    ) -> Option<ArenaKey> {
+        let (mouse_x, mouse_y) =
+            screen_to_view_coordinates(mouse_x, mouse_y, screen_width, screen_height);
+        self.tree
+            .children(self.root?)
+            .unwrap()
+            .iter()
+            .copied()
+            .find_map(|child| {
+                let SpatialTreeData { key, sphere } = self.tree.get(child).unwrap();
+                let dx = sphere.center.x - mouse_x;
+                let dy = sphere.center.y - mouse_y;
+                let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
+                if inside_rad {
+                    Some(*key)
+                } else {
+                    None
+                }
+            })
+    }
+}
+
+fn screen_to_view_coordinates(
+    screen_x: f32,
+    screen_y: f32,
+    screen_width: f32,
+    screen_height: f32,
+) -> (f32, f32) {
+    let aspect = screen_width / screen_height;
+    let (cx, cy) = (screen_x, screen_y);
+    let x = (2.0 * cx / screen_width) - 1.0;
+    let y = (-2.0 * cy / screen_height) + 1.0;
+    if aspect > 1.0 {
+        (x * aspect, y)
+    } else {
+        (x, y / aspect)
+    }
 }
 
 fn handle_string(
@@ -76,4 +178,116 @@ fn handle_string(
 ) -> Vec<SpatialTreeData> {
     string_handler.with_instance(spatial_tree_data);
     vec![]
+}
+
+fn handle_image(
+    image_handler: &mut ImageRenderer,
+    spatial_tree_data: SpatialTreeData,
+) -> Vec<SpatialTreeData> {
+    image_handler.with_image(spatial_tree_data);
+    vec![]
+}
+
+fn handle_set(
+    circle_handler: &mut CircleConstraintBuilder,
+    spatial_tree_data: SpatialTreeData,
+    set: &HashSet<ArenaKey>,
+) -> Vec<SpatialTreeData> {
+    let sphere = if set.len() == 1 {
+        Sphere {
+            center: spatial_tree_data.sphere.center,
+            radius: spatial_tree_data.sphere.radius * MIN_RADIUS,
+        }
+    } else {
+        spatial_tree_data.sphere
+    };
+    circle_handler.with_instance(sphere);
+    let circle_positioner = CirclePositioner::new(
+        (sphere.radius * MIN_RADIUS) as f64,
+        set.len() as u64,
+        0.0,
+        Point {
+            x: sphere.center.x as f64,
+            y: sphere.center.y as f64,
+        },
+        0.0,
+    );
+    circle_positioner
+        .into_iter()
+        .zip(set.iter())
+        .filter_map(|(circle, key)| {
+            let Circle { center, radius } = circle;
+            let Point { x, y } = center;
+            let radius = radius as f32;
+            let other_sphere = Sphere {
+                center: cgmath::vec3(x as f32, y as f32, 0.0),
+                radius,
+            };
+            circle_handler.with_instance(other_sphere);
+            Some(SpatialTreeData {
+                sphere: other_sphere,
+                key: *key,
+            })
+        })
+        .collect()
+}
+
+fn handle_map(
+    circle_handler: &mut CircleConstraintBuilder,
+    spatial_tree_data: SpatialTreeData,
+    map: &HashMap<ArenaKey, ArenaKey>,
+) -> Vec<SpatialTreeData> {
+    let sphere = if map.len() == 1 {
+        Sphere {
+            center: spatial_tree_data.sphere.center,
+            radius: spatial_tree_data.sphere.radius * MIN_RADIUS,
+        }
+    } else {
+        spatial_tree_data.sphere
+    };
+    let circle_positioner = CirclePositioner::new(
+        (sphere.radius * MIN_RADIUS) as f64,
+        map.len() as u64,
+        0.0,
+        Point {
+            x: sphere.center.x as f64,
+            y: sphere.center.y as f64,
+        },
+        0.0,
+    );
+    circle_positioner
+        .into_iter()
+        .zip(map.iter())
+        .map(|(circle, (key, value))| {
+            let Circle { center, radius } = circle;
+            let Point { x, y } = center;
+            let radius = radius as f32;
+            let other_sphere = Sphere {
+                center: cgmath::vec3(x as f32, y as f32, 0.0),
+                radius,
+            };
+            circle_handler.with_instance(other_sphere);
+            let sub_circle_positioner =
+                CirclePositioner::new(circle.radius, 2, 0.0, circle.center, 0.0);
+            sub_circle_positioner
+                .into_iter()
+                .zip(vec![key, value])
+                .map(|(circle, &key)| {
+                    let Circle { center, radius } = circle;
+                    let Point { x, y } = center;
+                    let radius = radius as f32;
+                    let other_sphere = Sphere {
+                        center: cgmath::vec3(x as f32, y as f32, 0.0),
+                        radius,
+                    };
+                    circle_handler.with_instance(other_sphere);
+                    SpatialTreeData {
+                        sphere: other_sphere,
+                        key,
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .collect()
 }

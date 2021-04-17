@@ -56,7 +56,7 @@ mod test {
     }
 }
 
-fn vk_to_string(code: VirtualKeyCode) -> &'static str {
+pub fn vk_to_string(code: VirtualKeyCode) -> &'static str {
     match code {
         VirtualKeyCode::Key1 => "1",
         VirtualKeyCode::Key2 => "2",
