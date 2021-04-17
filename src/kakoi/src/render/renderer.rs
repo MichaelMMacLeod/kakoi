@@ -1,7 +1,7 @@
 use super::{circle::CircleConstraintBuilder, image::ImageRenderer, text::TextConstraintBuilder};
 use crate::arena::{Arena, ArenaKey};
 use crate::camera::Camera;
-use crate::keymap::vk_to_string;
+use crate::input_map::vk_to_string;
 use crate::spatial_tree::SpatialTree;
 
 pub struct Renderer {

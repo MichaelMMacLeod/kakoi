@@ -7,7 +7,7 @@ pub mod state;
 pub mod window;
 pub mod sphere;
 pub mod newstore;
-pub mod keymap;
+pub mod input_map;
 pub mod arena;
 pub mod forest;
 pub mod spatial_tree;
