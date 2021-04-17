@@ -1,6 +1,5 @@
 use crate::forest::Forest;
 use slotmap::new_key_type;
-use std::collections::HashMap;
 use winit::event::VirtualKeyCode;
 
 new_key_type! {
@@ -72,12 +71,13 @@ impl<A> InputMap<A> {
         }
     }
 
-    pub fn lookup<S: Into<String>>(&self, sequence: Vec<S>) -> Lookup<A> {
+    pub fn lookup<S: Into<String> + Clone>(&self, sequence: &[S]) -> Lookup<A> {
         let mut previous = self.root;
         let sequence_length = sequence.len();
 
         let consumed_elements = sequence
-            .into_iter()
+            .iter()
+            .cloned()
             .map(|s| s.into())
             .take_while(|input| {
                 self.forest
@@ -138,30 +138,33 @@ mod test {
 
         assert_eq!(
             Lookup::Complete(Result::Ok(&Action::Open)),
-            input_map.lookup(vec!["space", "o"])
+            input_map.lookup(&["space", "o"])
         );
         assert_eq!(
             Lookup::Complete(Result::Ok(&Action::Close)),
-            input_map.lookup(vec!["space", "c"])
+            input_map.lookup(&["space", "c"])
         );
-        assert_eq!(Lookup::Incomplete, input_map.lookup(vec!["space"]));
-        assert_eq!(Lookup::Complete(Result::Err(())), input_map.lookup(vec!["x"]));
+        assert_eq!(Lookup::Incomplete, input_map.lookup(&["space"]));
+        assert_eq!(
+            Lookup::Complete(Result::Err(())),
+            input_map.lookup(&["x"])
+        );
 
         input_map.bind(vec!["space", "o", "o"], Action::Open);
         input_map.bind(vec!["space", "o", "c"], Action::Close);
 
-        assert_eq!(Lookup::Incomplete, input_map.lookup(vec!["space", "o"]));
+        assert_eq!(Lookup::Incomplete, input_map.lookup(&["space", "o"]));
         assert_eq!(
             Lookup::Complete(Result::Ok(&Action::Close)),
-            input_map.lookup(vec!["space", "c"])
+            input_map.lookup(&["space", "c"])
         );
         assert_eq!(
             Lookup::Complete(Result::Ok(&Action::Open)),
-            input_map.lookup(vec!["space", "o", "o"])
+            input_map.lookup(&["space", "o", "o"])
         );
         assert_eq!(
             Lookup::Complete(Result::Ok(&Action::Close)),
-            input_map.lookup(vec!["space", "o", "c"])
+            input_map.lookup(&["space", "o", "c"])
         );
     }
 }
