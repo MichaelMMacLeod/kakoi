@@ -9,5 +9,5 @@ pub mod sphere;
 pub mod newstore;
 pub mod keymap;
 pub mod arena;
-pub mod tree;
+pub mod forest;
 pub mod spatial_tree;

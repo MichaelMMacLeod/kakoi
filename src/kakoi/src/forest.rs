@@ -5,13 +5,13 @@ struct Node<K: slotmap::Key, D> {
     children: Vec<K>,
 }
 
-pub struct Tree<K: slotmap::Key, D> {
+pub struct Forest<K: slotmap::Key, D> {
     slot_map: SlotMap<K, Node<K, D>>,
 }
 
-impl<K: slotmap::Key, D> Tree<K, D> {
+impl<K: slotmap::Key, D> Forest<K, D> {
     pub fn new() -> Self {
-        Tree {
+        Forest {
             slot_map: SlotMap::with_key(),
         }
     }
@@ -70,7 +70,7 @@ mod test {
 
     #[test]
     fn tree_0() {
-        let mut tree: Tree<TreeKey, u32> = Tree::new();
+        let mut tree: Forest<TreeKey, u32> = Forest::new();
         let root = tree.insert_root(0);
         assert_eq!(0, tree.get(root).copied().unwrap());
         let child_keys = (0..10)

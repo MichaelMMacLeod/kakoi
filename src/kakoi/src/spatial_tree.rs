@@ -4,7 +4,7 @@ use crate::circle::{Circle, CirclePositioner, Point};
 use crate::render::circle::{CircleConstraintBuilder, MIN_RADIUS};
 use crate::render::image::ImageRenderer;
 use crate::sphere::Sphere;
-use crate::tree::Tree;
+use crate::forest::Forest;
 use crate::{arena::ArenaKey, render::text::TextConstraintBuilder};
 use slotmap::new_key_type;
 use slotmap::SlotMap;
@@ -21,12 +21,12 @@ pub struct SpatialTreeData {
 }
 
 pub struct SpatialTree {
-    tree: Tree<SpatialTreeKey, SpatialTreeData>,
+    forest: Forest<SpatialTreeKey, SpatialTreeData>,
     root: Option<SpatialTreeKey>,
 }
 
 fn build(
-    tree: &mut Tree<SpatialTreeKey, SpatialTreeData>,
+    forest: &mut Forest<SpatialTreeKey, SpatialTreeData>,
     root: Option<SpatialTreeKey>,
     slot_map: &SlotMap<ArenaKey, Value>,
     start: ArenaKey,
@@ -36,9 +36,9 @@ fn build(
     screen_width: f32,
     screen_height: f32,
 ) -> SpatialTreeKey {
-    root.map(|root| tree.remove_root(root));
+    root.map(|root| forest.remove_root(root));
 
-    let root = tree.insert_root(SpatialTreeData {
+    let root = forest.insert_root(SpatialTreeData {
         key: start,
         sphere: Sphere {
             center: (0.0, 0.0, 0.0).into(),
@@ -49,7 +49,7 @@ fn build(
     let mut todo: VecDeque<SpatialTreeKey> = vec![root].into_iter().collect();
 
     while let Some(spatial_tree_key) = todo.pop_front() {
-        let spatial_tree_data = tree.get(spatial_tree_key).copied().unwrap();
+        let spatial_tree_data = forest.get(spatial_tree_key).copied().unwrap();
         if spatial_tree_data
             .sphere
             .screen_radius(screen_width, screen_height)
@@ -68,7 +68,7 @@ fn build(
             }
             .into_iter()
             .for_each(|child_data| {
-                todo.push_back(tree.insert_child(spatial_tree_key, child_data));
+                todo.push_back(forest.insert_child(spatial_tree_key, child_data));
             });
         }
     }
@@ -88,7 +88,7 @@ impl SpatialTree {
         screen_height: f32,
     ) {
         self.root = Some(build(
-            &mut self.tree,
+            &mut self.forest,
             self.root,
             slot_map,
             start,
@@ -109,9 +109,9 @@ impl SpatialTree {
         screen_width: f32,
         screen_height: f32,
     ) -> Self {
-        let mut tree: Tree<SpatialTreeKey, SpatialTreeData> = Tree::new();
+        let mut forest: Forest<SpatialTreeKey, SpatialTreeData> = Forest::new();
         let root = Some(build(
-            &mut tree,
+            &mut forest,
             None,
             slot_map,
             start,
@@ -122,7 +122,7 @@ impl SpatialTree {
             screen_height,
         ));
         SpatialTree {
-            tree,
+            forest,
             root,
         }
     }
@@ -136,13 +136,13 @@ impl SpatialTree {
     ) -> Option<ArenaKey> {
         let (mouse_x, mouse_y) =
             screen_to_view_coordinates(mouse_x, mouse_y, screen_width, screen_height);
-        self.tree
+        self.forest
             .children(self.root?)
             .unwrap()
             .iter()
             .copied()
             .find_map(|child| {
-                let SpatialTreeData { key, sphere } = self.tree.get(child).unwrap();
+                let SpatialTreeData { key, sphere } = self.forest.get(child).unwrap();
                 let dx = sphere.center.x - mouse_x;
                 let dy = sphere.center.y - mouse_y;
                 let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
