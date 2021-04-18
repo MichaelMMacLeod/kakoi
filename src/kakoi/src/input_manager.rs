@@ -6,21 +6,27 @@ use winit::event::{ElementState, KeyboardInput};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum Action {
+    SetInsert,
+    SetUnion,
     SetRemove,
     InsertStringIntoSetRegister,
     SelectRegister,
     BindRegisterToRegisterValue,
     BindRegisterToString,
+    BindRegisterToEmptySet,
     Back,
     Registers,
 }
 
 pub enum CompleteAction {
+    SetInsert(String, String),
+    SetUnion(String, String),
     SetRemove(String, String),
     InsertStringIntoSetRegister(String, String),
     SelectRegister(String),
     BindRegisterToRegisterValue(String, String),
     BindRegisterToString(String, String),
+    BindRegisterToEmptySet(String),
     Registers,
     Back,
 }
@@ -43,6 +49,16 @@ impl ActionState {
 
     fn complete(&self) -> Option<CompleteAction> {
         match self.action {
+            Action::SetInsert => match self.data.len() {
+                2 => Some(CompleteAction::SetInsert(self.data[0].clone(), self.data[1].clone())),
+                n if n > 2 => panic!(),
+                _ => None,
+            }
+            Action::SetUnion => match self.data.len() {
+                2 => Some(CompleteAction::SetUnion(self.data[0].clone(), self.data[1].clone())),
+                n if n > 2 => panic!(),
+                _ => None,
+            }
             Action::SetRemove => match self.data.len() {
                 2 => Some(CompleteAction::SetRemove(self.data[0].clone(), self.data[1].clone())),
                 n if n > 2 => panic!(),
@@ -74,6 +90,13 @@ impl ActionState {
                 n if n > 2 => panic!(),
                 _ => None,
             },
+            Action::BindRegisterToEmptySet => match self.data.len() {
+                1 => Some(CompleteAction::BindRegisterToEmptySet(
+                    self.data[0].clone(),
+                )),
+                n if n > 1 => panic!(),
+                _ => None,
+            },
             Action::Back => match self.data.len() {
                 0 => Some(CompleteAction::Back),
                 _ => panic!(),
@@ -88,6 +111,16 @@ impl ActionState {
     fn record(&mut self, modifiers: &Modifiers, keyboard_input: &KeyboardInput) {
         if self.recorder.is_none() {
             self.recorder = Some(match self.action {
+                Action::SetInsert => match self.data.len() {
+                    0 => Recorder::Register,
+                    1 => Recorder::Register,
+                    _ => panic!(),
+                }
+                Action::SetUnion => match self.data.len() {
+                    0 => Recorder::Register,
+                    1 => Recorder::Register,
+                    _ => panic!(),
+                }
                 Action::SetRemove => match self.data.len() {
                     0 => Recorder::Register,
                     1 => Recorder::Register,
@@ -110,6 +143,10 @@ impl ActionState {
                 Action::BindRegisterToString => match self.data.len() {
                     0 => Recorder::Register,
                     1 => Recorder::String("".into()),
+                    _ => panic!(),
+                },
+                Action::BindRegisterToEmptySet => match self.data.len() {
+                    0 => Recorder::Register,
                     _ => panic!(),
                 },
                 Action::Back => match self.data.len() {
@@ -324,13 +361,68 @@ pub struct InputManager {
 impl InputManager {
     pub fn new() -> Self {
         let mut input_map = InputMap::new();
+        // A keybinding is written as a series of keys to press and release followed by a (possibly 
+        // empty) list of extra data to enter.
+        // For example, the following: 'space a b enter <string> <register> <string>' instructs the
+        // user to, in this order:
+        // 1. press and release the spacebar
+        // 2. press and release 'a'
+        // 3. press and release 'b'
+        // 4. press and release 'enter'
+        // 5. enter a string
+        // 6. enter a register name
+        // 7. enter a string
+
+        // To insert a <register>, type a single key.
+        // To insert a <string>, type it in and then press shift+enter.
+        //   - To delete the last-entered character, press delete
+        //   - To delete the last-entered word, press shift+delete
+
+        // space r s <register-to-select>
+        // Selects <register-to-select>, displaying it on screen.
+        // This is equivalent to space r b r . <register-to-select>, since '.' is the register
+        // that holds the data currently displayed on screen.
         input_map.bind(vec!["space", "r", "s"], Action::SelectRegister);
-        input_map.bind(vec!["space", "r", "b", "s"], Action::BindRegisterToString);
+
+        // space r b t <register> <string>
+        // Binds <register> to <string>
+        input_map.bind(vec!["space", "r", "b", "t"], Action::BindRegisterToString);
+
+        // space r b s <register>
+        // Binds <register> to an empty set
+        input_map.bind(vec!["space", "r", "b", "s"], Action::BindRegisterToEmptySet);
+
+        // space r b r <register-to-bind> <register-with-value>
+        // Binds <register-to-bind> to the value stored in <register-with-value>
         input_map.bind(vec!["space", "r", "b", "r"], Action::BindRegisterToRegisterValue);
+
+        // space b
+        // Moves back to the previous value in history.
         input_map.bind(vec!["space", "b"], Action::Back);
+
+        // space v
+        // Displays the current register mapping.
         input_map.bind(vec!["space", "v"], Action::Registers);
-        input_map.bind(vec!["space", "s", "i", "s"], Action::InsertStringIntoSetRegister);
+        
+        // space s i r <register-to-modify> <register>
+        // Inserts the value bound to <register> into the set bound to <register-to-modify>.
+        // <register-to-modify> MUST be a set.
+        input_map.bind(vec!["space", "s", "i", "r"], Action::SetInsert);
+
+        // space s i s <register> <string>
+        // Binds <register> to <string>
+        input_map.bind(vec!["space", "s", "i", "t"], Action::InsertStringIntoSetRegister);
+
+        // space s r r <register-to-modify> <register-holding-value-to-remove>
+        // Removes the value held by <register-holding-value-to-remove> from the set held in
+        // <register-to-modify>. <register-to-modify> MUST hold a set.
         input_map.bind(vec!["space", "s", "r", "r"], Action::SetRemove);
+
+        // space s u <register-to-modify> <register-other>
+        // Modifies the set held in <register-to-modify> to contain all of the items held in both
+        // <register-to-modify> AND <register-other>. Both of the registers MUST hold sets.
+        input_map.bind(vec!["space", "s", "u"], Action::SetUnion);
+
         Self {
             input_state: InputState::new(input_map),
             modifiers: Modifiers::new(),
