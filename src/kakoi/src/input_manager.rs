@@ -245,7 +245,7 @@ impl Recorder {
                         Do::Delete(delete_entire_word) => {
                             // there's got to be a better way, right?
                             *string = if delete_entire_word {
-                                unicode_segmentation::UnicodeSegmentation::unicode_words(
+                                unicode_segmentation::UnicodeSegmentation::split_word_bounds(
                                     string.as_str(),
                                 )
                                 .collect::<Vec<_>>()
