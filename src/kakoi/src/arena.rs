@@ -363,6 +363,25 @@ impl Arena {
         });
     }
 
+    pub fn set_insert_string<S: Into<String>>(&mut self, set_register: S, string: S) -> Option<()> {
+        let set_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            set_register.into(),
+        );
+        let string = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            string.into(),
+        );
+
+        let set = map_get(&self.slot_map, self.register_map, set_register)?;
+
+        set_insert(&mut self.slot_map, set, string);
+
+        Some(())
+    }
+
     pub fn set_insert<S: Into<String>>(
         &mut self,
         set_register: S,

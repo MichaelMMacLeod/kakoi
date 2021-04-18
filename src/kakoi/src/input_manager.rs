@@ -6,6 +6,7 @@ use winit::event::{ElementState, KeyboardInput};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum Action {
+    InsertStringIntoSetRegister,
     SelectRegister,
     BindRegisterToRegisterValue,
     BindRegisterToString,
@@ -14,6 +15,7 @@ enum Action {
 }
 
 pub enum CompleteAction {
+    InsertStringIntoSetRegister(String, String),
     SelectRegister(String),
     BindRegisterToRegisterValue(String, String),
     BindRegisterToString(String, String),
@@ -39,6 +41,11 @@ impl ActionState {
 
     fn complete(&self) -> Option<CompleteAction> {
         match self.action {
+            Action::InsertStringIntoSetRegister => match self.data.len() {
+                2 => Some(CompleteAction::InsertStringIntoSetRegister(self.data[0].clone(), self.data[1].clone())),
+                n if n > 2 => panic!(),
+                _ => None,
+            }
             Action::SelectRegister => match self.data.len() {
                 1 => Some(CompleteAction::SelectRegister(self.data[0].clone())),
                 n if n > 1 => panic!(),
@@ -49,6 +56,7 @@ impl ActionState {
                     self.data[0].clone(),
                     self.data[1].clone(),
                 )),
+                n if n > 2 => panic!(),
                 _ => None,
             },
             Action::BindRegisterToString => match self.data.len() {
@@ -73,6 +81,11 @@ impl ActionState {
     fn record(&mut self, modifiers: &Modifiers, keyboard_input: &KeyboardInput) {
         if self.recorder.is_none() {
             self.recorder = Some(match self.action {
+                Action::InsertStringIntoSetRegister => match self.data.len() {
+                    0 => Recorder::Register,
+                    1 => Recorder::String("".into()),
+                    _ => panic!(),
+                }
                 Action::SelectRegister => match self.data.len() {
                     0 => Recorder::Register,
                     _ => panic!(),
@@ -304,6 +317,7 @@ impl InputManager {
         input_map.bind(vec!["space", "r", "b", "r"], Action::BindRegisterToRegisterValue);
         input_map.bind(vec!["space", "b"], Action::Back);
         input_map.bind(vec!["space", "v"], Action::Registers);
+        input_map.bind(vec!["space", "s", "i", "s"], Action::InsertStringIntoSetRegister);
         Self {
             input_state: InputState::new(input_map),
             modifiers: Modifiers::new(),
