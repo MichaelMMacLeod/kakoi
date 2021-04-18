@@ -1,10 +1,10 @@
 use crate::arena::Structure;
 use crate::arena::Value;
 use crate::circle::{Circle, CirclePositioner, Point};
+use crate::forest::Forest;
 use crate::render::circle::{CircleConstraintBuilder, MIN_RADIUS};
 use crate::render::image::ImageRenderer;
 use crate::sphere::Sphere;
-use crate::forest::Forest;
 use crate::{arena::ArenaKey, render::text::TextConstraintBuilder};
 use slotmap::new_key_type;
 use slotmap::SlotMap;
@@ -121,10 +121,7 @@ impl SpatialTree {
             screen_width,
             screen_height,
         ));
-        SpatialTree {
-            forest,
-            root,
-        }
+        SpatialTree { forest, root }
     }
 
     pub fn click(
@@ -193,6 +190,7 @@ fn handle_set(
     spatial_tree_data: SpatialTreeData,
     set: &HashSet<ArenaKey>,
 ) -> Vec<SpatialTreeData> {
+    circle_handler.with_instance(spatial_tree_data.sphere);
     let sphere = if set.len() == 1 {
         Sphere {
             center: spatial_tree_data.sphere.center,
@@ -201,7 +199,6 @@ fn handle_set(
     } else {
         spatial_tree_data.sphere
     };
-    circle_handler.with_instance(sphere);
     let circle_positioner = CirclePositioner::new(
         (sphere.radius * MIN_RADIUS) as f64,
         set.len() as u64,
@@ -223,7 +220,6 @@ fn handle_set(
                 center: cgmath::vec3(x as f32, y as f32, 0.0),
                 radius,
             };
-            circle_handler.with_instance(other_sphere);
             Some(SpatialTreeData {
                 sphere: other_sphere,
                 key: *key,
@@ -237,6 +233,7 @@ fn handle_map(
     spatial_tree_data: SpatialTreeData,
     map: &HashMap<ArenaKey, ArenaKey>,
 ) -> Vec<SpatialTreeData> {
+    circle_handler.with_instance(spatial_tree_data.sphere);
     let sphere = if map.len() == 1 {
         Sphere {
             center: spatial_tree_data.sphere.center,
@@ -280,7 +277,7 @@ fn handle_map(
                         center: cgmath::vec3(x as f32, y as f32, 0.0),
                         radius,
                     };
-                    circle_handler.with_instance(other_sphere);
+                    // circle_handler.with_instance(other_sphere);
                     SpatialTreeData {
                         sphere: other_sphere,
                         key,
