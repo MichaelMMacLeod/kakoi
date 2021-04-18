@@ -6,6 +6,7 @@ use winit::event::{ElementState, KeyboardInput};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum Action {
+    SetRemove,
     InsertStringIntoSetRegister,
     SelectRegister,
     BindRegisterToRegisterValue,
@@ -15,6 +16,7 @@ enum Action {
 }
 
 pub enum CompleteAction {
+    SetRemove(String, String),
     InsertStringIntoSetRegister(String, String),
     SelectRegister(String),
     BindRegisterToRegisterValue(String, String),
@@ -41,6 +43,11 @@ impl ActionState {
 
     fn complete(&self) -> Option<CompleteAction> {
         match self.action {
+            Action::SetRemove => match self.data.len() {
+                2 => Some(CompleteAction::SetRemove(self.data[0].clone(), self.data[1].clone())),
+                n if n > 2 => panic!(),
+                _ => None,
+            }
             Action::InsertStringIntoSetRegister => match self.data.len() {
                 2 => Some(CompleteAction::InsertStringIntoSetRegister(self.data[0].clone(), self.data[1].clone())),
                 n if n > 2 => panic!(),
@@ -81,6 +88,11 @@ impl ActionState {
     fn record(&mut self, modifiers: &Modifiers, keyboard_input: &KeyboardInput) {
         if self.recorder.is_none() {
             self.recorder = Some(match self.action {
+                Action::SetRemove => match self.data.len() {
+                    0 => Recorder::Register,
+                    1 => Recorder::Register,
+                    _ => panic!(),
+                }
                 Action::InsertStringIntoSetRegister => match self.data.len() {
                     0 => Recorder::Register,
                     1 => Recorder::String("".into()),
@@ -318,6 +330,7 @@ impl InputManager {
         input_map.bind(vec!["space", "b"], Action::Back);
         input_map.bind(vec!["space", "v"], Action::Registers);
         input_map.bind(vec!["space", "s", "i", "s"], Action::InsertStringIntoSetRegister);
+        input_map.bind(vec!["space", "s", "r", "r"], Action::SetRemove);
         Self {
             input_state: InputState::new(input_map),
             modifiers: Modifiers::new(),

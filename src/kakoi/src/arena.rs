@@ -406,6 +406,30 @@ impl Arena {
         Some(())
     }
 
+    pub fn set_remove<S: Into<String>>(
+        &mut self,
+        set_register: S,
+        removal_register: S,
+    ) -> Option<()> {
+        let set_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            set_register.into(),
+        );
+        let removal_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            removal_register.into(),
+        );
+
+        let set = map_get(&self.slot_map, self.register_map, set_register)?;
+        let removal = map_get(&self.slot_map, self.register_map, removal_register)?;
+
+        set_remove(&mut self.slot_map, set, removal);
+
+        Some(())
+    }
+
     pub fn set_union<S: Into<String>>(
         &mut self,
         set_modified_register: S,

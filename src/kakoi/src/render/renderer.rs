@@ -131,6 +131,9 @@ impl Renderer {
                 // eprintln!("{:?}", input);
                 let should_rebuild = match self.input_manager.input(input) {
                     Some(complete_action) => match complete_action {
+                        CompleteAction::SetRemove(set_register, removal_register) => {
+                            self.store.set_remove(set_register, removal_register).is_some()
+                        }
                         CompleteAction::InsertStringIntoSetRegister(register, string) => {
                             self.store.set_insert_string(register, string).is_some()
                         }
