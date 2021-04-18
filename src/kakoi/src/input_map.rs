@@ -72,6 +72,7 @@ impl<A> InputMap<A> {
     }
 
     pub fn lookup<S: Into<String> + Clone>(&self, sequence: &[S]) -> Lookup<A> {
+        dbg!(sequence.iter().cloned().map(|s| s.into()).collect::<Vec<_>>());
         let mut previous = self.root;
         let sequence_length = sequence.len();
 
@@ -169,7 +170,7 @@ mod test {
     }
 }
 
-pub fn vk_to_string(code: VirtualKeyCode) -> &'static str {
+pub fn vk_to_keyname_string(code: VirtualKeyCode) -> &'static str {
     match code {
         VirtualKeyCode::Key1 => "1",
         VirtualKeyCode::Key2 => "2",
@@ -180,7 +181,7 @@ pub fn vk_to_string(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Key7 => "7",
         VirtualKeyCode::Key8 => "8",
         VirtualKeyCode::Key9 => "9",
-        VirtualKeyCode::Key0 => "10",
+        VirtualKeyCode::Key0 => "0",
         VirtualKeyCode::A => "a",
         VirtualKeyCode::B => "b",
         VirtualKeyCode::C => "c",
@@ -334,3 +335,16 @@ pub fn vk_to_string(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Cut => "cut",
     }
 }
+
+// struct Input {
+//     virtual_key_code: VirtualKeyCode,
+// }
+
+// fn modify_string(string: &mut String, input: winit::event::KeyboardInput) {
+//     let winit::event::KeyboardInput {
+//         state,
+//         virtual_keycode,
+//         ..
+//     } = input;
+    
+// }

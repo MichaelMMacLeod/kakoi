@@ -1,8 +1,9 @@
 use crate::input_map::{InputMap, Lookup};
 
+#[derive(Debug)]
 pub struct InputState<A> {
     input_map: InputMap<A>,
-    current_input_sequence: Vec<String>,
+    pub current_input_sequence: Vec<String>,
 }
 
 impl<A> InputState<A> {

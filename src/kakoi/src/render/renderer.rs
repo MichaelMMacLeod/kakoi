@@ -1,8 +1,12 @@
 use super::{circle::CircleConstraintBuilder, image::ImageRenderer, text::TextConstraintBuilder};
-use crate::arena::{Arena, ArenaKey};
 use crate::camera::Camera;
-use crate::input_map::vk_to_string;
+use crate::input_manager::CompleteAction;
+use crate::input_map::vk_to_keyname_string;
 use crate::spatial_tree::SpatialTree;
+use crate::{
+    arena::{Arena, ArenaKey},
+    input_manager::InputManager,
+};
 
 pub struct Renderer {
     store: Arena,
@@ -16,6 +20,7 @@ pub struct Renderer {
     image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
     indication_tree: SpatialTree,
+    input_manager: InputManager,
 }
 
 // fn screen_to_view_coordinates(
@@ -56,6 +61,7 @@ impl Renderer {
             sc_desc.width as f32,
             sc_desc.height as f32,
         );
+        let input_manager = InputManager::new();
         Self {
             store: arena,
             camera,
@@ -68,6 +74,7 @@ impl Renderer {
             image_renderer,
             cursor_position: (0.0, 0.0),
             indication_tree: spatial_tree,
+            input_manager,
         }
     }
 
@@ -128,9 +135,11 @@ impl Renderer {
         self.text_renderer.invalidate();
         self.image_renderer.invalidate();
 
+        let selected_index = self.store.register(".").unwrap();
+
         self.indication_tree.rebuild(
             &self.store.slot_map,
-            self.selected_index,
+            selected_index,
             &mut self.text_renderer,
             &mut self.image_renderer,
             &mut self.circle_renderer,
@@ -143,35 +152,36 @@ impl Renderer {
         use winit::event::*;
         match event {
             WindowEvent::KeyboardInput { input, .. } => {
-                eprintln!("{:?}", input);
-                input.virtual_keycode.map_or(false, |virtual_key_code| {
-                    let register = vk_to_string(virtual_key_code);
-                    if input.state == ElementState::Pressed {
-                        self.store.bind_register_to_register_value(register, ".");
-                        self.rebuild_indication_tree();
-                        // let register_map = *self
-                        //     .store
-                        //     .get_overlay(&self.selected_index)
-                        //     .message()
-                        //     .map_key()
-                        //     .unwrap();
-                        // let selected_key = *self.store.get_overlay(&self.selected_index).focus();
-                        // let register_string = format!("{:?}", virtual_key_code);
-                        // let register_key = if let Some(&register_key) =
-                        //     self.store.get_by_value(&register_string)
-                        // {
-                        //     register_key
-                        // } else {
-                        //     newstore::Key::from(self.store.insert_string(&register_string))
-                        // };
-                        // self.store
-                        //     .map_set_key_value(&register_map, &register_key, &selected_key);
-                        // self.rebuild_indication_tree();
-                        true
-                    } else {
-                        false
-                    }
-                })
+                // eprintln!("{:?}", input);
+                let should_rebuild = match self.input_manager.input(input) {
+                    Some(complete_action) => match complete_action {
+                        CompleteAction::SelectRegister(register) => {
+                            self.selected_node_history
+                                .push(self.store.register(".").unwrap());
+                            self.store
+                                .bind_register_to_register_value(".".into(), register);
+                            true
+                        }
+                        CompleteAction::BindRegisterToString(register, string) => {
+                            self.store.bind_register_to_string(register, string);
+                            true
+                        }
+                        CompleteAction::Back => self
+                            .selected_node_history
+                            .pop()
+                            .map(|selected_index| {
+                                self.store.bind_register(".", selected_index);
+                            })
+                            .is_some(),
+                    },
+                    None => false,
+                };
+                if should_rebuild {
+                    self.rebuild_indication_tree();
+                    true
+                } else {
+                    false
+                }
             }
             WindowEvent::MouseInput { button, state, .. } if *state == ElementState::Pressed => {
                 match button {
@@ -184,8 +194,10 @@ impl Renderer {
                                 self.cursor_position.1,
                             )
                             .map(|selected_index| {
-                                self.selected_node_history.push(self.selected_index);
-                                self.selected_index = selected_index;
+                                self.selected_node_history
+                                    .push(self.store.register(".").unwrap());
+                                // self.selected_index = selected_index;
+                                self.store.bind_register(".", selected_index);
                                 self.rebuild_indication_tree();
                                 true
                             })
@@ -251,15 +263,15 @@ impl Renderer {
                         //     false
                         // }
                     }
-                    MouseButton::Right => self
-                        .selected_node_history
-                        .pop()
-                        .map(|selected_index| {
-                            self.selected_index = selected_index;
-                            self.rebuild_indication_tree();
-                            true
-                        })
-                        .unwrap_or(false),
+                    // MouseButton::Right => self
+                    //     .selected_node_history
+                    //     .pop()
+                    //     .map(|selected_index| {
+                    //         self.selected_index = selected_index;
+                    //         self.rebuild_indication_tree();
+                    //         true
+                    //     })
+                    //     .unwrap_or(false),
                     _ => false,
                 }
             }
