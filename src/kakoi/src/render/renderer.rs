@@ -1,7 +1,6 @@
 use super::{circle::CircleConstraintBuilder, image::ImageRenderer, text::TextConstraintBuilder};
 use crate::camera::Camera;
 use crate::input_manager::CompleteAction;
-use crate::input_map::vk_to_keyname_string;
 use crate::spatial_tree::SpatialTree;
 use crate::{
     arena::{Arena, ArenaKey},
@@ -13,7 +12,6 @@ pub struct Renderer {
     camera: Camera,
     width: f32,
     height: f32,
-    selected_index: ArenaKey,
     selected_node_history: Vec<ArenaKey>,
     text_renderer: TextConstraintBuilder,
     circle_renderer: CircleConstraintBuilder,
@@ -23,30 +21,9 @@ pub struct Renderer {
     input_manager: InputManager,
 }
 
-// fn screen_to_view_coordinates(
-//     screen_x: f32,
-//     screen_y: f32,
-//     screen_width: f32,
-//     screen_height: f32,
-// ) -> (f32, f32) {
-//     let aspect = screen_width / screen_height;
-//     let (cx, cy) = (screen_x, screen_y);
-//     let x = (2.0 * cx / screen_width) - 1.0;
-//     let y = (-2.0 * cy / screen_height) + 1.0;
-//     if aspect > 1.0 {
-//         (x * aspect, y)
-//     } else {
-//         (x, y / aspect)
-//     }
-// }
-
 impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let mut arena = Arena::new();
-        arena.bind_register_to_string("a", "a");
-        arena.set_insert(".", "a");
-        arena.bind_register_to_string("a", "e");
-        arena.set_insert(".", "a");
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
         let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
@@ -67,7 +44,6 @@ impl Renderer {
             camera,
             width: sc_desc.width as f32,
             height: sc_desc.height as f32,
-            selected_index: selected_key,
             selected_node_history: vec![],
             text_renderer,
             circle_renderer,
@@ -162,6 +138,15 @@ impl Renderer {
                                 .bind_register_to_register_value(".".into(), register);
                             true
                         }
+                        CompleteAction::BindRegisterToRegisterValue(to_be_bound, to_lookup) => {
+                            if to_be_bound == "." {
+                                self.selected_node_history
+                                    .push(self.store.register(".").unwrap());
+                            }
+                            self.store
+                                .bind_register_to_register_value(to_be_bound, to_lookup);
+                            true
+                        }
                         CompleteAction::BindRegisterToString(register, string) => {
                             self.store.bind_register_to_string(register, string);
                             true
@@ -173,6 +158,12 @@ impl Renderer {
                                 self.store.bind_register(".", selected_index);
                             })
                             .is_some(),
+                        CompleteAction::Registers => {
+                            self.selected_node_history
+                                .push(self.store.register(".").unwrap());
+                            self.store.bind_register(".", self.store.register_map);
+                            true
+                        }
                     },
                     None => false,
                 };

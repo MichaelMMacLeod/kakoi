@@ -7,13 +7,17 @@ use winit::event::{ElementState, KeyboardInput};
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum Action {
     SelectRegister,
+    BindRegisterToRegisterValue,
     BindRegisterToString,
     Back,
+    Registers,
 }
 
 pub enum CompleteAction {
     SelectRegister(String),
+    BindRegisterToRegisterValue(String, String),
     BindRegisterToString(String, String),
+    Registers,
     Back,
 }
 
@@ -40,6 +44,13 @@ impl ActionState {
                 n if n > 1 => panic!(),
                 _ => None,
             },
+            Action::BindRegisterToRegisterValue => match self.data.len() {
+                2 => Some(CompleteAction::BindRegisterToRegisterValue(
+                    self.data[0].clone(),
+                    self.data[1].clone(),
+                )),
+                _ => None,
+            },
             Action::BindRegisterToString => match self.data.len() {
                 2 => Some(CompleteAction::BindRegisterToString(
                     self.data[0].clone(),
@@ -52,6 +63,10 @@ impl ActionState {
                 0 => Some(CompleteAction::Back),
                 _ => panic!(),
             },
+            Action::Registers => match self.data.len() {
+                0 => Some(CompleteAction::Registers),
+                _ => panic!(),
+            },
         }
     }
 
@@ -62,12 +77,20 @@ impl ActionState {
                     0 => Recorder::Register,
                     _ => panic!(),
                 },
+                Action::BindRegisterToRegisterValue => match self.data.len() {
+                    0 => Recorder::Register,
+                    1 => Recorder::Register,
+                    _ => panic!(),
+                }
                 Action::BindRegisterToString => match self.data.len() {
                     0 => Recorder::Register,
                     1 => Recorder::String("".into()),
                     _ => panic!(),
                 },
                 Action::Back => match self.data.len() {
+                    _ => panic!(),
+                },
+                Action::Registers => match self.data.len() {
                     _ => panic!(),
                 },
             });
@@ -278,7 +301,9 @@ impl InputManager {
         let mut input_map = InputMap::new();
         input_map.bind(vec!["space", "r", "s"], Action::SelectRegister);
         input_map.bind(vec!["space", "r", "b", "s"], Action::BindRegisterToString);
+        input_map.bind(vec!["space", "r", "b", "r"], Action::BindRegisterToRegisterValue);
         input_map.bind(vec!["space", "b"], Action::Back);
+        input_map.bind(vec!["space", "v"], Action::Registers);
         Self {
             input_state: InputState::new(input_map),
             modifiers: Modifiers::new(),
@@ -314,7 +339,8 @@ impl InputManager {
                     None
                 }
             }
-        }.map(|complete_action| {
+        }
+        .map(|complete_action| {
             self.action_state = None;
             complete_action
         })

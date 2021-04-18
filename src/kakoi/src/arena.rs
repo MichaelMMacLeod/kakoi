@@ -35,7 +35,7 @@ pub struct Value {
 
 pub struct Arena {
     pub slot_map: SlotMap<ArenaKey, Value>,
-    register_map: ArenaKey,
+    pub register_map: ArenaKey,
     selected_register: ArenaKey,
     lookup_map: HashMap<u64, ArenaKey>,
 }
