@@ -97,6 +97,10 @@ pub struct Arena {
     lookup_map: HashMap<u64, ArenaKey>,
 }
 
+/// Inserts a [`String`] into a [`SlotMap`].
+///
+/// If the string's hash already has an entry in the `lookup_map`, that key is
+/// returned and the `slot_map` is not modified.
 fn insert_string<S: Into<String>>(
     slot_map: &mut SlotMap<ArenaKey, Value>,
     lookup_map: &mut HashMap<u64, ArenaKey>,
@@ -122,6 +126,10 @@ fn insert_string<S: Into<String>>(
     }
 }
 
+/// Inserts an [`image`](image::RgbaImage) into a [`SlotMap`].
+///
+/// If the image's hash already has an entry in the `lookup_map`, that key is
+/// returned and the `slot_map` is not modified.
 fn insert_image(
     slot_map: &mut SlotMap<ArenaKey, Value>,
     lookup_map: &mut HashMap<u64, ArenaKey>,
@@ -145,6 +153,12 @@ fn insert_image(
     }
 }
 
+/// Convenience function for marking a [`Value`] as being contained within
+/// another.
+///
+/// * `indicated`: the contained value
+/// * `indicator`: the container of `indicated`
+/// * `route`: the way in which `indicated` is contained within `indicator`
 fn add_inclusion(
     slot_map: &mut SlotMap<ArenaKey, Value>,
     indicated: ArenaKey,
@@ -158,6 +172,12 @@ fn add_inclusion(
         .insert((indicator, route));
 }
 
+/// Convenience function for marking a [`Value`] as not being contained within
+/// another.
+///
+/// * `indicated`: the contained value
+/// * `indicator`: the container of `indicated`
+/// * `route`: the way in which `indicated` is contained within `indicator`
 fn remove_inclusion(
     slot_map: &mut SlotMap<ArenaKey, Value>,
     indicated: ArenaKey,
@@ -171,6 +191,7 @@ fn remove_inclusion(
         .remove(&(indicator, route));
 }
 
+/// Inserts a [`set`](HashSet) into a [`SlotMap`].
 fn insert_set(slot_map: &mut SlotMap<ArenaKey, Value>, set: HashSet<ArenaKey>) -> ArenaKey {
     let indications = set.iter().copied().collect::<Vec<_>>();
 
@@ -188,6 +209,7 @@ fn insert_set(slot_map: &mut SlotMap<ArenaKey, Value>, set: HashSet<ArenaKey>) -
     key
 }
 
+/// Inserts a [`map`](HashMap) into a [`SlotMap`].
 fn insert_map(
     slot_map: &mut SlotMap<ArenaKey, Value>,
     map: HashMap<ArenaKey, ArenaKey>,
