@@ -1,11 +1,11 @@
-use super::{circle::CircleConstraintBuilder, image::ImageRenderer, text::TextConstraintBuilder};
-use crate::camera::Camera;
+use super::{circle::CircleRenderer, image::ImageRenderer, text::TextRenderer};
 use crate::input_manager::CompleteAction;
 use crate::spatial_tree::SpatialTree;
 use crate::{
     arena::{Arena, ArenaKey},
     input_manager::InputManager,
 };
+use crate::{camera::Camera, spatial_tree::SpatialTreeData};
 
 pub struct Renderer {
     store: Arena,
@@ -13,8 +13,8 @@ pub struct Renderer {
     width: f32,
     height: f32,
     selected_node_history: Vec<ArenaKey>,
-    text_renderer: TextConstraintBuilder,
-    circle_renderer: CircleConstraintBuilder,
+    text_renderer: TextRenderer,
+    circle_renderer: CircleRenderer,
     image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
     indication_tree: SpatialTree,
@@ -25,8 +25,8 @@ impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let mut arena = Arena::new();
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
-        let mut circle_renderer = CircleConstraintBuilder::new(device, sc_desc);
-        let mut text_renderer = TextConstraintBuilder::new(device, sc_desc);
+        let mut circle_renderer = CircleRenderer::new(device, sc_desc);
+        let mut text_renderer = TextRenderer::new(device, sc_desc);
         let mut image_renderer = ImageRenderer::new(device, sc_desc);
         let selected_key = arena.register(".").unwrap();
         let spatial_tree = SpatialTree::new(
@@ -211,76 +211,7 @@ impl Renderer {
                                 true
                             })
                             .unwrap_or(false)
-                        // let (cx, cy) = screen_to_view_coordinates(
-                        //     self.cursor_position.0,
-                        //     self.cursor_position.1,
-                        //     self.width,
-                        //     self.height,
-                        // );
-
-                        // let overlay_focus_tree_index = {
-                        //     let overlay_focus =
-                        //         self.store.get_overlay(&self.selected_index).focus();
-                        //     self.store
-                        //         .get_indication_tree(&self.indication_tree)
-                        //         .indications
-                        //         .iter()
-                        //         .find(|k| {
-                        //             // dbg!(self.store.get_indication_tree(k).key.index(), newstore::Key::from(self.selected_index));
-                        //             self.store.get_indication_tree(k).key.index()
-                        //                 == overlay_focus.index()
-                        //         })
-                        //         .unwrap()
-                        // };
-
-                        // let selected_node = self
-                        //     .store
-                        //     .get_indication_tree(overlay_focus_tree_index)
-                        //     .indications
-                        //     .iter()
-                        //     .map(|k| self.store.get_indication_tree(k))
-                        //     .collect::<Vec<_>>()
-                        //     .into_iter()
-                        //     .find_map(
-                        //         |newstore::IndicationTree {
-                        //              key: node, sphere, ..
-                        //          }| {
-                        //             let dx = sphere.center.x - cx;
-                        //             let dy = sphere.center.y - cy;
-                        //             let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
-
-                        //             if inside_rad {
-                        //                 Some(node)
-                        //             } else {
-                        //                 None
-                        //             }
-                        //         },
-                        //     );
-
-                        // if let Some(node) = selected_node {
-                        //     let node = *node;
-                        //     let current_focus =
-                        //         *self.store.get_overlay(&self.selected_index).focus();
-                        //     self.store
-                        //         .overlay_indicate_focus(&self.selected_index, &node);
-                        //     self.selected_node_history.push(current_focus);
-
-                        //     self.rebuild_indication_tree();
-
-                        //     true
-                        // } else {
-                        //     false
-                        // }
                     }
-                    // MouseButton::Right => self
-                    //     .selected_node_history
-                    //     .pop()
-                    //     .map(|selected_index| {
-                    //         self.selected_index = selected_index;
-                    //         self.rebuild_indication_tree();
-                    //         true
-                    //     })
-                    //     .unwrap_or(false),
                     _ => false,
                 }
             }

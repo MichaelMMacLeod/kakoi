@@ -2,6 +2,7 @@ use crate::sphere::Sphere;
 use crate::{camera::Camera, sampling_config::SamplingConfig};
 use wgpu::util::DeviceExt;
 
+/// A view-projection matrix encoded as a
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Uniforms {
@@ -74,7 +75,7 @@ impl Vertex {
     }
 }
 
-pub struct CircleConstraintBuilder {
+pub struct CircleRenderer {
     pub constraints: Vec<Sphere>,
     instances_cache: Option<wgpu::Buffer>,
     render_pipeline: wgpu::RenderPipeline,
@@ -86,7 +87,7 @@ pub struct CircleConstraintBuilder {
     sampling_config: SamplingConfig,
 }
 
-impl CircleConstraintBuilder {
+impl CircleRenderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let vertex_buffer_data = Vertex::circle();
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

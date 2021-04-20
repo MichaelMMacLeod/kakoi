@@ -4,7 +4,7 @@ use crate::arena::{ArenaKey, Value, Structure};
 use crate::spatial_tree::SpatialTreeData;
 use wgpu_glyph::GlyphCruncher;
 
-pub struct TextConstraintBuilder {
+pub struct TextRenderer {
     constraints: Vec<SpatialTreeData>,
     instances_cache: Vec<TextConstraintInstance>,
     instances_cache_stale: bool,
@@ -14,7 +14,7 @@ pub struct TextConstraintBuilder {
     local_spawner: futures::executor::LocalSpawner,
 }
 
-impl TextConstraintBuilder {
+impl TextRenderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         // Not exactly sure what size to set here. Smaller sizes (~1024) seem to
         // cause lag. Larger sizes (~4096) seem to cause less lag. Ideally, we'd
