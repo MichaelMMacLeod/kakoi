@@ -73,14 +73,14 @@ impl TextRenderer {
         );
         self.instances_cache_stale = false;
         for instance in &self.instances_cache {
-            let text = match store.get(instance.key).unwrap().structure.as_ref() {
+            let text = match &store.get(instance.key).unwrap().structure {
                 Structure::String(s) => s,
                 _ => panic!(),
             };
             let section = wgpu_glyph::Section {
                 screen_position: (-instance.width * 0.5, -instance.height * 0.5),
                 bounds: (f32::INFINITY, f32::INFINITY),
-                text: vec![wgpu_glyph::Text::new(text)
+                text: vec![wgpu_glyph::Text::new(text.as_ref())
                     .with_color([1.0, 1.0, 1.0, 1.0])
                     .with_scale(instance.scale)],
                 ..wgpu_glyph::Section::default()
@@ -165,7 +165,7 @@ impl TextConstraintInstance {
         viewport_width: f32,
         viewport_height: f32,
     ) -> Self {
-        let text = match store.get(*key).unwrap().structure.as_ref() {
+        let text = match &store.get(*key).unwrap().structure {
             Structure::String(s) => s,
             _ => panic!(),
         };

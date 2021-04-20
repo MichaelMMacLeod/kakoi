@@ -299,7 +299,7 @@ impl ImageRenderer {
         let texture_bind_group_layout = &self.texture_bind_group_layout;
 
         for (image_key, mut unbound_image_instance) in self.unbound.drain() {
-            let image = match store.get(image_key).unwrap().structure.as_ref() {
+            let image = match &store.get(image_key).unwrap().structure {
                 Structure::Image(i) => i,
                 _ => panic!(),
             };
@@ -330,7 +330,7 @@ impl ImageRenderer {
                     mip_level: 0,
                     origin: wgpu::Origin3d::ZERO,
                 },
-                image,
+                image.as_ref(),
                 wgpu::TextureDataLayout {
                     offset: 0,
                     bytes_per_row: 4 * dimensions.0,

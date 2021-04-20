@@ -130,16 +130,11 @@ fn rebuild_tree(
             .screen_radius(screen_width, screen_height)
             > 1.0
         {
-            match slot_map
-                .get(spatial_tree_data.key)
-                .unwrap()
-                .structure
-                .as_ref()
-            {
+            match &slot_map.get(spatial_tree_data.key).unwrap().structure {
                 Structure::String(_) => handle_string(text_renderer, spatial_tree_data),
                 Structure::Image(_) => handle_image(image_renderer, spatial_tree_data),
-                Structure::Set(set) => handle_set(circle_renderer, spatial_tree_data, set),
-                Structure::Map(map) => handle_map(circle_renderer, spatial_tree_data, map),
+                Structure::Set(set) => handle_set(circle_renderer, spatial_tree_data, set.as_ref()),
+                Structure::Map(map) => handle_map(circle_renderer, spatial_tree_data, map.as_ref()),
             }
             .into_iter()
             .for_each(|child_data| {

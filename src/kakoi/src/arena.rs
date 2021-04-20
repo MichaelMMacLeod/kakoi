@@ -1,3 +1,8 @@
+//! Object storage
+//!
+//! Everything we can interact with in Kakoi is backed by a [`Value`] that is
+//! stored in a single [`Arena`].
+
 use slotmap::{new_key_type, SlotMap};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
@@ -5,45 +10,91 @@ use std::{
 };
 
 new_key_type! {
+    /// Key for accessing [`Value`]s in an [`Arena`].
     pub struct ArenaKey;
 }
 
+/// Describes the way in which a containee [`Value`] is included inside of a
+/// [`Structure::Map`].
 #[derive(PartialEq, Eq, Hash)]
 pub enum MapRoute {
+    /// For [`Value`]s contained within the key of a map.
     Key,
+    /// For [`Value`]s contained within the value of a map associated with a
+    /// specific key of the map.
     ValueOf(ArenaKey),
 }
 
+/// Describes the way in which a containee [`Value`] is included inside of a
+/// container [`Value`].
 #[derive(PartialEq, Eq, Hash)]
 pub enum Route {
+    /// For [`Value`]s contained within a [`Structure::Set`].
     Set,
+    /// For [`Value`]s contained within a [`Structure::Map`].
     Map(MapRoute),
 }
 
+/// Data container inside [`Value`].
+///
+/// The data associated with each variant is boxed to save memory. It may not be
+/// necessary to box every variant. This has not been profiled.
 pub enum Structure {
-    Set(HashSet<ArenaKey>),
-    // Overlay(Overlay),
-    Map(HashMap<ArenaKey, ArenaKey>),
-    Image(image::RgbaImage),
-    String(String),
+    /// A [set] for associating unique objects.
+    ///
+    /// [set]: https://en.wikipedia.org/wiki/Set_(mathematics)
+    Set(Box<HashSet<ArenaKey>>),
+    /// A [map] for associating unique key-objects with value-objects. A single
+    /// key may only be associated with one value, but there may be many keys
+    /// associated with the same value.
+    ///
+    /// [map]: https://en.wikipedia.org/wiki/Associative_array
+    Map(Box<HashMap<ArenaKey, ArenaKey>>),
+    /// An image. Does not contain any other values.
+    Image(Box<image::RgbaImage>),
+    /// A string. Does not contain any other values.
+    String(Box<String>),
 }
 
+/// Container that also tracks which [`Value`]s contain it.
 pub struct Value {
-    pub structure: Box<Structure>,
+    /// The data associated with this object.
+    pub structure: Structure,
+    /// A set of objects that contain this value. Each [`Route`] describes how
+    /// this value is contained.
+    ///
+    /// It is necessary to track the inclusions of each value in order to easily
+    /// (computationally speaking) determine which values contain this value.
+    /// Tracking the routes is necessary because a single value may be contained
+    /// in the same container multiple times in different places. For instance,
+    /// it could be both a key and a value in the same map.
+    ///
+    /// All functions that modify a [`Value`]'s `structure` should predictably
+    /// modify the `inclusions` of contained values when necessary. For
+    /// instance, if this value is a set and we are inserting a string into it,
+    /// the string value's `inclusions` field must be modified to point to this
+    /// value through [`Route::Set`].
     pub inclusions: HashSet<(ArenaKey, Route)>,
 }
 
+/// Storage container for [`Value`]s.
 pub struct Arena {
+    /// Underlying container implementation.
     pub slot_map: SlotMap<ArenaKey, Value>,
+    /// Key that refers to a `Structure::Map` in the `slot_map` pairing
+    /// registers with their values.
     pub register_map: ArenaKey,
-    selected_register: ArenaKey,
+    /// Associates the hash of the unboxed data inside of a [`Structure`]
+    /// variant with the [`ArenaKey`] it is bound to in the `slot_map`. We use
+    /// this to determine if hashable values have already been inserted into the
+    /// [`Arena`].
+    ///
+    /// This is necessary when we need to find the key of a value in the
+    /// `slot_map`. For instance, many functions on [`Arena`] take strings that
+    /// represent register names. Without this field, there would be no easy way
+    /// to know if we had already inserted the register string into the
+    /// `register_map`, and we would be unable to easily look up its value.
     lookup_map: HashMap<u64, ArenaKey>,
-}
-
-fn get_hash_of<V: Hash>(value: V) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    value.hash(&mut hasher);
-    hasher.finish()
 }
 
 fn insert_string<S: Into<String>>(
@@ -62,7 +113,7 @@ fn insert_string<S: Into<String>>(
         // otherwise, insert the string into the slot map and the lookup map
         None => {
             let key = slot_map.insert(Value {
-                structure: Box::new(Structure::String(string)),
+                structure: Structure::String(Box::new(string)),
                 inclusions: HashSet::new(),
             });
             lookup_map.entry(hash).or_insert(key);
@@ -85,7 +136,7 @@ fn insert_image(
         // otherwise, insert the image into the slot map and the lookup map
         None => {
             let key = slot_map.insert(Value {
-                structure: Box::new(Structure::Image(image)),
+                structure: Structure::Image(Box::new(image)),
                 inclusions: HashSet::new(),
             });
             lookup_map.entry(hash).or_insert(key);
@@ -125,7 +176,7 @@ fn insert_set(slot_map: &mut SlotMap<ArenaKey, Value>, set: HashSet<ArenaKey>) -
 
     // insert the set into the slot map
     let key = slot_map.insert(Value {
-        structure: Box::new(Structure::Set(set)),
+        structure: Structure::Set(Box::new(set)),
         inclusions: HashSet::new(),
     });
 
@@ -145,7 +196,7 @@ fn insert_map(
 
     // insert the map into the slot map
     let key = slot_map.insert(Value {
-        structure: Box::new(Structure::Map(map)),
+        structure: Structure::Map(Box::new(map)),
         inclusions: HashSet::new(),
     });
 
@@ -158,22 +209,22 @@ fn insert_map(
     key
 }
 
-fn insert_structure(
-    slot_map: &mut SlotMap<ArenaKey, Value>,
-    lookup_map: &mut HashMap<u64, ArenaKey>,
-    structure: Structure,
-) -> ArenaKey {
-    match structure {
-        Structure::String(string) => insert_string(slot_map, lookup_map, string),
-        Structure::Image(image) => insert_image(slot_map, lookup_map, image),
-        Structure::Set(set) => insert_set(slot_map, set),
-        Structure::Map(map) => insert_map(slot_map, map),
-    }
-}
+// fn insert_structure(
+//     slot_map: &mut SlotMap<ArenaKey, Value>,
+//     lookup_map: &mut HashMap<u64, ArenaKey>,
+//     structure: Structure,
+// ) -> ArenaKey {
+//     match structure {
+//         Structure::String(string) => insert_string(slot_map, lookup_map, string),
+//         Structure::Image(image) => insert_image(slot_map, lookup_map, image),
+//         Structure::Set(set) => insert_set(slot_map, set),
+//         Structure::Map(map) => insert_map(slot_map, map),
+//     }
+// }
 
 fn set_insert(slot_map: &mut SlotMap<ArenaKey, Value>, set: ArenaKey, value: ArenaKey) {
     add_inclusion(slot_map, value, set, Route::Set);
-    match slot_map.get_mut(set).unwrap().structure.as_mut() {
+    match &mut slot_map.get_mut(set).unwrap().structure {
         Structure::Set(hash_set) => {
             hash_set.insert(value);
         }
@@ -183,7 +234,7 @@ fn set_insert(slot_map: &mut SlotMap<ArenaKey, Value>, set: ArenaKey, value: Are
 
 fn set_remove(slot_map: &mut SlotMap<ArenaKey, Value>, set: ArenaKey, value: ArenaKey) {
     remove_inclusion(slot_map, value, set, Route::Set);
-    match slot_map.get_mut(set).unwrap().structure.as_mut() {
+    match &mut slot_map.get_mut(set).unwrap().structure {
         Structure::Set(hash_set) => {
             hash_set.remove(&value);
         }
@@ -193,7 +244,7 @@ fn set_remove(slot_map: &mut SlotMap<ArenaKey, Value>, set: ArenaKey, value: Are
 
 fn set_union(slot_map: &mut SlotMap<ArenaKey, Value>, set_to_modify: ArenaKey, other: ArenaKey) {
     // add `set_to_modify` to the inclusions of the indications of `other`
-    let other_indications = match slot_map.get(other).unwrap().structure.as_ref() {
+    let other_indications = match &slot_map.get(other).unwrap().structure {
         Structure::Set(hash_set) => hash_set.iter().copied().collect::<Vec<_>>(),
         _ => panic!(),
     };
@@ -208,7 +259,7 @@ fn set_union(slot_map: &mut SlotMap<ArenaKey, Value>, set_to_modify: ArenaKey, o
             ..
         }, Value {
             structure: other, ..
-        }] => match [set_to_modify.as_mut(), other.as_mut()] {
+        }] => match [set_to_modify, other] {
             [Structure::Set(set_to_modify), Structure::Set(other)] => {
                 for i in other.iter().copied() {
                     set_to_modify.insert(i);
@@ -225,7 +276,7 @@ fn set_difference(
     other: ArenaKey,
 ) {
     // remove `set_to_modify` from the inclusions of the indications of `other`.
-    let other_indications = match slot_map.get(other).unwrap().structure.as_ref() {
+    let other_indications = match &slot_map.get(other).unwrap().structure {
         Structure::Set(hash_set) => hash_set.iter().copied().collect::<Vec<_>>(),
         _ => panic!(),
     };
@@ -240,7 +291,7 @@ fn set_difference(
             ..
         }, Value {
             structure: other, ..
-        }] => match [set_to_modify.as_mut(), other.as_mut()] {
+        }] => match [set_to_modify, other] {
             [Structure::Set(set_to_modify), Structure::Set(other)] => {
                 for i in other.iter() {
                     set_to_modify.remove(i);
@@ -257,7 +308,7 @@ fn map_remove_value_inclusion(
     map: ArenaKey,
     key: ArenaKey,
 ) {
-    match slot_map.get(map).unwrap().structure.as_ref() {
+    match &slot_map.get(map).unwrap().structure {
         Structure::Map(hash_map) => {
             hash_map.get(&key).copied().map(|old_value| {
                 remove_inclusion(slot_map, old_value, map, Route::Map(MapRoute::ValueOf(key)));
@@ -270,7 +321,7 @@ fn map_remove_value_inclusion(
 fn map_remove(slot_map: &mut SlotMap<ArenaKey, Value>, map: ArenaKey, key: ArenaKey) {
     map_remove_value_inclusion(slot_map, map, key);
     remove_inclusion(slot_map, key, map, Route::Map(MapRoute::Key));
-    match slot_map.get_mut(map).unwrap().structure.as_mut() {
+    match &mut slot_map.get_mut(map).unwrap().structure {
         Structure::Map(hash_map) => {
             hash_map.remove(&key);
         }
@@ -292,7 +343,7 @@ fn map_insert(
     add_inclusion(slot_map, key, map, Route::Map(MapRoute::Key));
 
     // Add (key, value) to the map
-    match slot_map.get_mut(map).unwrap().structure.as_mut() {
+    match &mut slot_map.get_mut(map).unwrap().structure {
         Structure::Map(hash_map) => {
             hash_map.insert(key, value);
         }
@@ -301,7 +352,7 @@ fn map_insert(
 }
 
 fn map_get(slot_map: &SlotMap<ArenaKey, Value>, map: ArenaKey, key: ArenaKey) -> Option<ArenaKey> {
-    match slot_map.get(map).unwrap().structure.as_ref() {
+    match &slot_map.get(map).unwrap().structure {
         Structure::Map(hash_map) => hash_map.get(&key).copied(),
         _ => panic!(),
     }
@@ -320,7 +371,6 @@ impl Arena {
         Self {
             slot_map,
             register_map,
-            selected_register,
             lookup_map,
         }
     }
