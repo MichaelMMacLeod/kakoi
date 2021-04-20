@@ -44,10 +44,16 @@ use std::collections::{vec_deque::VecDeque, HashMap, HashSet};
 
 new_key_type! {
     /// Key to access [`SpatialTreeData`] in a [`SpatialTree`].
+    ///
+    /// See [the module-level documentation](crate::spatial_tree) for more
+    /// information.
     pub struct SpatialTreeKey;
 }
 
 /// An object with a center position and maximum possible size.
+///
+/// See [the module-level documentation](crate::spatial_tree) for more
+/// information.
 #[derive(Clone, Copy)]
 pub struct SpatialTreeData {
     /// The object that will be displayed on screen.
