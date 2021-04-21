@@ -1,10 +1,9 @@
 use super::{circle::CircleRenderer, image::ImageRenderer, text::TextRenderer};
 use crate::camera::Camera;
-use crate::input_manager::CompleteAction;
 use crate::spatial_tree::SpatialTree;
 use crate::{
     arena::{Arena, ArenaKey},
-    new_input_manager::InputManager,
+    input_manager::{CompleteAction, InputManager},
 };
 
 pub struct Renderer {
