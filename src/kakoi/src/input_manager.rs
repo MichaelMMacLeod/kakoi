@@ -1,21 +1,106 @@
+//! # User input handling
+//!
+//! This module exports [`InputManager`], a struct that handles keyboard input
+//! processing. It contains one method,
+//! [`process_input`](InputManager::process_input), that receive a keyboard
+//! event from the window and (maybe) returns a [`CompleteAction`].
+//!
+//! At any point in time the user is expected to enter a certain type of input.
+//! Most commonly, we expect the user to press a single key. It is also possible
+//! to expect different things. For instance, when inserting a piece of text the
+//! user is instead expected to make zero-or-more key presses followed by a
+//! press of shift+enter to complete the string. The different expectations of
+//! what types of things the user should enter are encapsulated by
+//! [`InputRequirementDescriptor`]s.
+//!
+//! A key binding is described as a sequence of [`InputRequirementDescriptor`]s
+//! followed by a function called an action constructor. The action constructor
+//! receives the input the user has entered and produces a [`CompleteAction`].
+//! The [`CompleteAction`] may contain elements of what the user entered. Use
+//! the [`key`], [`register`], and [`string`] functions as shorthands for
+//! creating [`InputRequirementDescriptor`]s.
+//!
+//! Key bindings are stored in a [`KeyBinder`]. The [`KeyBinder`] can be thought
+//! of as a [finite state machine] where each state represents a certain stage
+//! of user input. Each stage has associated with it a type which corresponds to
+//! the kind of input we expect the user to enter from that stage (see
+//! [`InputRequirementDescriptor`]).
+//!
+//! The [`KeyBinder`] does not contain any data about the current state of user
+//! input. That state is instead encapsulated inside [`InputState`]s. The
+//! initial input state can be produced by [`KeyBinder::start_state`]. The
+//! current [`InputState`] is contained within the [`InputManager`].
+//!
+//! [finite state machine]: https://en.wikipedia.org/wiki/Finite-state_machine
+
 use slotmap::{new_key_type, SlotMap};
 use std::collections::{HashMap, VecDeque};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 
+/// Describes a command the user has inputted.
+///
+/// These actions are produced by the functions passed in as arguments to
+/// [`KeyBinder::bind`].
+///
+/// Each [`CompleteAction`] may have associated with it some data, probably in
+/// the form of [`String`]s. This data may come from the user, but it may also
+/// come from the function that created the [`CompleteAction`].
+///
+/// Whenever a [`CompleteAction`] is meant to modify something (the contents of
+/// a register, for instance), the argument that gets modified comes first.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CompleteAction {
+    /// SetInsert(register_a, register_b)
+    ///
+    /// Inserts the value bound to register_b into the set bound to register_a.
     SetInsert(String, String),
+    /// SetUnion(register_a, register_b)
+    ///
+    /// Modifies the set bound to register_a so that it includes all of the
+    /// values inside the set bound to register_a as well as all of the values
+    /// inside the set bound to register_b.
     SetUnion(String, String),
+    /// SetRemove(register_a, register_b)
+    ///
+    /// Removes the value bound to register_b from the set bound to register_a.
     SetRemove(String, String),
+    /// InsertStringIntoSetRegister(register, string)
+    ///
+    /// Inserts `string` into the set bound to a register.
     InsertStringIntoSetRegister(String, String),
+    /// SelectRegister(register_to_focus)
+    ///
+    /// Binds the register `.` to the value stored in register_to_focus. This
+    /// has the consequence of making the value bound in register_to_focus be
+    /// displayed on screen, since `.` is the register containing the value
+    /// currently displayed on screen.
     SelectRegister(String),
+    /// BindRegisterToRegisterValue(to_modify, to_lookup)
+    ///
+    /// Binds the register to_modify to the value bound to to_lookup.
     BindRegisterToRegisterValue(String, String),
+    /// BindRegisterToString(register, string)
+    ///
+    /// Binds a register to a string.
     BindRegisterToString(String, String),
+    /// BindRegisterToEmptySet(register)
+    ///
+    /// Binds a register to an empty set.
     BindRegisterToEmptySet(String),
+    /// Registers
+    ///
+    /// Binds the register `.` to the map of register-value bindings.
     Registers,
+    /// Back
+    ///
+    /// Binds the register `.` to the previously-focused value.
     Back,
 }
 
+/// Encapsulates everything needed to process user keyboard input.
+///
+/// See [the module-level documentation](crate::input_manager) for more
+/// information.
 pub struct InputManager {
     key_binder: KeyBinder,
     input_state: InputState,
@@ -23,6 +108,7 @@ pub struct InputManager {
 }
 
 impl InputManager {
+    /// Creates a new [`InputManager`] backed with the default key bindings.
     pub fn new() -> Self {
         let mut key_binder = KeyBinder::new();
         key_binder.with_default_bindings();
@@ -35,9 +121,14 @@ impl InputManager {
             },
         }
     }
+
+    /// Receives keyboard input from the window, accumulating it. Returns a
+    /// [`CompleteAction`] if the current accumulation of input is complete,
+    /// as is determined by the [`KeyBinder`].
     pub fn process_input(&mut self, keyboard_input: &KeyboardInput) -> Option<CompleteAction> {
         let pressed = keyboard_input.state == ElementState::Pressed;
         if let Some(virtual_key_code) = &keyboard_input.virtual_keycode {
+            // Update `modifiers` if shift was pressed or unpressed.
             match virtual_key_code {
                 VirtualKeyCode::LShift | VirtualKeyCode::RShift => {
                     self.pressed_keys.shift_pressed = pressed
@@ -50,6 +141,10 @@ impl InputManager {
                 pressed_keys: &self.pressed_keys,
             };
 
+            // key_binder.process_input is meant to be called on key presses,
+            // not key releases. This might change in the future if releasing a
+            // key becomes something that can be tracked inside of the key
+            // binder.
             if pressed {
                 self.key_binder.process_input(&mut self.input_state, input)
             } else {
@@ -61,17 +156,31 @@ impl InputManager {
     }
 }
 
+/// A stage of user input inside a [`KeyBinder`].
+///
+/// These stages can be referred to using [`InputManagerKey`]s.
 enum InputAccumulationStage {
+    /// A stage that expects the user to input something of a certain type.
+    /// Contains information about which [`InputAccumulationStage`]s to go to
+    /// next, possibly depending on what the user entered.
     InputRequirement(InputRequirement),
-    Done(fn(&mut Vec<String>) -> CompleteAction),
+    /// The final stage of a series of user inputs. Holds a function that takes
+    /// the user input (as was accumulated in previous stages) and produces a
+    /// [`CompleteAction`].
+    Done(fn(accumulated_input: &mut Vec<String>) -> CompleteAction),
 }
 
-pub struct KeyBinder {
-    slot_map: SlotMap<InputManagerKey, InputAccumulationStage>,
-    start_stage: Option<InputManagerKey>,
+/// Associates descriptions of user input with [`CompleteAction`]s.
+struct KeyBinder {
+    /// The underlying storage container.
+    slot_map: SlotMap<KeyBinderKey, InputAccumulationStage>,
+    /// The first stage of user input. If `KeyBinder::bind` has never been
+    /// called, this is [`None`].
+    start_stage: Option<KeyBinderKey>,
 }
 
 impl KeyBinder {
+    /// Creates a new [`KeyBinder`] with no key bindings.
     fn new() -> Self {
         Self {
             slot_map: SlotMap::with_key(),
@@ -79,6 +188,7 @@ impl KeyBinder {
         }
     }
 
+    /// Registers the 'default' key bindings.
     fn with_default_bindings(&mut self) {
         self.bind(vec![key("s"), register()], |v| {
             let register = v.pop().unwrap();
@@ -107,29 +217,64 @@ impl KeyBinder {
         });
     }
 
+    /// Associates a description of user input with a function that takes that
+    /// input and returns a [`CompleteAction`].
+    ///
+    /// This function will panic if you attempt to overwrite an existing
+    /// keybinding. For example, binding [key(w), key(f), string()] AND [key(w),
+    /// key(f), register()] will panic. This extremely-panicky behavior should
+    /// probably be changed.
+    ///
+    /// Note: this function will NOT panic if you add overlapping keybindings of
+    /// the same type. For instance, binding [key(w), key(s), string()] AND
+    /// [key(w), key(r), register()] will not panic, since key(s) and key(r) are
+    /// both of the same type (expecting the user to input a key).
     fn bind(
         &mut self,
         descriptors: Vec<InputRequirementDescriptor>,
-        action_constructor: fn(&mut Vec<String>) -> CompleteAction,
+        action_constructor: fn(accumulated_input: &mut Vec<String>) -> CompleteAction,
     ) {
         let action_key = self
             .slot_map
             .insert(InputAccumulationStage::Done(action_constructor));
-        let first_key =
-            descriptors
-                .into_iter()
-                .rev()
-                .fold(action_key, |next_key, processing_descriptor| {
-                    self.slot_map
-                        .insert(InputAccumulationStage::InputRequirement(
-                            processing_descriptor.to_input_requirement(next_key),
-                        ))
-                });
+        // Insert the descriptors in the reverse order. We need to do this in
+        // reverse because each InputRequirement needs to know the KeyBinderKey
+        // of the NEXT InputRequirement; key(a) in [key(a), key(b)] needs to
+        // know that when you press 'a', you need to transition into the key(b)
+        // stage, which we refer to using key(b)'s KeyBinderKey. The only way to
+        // get key(b)'s KeyBinderKey is to insert it into the slot_map, so we
+        // have to insert key(b) before inserting key(a).
+        let first_key = descriptors.into_iter().rev().fold(
+            action_key,
+            |next_key, input_requirement_descriptor| {
+                self.slot_map
+                    .insert(InputAccumulationStage::InputRequirement(
+                        input_requirement_descriptor.to_input_requirement(next_key),
+                    ))
+            },
+        );
         match self.start_stage {
+            // If this is the first time this function was called, simply mark
+            // first_key as the starting stage.
+            None => self.start_stage = Some(first_key),
+            // Otherwise, there already is a starting stage. We need to attempt
+            // to merge the new sequence of input descriptions associated with
+            // first_key into the sequence of input descriptions already
+            // associated with start_stage.
+            //
+            // If successful, this 'merge' will change the data associated with
+            // start_stage to include the data associated with first_key. Any
+            // redundant stages in first_key (which, as a result of the merging
+            // process, now have copies in start_stage) will be removed from the
+            // slot_map.
             Some(start_state) => {
                 recursively_merge(
                     &mut self.slot_map,
                     &mut vec![Merge {
+                        // we are modifying start_stage to contain the
+                        // keybinding information from first_key. In other
+                        // words, we are merging FROM first_key INTO
+                        // start_stage.
                         into: start_state,
                         from: first_key,
                     }]
@@ -137,10 +282,11 @@ impl KeyBinder {
                     .collect(),
                 );
             }
-            None => self.start_stage = Some(first_key),
         }
     }
 
+    /// Returns the [`InputState`] representing a 'starting point' for user
+    /// input, or [`None`] if no keybindings have been registered.
     fn start_state(&self) -> Option<InputState> {
         self.start_stage.map(|start_state| InputState {
             current_stage: start_state,
@@ -149,18 +295,41 @@ impl KeyBinder {
         })
     }
 
-    fn process_input(&self, input_state: &mut InputState, input: Input) -> Option<CompleteAction> {
+    /// Modifies `input_state` based on `input`, possibly returning a
+    /// [`CompleteAction`] if `input` moves `input_state` into a
+    /// [`InputAccumulationStage::Done`] stage.
+    ///
+    /// This function will panic with [`unreachable!`] if `input_state` is
+    /// already in a [`InputAccumulationStage::Done`] at the time of calling.
+    /// Since [`InputState`]s should only ever be created through
+    /// [`KeyBinder::start_state`], and since they should only ever be modified
+    /// through this function, it should be impossible for this to happen
+    /// (assuming that [`KeyBinder::bind`] binds keys correctly).
+    fn process_input<'a>(
+        &self,
+        input_state: &mut InputState,
+        input: Input<'a>,
+    ) -> Option<CompleteAction> {
         match self.slot_map.get(input_state.current_stage).unwrap() {
+            InputAccumulationStage::Done(_) => unreachable!(),
             InputAccumulationStage::InputRequirement(processing) => {
+                // if this is the first time process_input has been called with
+                // input_state in its current stage, it does not yet have a
+                // processor. Create it.
                 let processor = input_state
                     .current_processor
                     .get_or_insert_with(|| processing.processor());
+                // we can't modify `input_state` inside of the closure receiving
+                // processor.process(input), so we store what we want to modify
+                // here in `next_value` and `next_stage`, then modify
+                // `input_state` later.
                 let mut next_value = None;
                 let mut next_stage = None;
                 processor.process(input).map(|result| {
                     next_stage = Some(processing.next_stage(&result)).unwrap();
                     next_value = Some(result);
                 });
+                // (later):
                 next_value.map(|next_value| {
                     input_state.processed_input.push(next_value);
                     input_state.current_processor = None;
@@ -170,7 +339,13 @@ impl KeyBinder {
                     self.slot_map.get(input_state.current_stage).unwrap()
                 {
                     let complete_action = action_constructor(&mut input_state.processed_input);
+
+                    // return `input_state` to the start state, so its memory
+                    // can be re-used for handling future inputs.
+
                     input_state.processed_input.clear();
+                    // if we don't reset to a non-Done stage, we could hit the
+                    // unreachable! code above.
                     input_state.current_stage = self.start_stage.unwrap();
                     input_state.current_processor = None;
                     Some(complete_action)
@@ -178,20 +353,19 @@ impl KeyBinder {
                     None
                 }
             }
-            InputAccumulationStage::Done(_) => unreachable!(),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InputState {
-    current_stage: InputManagerKey,
+    current_stage: KeyBinderKey,
     current_processor: Option<InputProcessor>,
     processed_input: Vec<String>,
 }
 
 new_key_type! {
-    pub struct InputManagerKey;
+    pub struct KeyBinderKey;
 }
 
 pub fn key(str: &str) -> InputRequirementDescriptor {
@@ -213,7 +387,7 @@ pub enum InputRequirementDescriptor {
 }
 
 impl InputRequirementDescriptor {
-    fn to_input_requirement(self, key: InputManagerKey) -> InputRequirement {
+    fn to_input_requirement(self, key: KeyBinderKey) -> InputRequirement {
         match self {
             Self::Register => InputRequirement::Register(key),
             Self::String => InputRequirement::String(key),
@@ -223,9 +397,9 @@ impl InputRequirementDescriptor {
 }
 
 enum InputRequirement {
-    Register(InputManagerKey),
-    String(InputManagerKey),
-    Key(HashMap<String, InputManagerKey>),
+    Register(KeyBinderKey),
+    String(KeyBinderKey),
+    Key(HashMap<String, KeyBinderKey>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -402,12 +576,12 @@ impl InputProcessor {
 }
 
 struct Merge {
-    into: InputManagerKey,
-    from: InputManagerKey,
+    into: KeyBinderKey,
+    from: KeyBinderKey,
 }
 
 fn recursively_merge(
-    slot_map: &mut SlotMap<InputManagerKey, InputAccumulationStage>,
+    slot_map: &mut SlotMap<KeyBinderKey, InputAccumulationStage>,
     todo: &mut VecDeque<Merge>,
 ) {
     use InputAccumulationStage::InputRequirement as IR;
@@ -436,7 +610,7 @@ fn recursively_merge(
 }
 
 impl InputRequirement {
-    fn next_stage(&self, data: &String) -> Option<&InputManagerKey> {
+    fn next_stage(&self, data: &String) -> Option<&KeyBinderKey> {
         match self {
             InputRequirement::Register(k) => Some(k),
             InputRequirement::String(k) => Some(k),
