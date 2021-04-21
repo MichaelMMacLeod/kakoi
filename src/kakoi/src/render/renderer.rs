@@ -1,11 +1,11 @@
 use super::{circle::CircleRenderer, image::ImageRenderer, text::TextRenderer};
+use crate::camera::Camera;
 use crate::input_manager::CompleteAction;
 use crate::spatial_tree::SpatialTree;
 use crate::{
     arena::{Arena, ArenaKey},
     new_input_manager::InputManager,
 };
-use crate::{camera::Camera, spatial_tree::SpatialTreeData};
 
 pub struct Renderer {
     store: Arena,
@@ -18,7 +18,7 @@ pub struct Renderer {
     image_renderer: ImageRenderer,
     cursor_position: (f32, f32),
     indication_tree: SpatialTree,
-    input_magic: InputManager,
+    input_manager: InputManager,
 }
 
 impl Renderer {
@@ -38,7 +38,7 @@ impl Renderer {
             sc_desc.width as f32,
             sc_desc.height as f32,
         );
-        let input_magic = InputManager::new();
+        let input_manager = InputManager::new();
         Self {
             store: arena,
             camera,
@@ -50,7 +50,7 @@ impl Renderer {
             image_renderer,
             cursor_position: (0.0, 0.0),
             indication_tree: spatial_tree,
-            input_magic,
+            input_manager,
         }
     }
 
@@ -128,7 +128,7 @@ impl Renderer {
         use winit::event::*;
         match event {
             WindowEvent::KeyboardInput { input, .. } => {
-                let should_rebuild = match self.input_magic.process_input(input) {
+                let should_rebuild = match self.input_manager.process_input(input) {
                     Some(complete_action) => match complete_action {
                         CompleteAction::SetInsert(register_to_modify, other_register) => self
                             .store
