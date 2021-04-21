@@ -97,9 +97,9 @@ impl CircleRenderer {
         });
 
         let vs_module =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.vert.spv"));
+            device.create_shader_module(&wgpu::include_spirv!("../shaders/build/circle.vert.spv"));
         let fs_module =
-            device.create_shader_module(&wgpu::include_spirv!("../shaders/build/shader.frag.spv"));
+            device.create_shader_module(&wgpu::include_spirv!("../shaders/build/circle.frag.spv"));
 
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("circle renderer uniform buffer"),
