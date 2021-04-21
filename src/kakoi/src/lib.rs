@@ -5,7 +5,6 @@ pub mod forest;
 pub mod graph;
 pub mod input_manager;
 pub mod input_map;
-pub mod input_state;
 pub mod newstore;
 pub mod render;
 pub mod sampling_config;
