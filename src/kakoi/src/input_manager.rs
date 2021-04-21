@@ -158,7 +158,7 @@ impl InputManager {
 
 /// A stage of user input inside a [`KeyBinder`].
 ///
-/// These stages can be referred to using [`InputManagerKey`]s.
+/// These stages can be referred to using [`KeyBinderKey`]s.
 enum InputAccumulationStage {
     /// A stage that expects the user to input something of a certain type.
     /// Contains information about which [`InputAccumulationStage`]s to go to
@@ -357,36 +357,74 @@ impl KeyBinder {
     }
 }
 
+/// Encapsulates a stage of input and the previously-accumulated input.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InputState {
+    /// A description of the current stage of input.
     current_stage: KeyBinderKey,
+    /// The [`InputProcessor`] corresponding to `current_stage`. Processes
+    /// different types of input based on the type of `current_stage`.
     current_processor: Option<InputProcessor>,
+    /// The input that has been accumulated from previous stages. This does not
+    /// contain the input being currently accumulated in the current stage
+    /// (that's a part of `current_processor`).
     processed_input: Vec<String>,
 }
 
 new_key_type! {
+    /// Key for referring to [`InputAccumulationStage`]s in a [`KeyBinder`].
     pub struct KeyBinderKey;
 }
 
+/// Shorthand for `InputRequirementDescriptor::Key(str.to_owned())`.
 pub fn key(str: &str) -> InputRequirementDescriptor {
     InputRequirementDescriptor::Key(str.to_owned())
 }
 
+/// Shorthand for `InputRequirementDescriptor::String`.
 pub fn string() -> InputRequirementDescriptor {
     InputRequirementDescriptor::String
 }
 
+/// Shorthand for `InputRequirementDescriptor::Register`.
 pub fn register() -> InputRequirementDescriptor {
     InputRequirementDescriptor::Register
 }
 
+/// Describes the type of input we expect to receive in a current stage.
+///
+/// Use the [`key`], [`string`], and [`register`] functions to create these less
+/// verbosely.
 pub enum InputRequirementDescriptor {
-    Register,
-    String,
+    /// We expect the user to press a specific key. The key we expect the user
+    /// to press is the [`String`].
     Key(String),
+    /// We expect the user to enter a register. Entering a register is the same
+    /// as entering a Key, except that we move on to the next stage regardless
+    /// of which register was entered.
+    Register,
+    /// We expect the user to enter a string. Strings are entered by pressing a
+    /// series of keys (the characters of the string) followed by shift+enter to
+    /// terminate the string. We move onto the next stage regardless of what
+    /// string the user entered.
+    ///
+    /// In the future, it may be a good idea to add another variant to this enum
+    /// that can move onto different stages based on the properties of the
+    /// string we entered. For instance, maybe we move onto a different state
+    /// depending on whether or not the string entered matches a regular
+    /// expression.
+    String,
 }
 
 impl InputRequirementDescriptor {
+    /// Transforms this [`InputRequirementDescriptor`] into an
+    /// [`InputRequirement`] suitable for storing in a [`KeyMap`]. The returned
+    /// value contains information about when to transition into the next stage
+    /// of input.
+    ///
+    /// Arguments:
+    /// 
+    /// * `key`: the next stage of input.
     fn to_input_requirement(self, key: KeyBinderKey) -> InputRequirement {
         match self {
             Self::Register => InputRequirement::Register(key),
@@ -396,12 +434,21 @@ impl InputRequirementDescriptor {
     }
 }
 
+/// A description of an input stage's type, as well as the method for selecting
+/// the next stage of input.
 enum InputRequirement {
+    /// The user will input a register name. We unconditionally move onto a
+    /// single next stage, represented by the [`KeyBinderKey`].
     Register(KeyBinderKey),
+    /// The user will input an entire [`String`]. We unconditionally move onto a
+    /// single next stage, represented by the [`KeyBinderKey`].
     String(KeyBinderKey),
+    /// The user will input a single key. To determine what stage to go to next,
+    /// we look up they key in the [`HashMap`].
     Key(HashMap<String, KeyBinderKey>),
 }
 
+/// Accumulates a string, marking whether or not the user is done creating it.
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct StringProcessor {
     string: String,
