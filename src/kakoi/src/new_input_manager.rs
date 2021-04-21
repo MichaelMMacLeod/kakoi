@@ -3,42 +3,42 @@ use slotmap::{new_key_type, SlotMap};
 use std::collections::{HashMap, VecDeque};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 
-pub struct InputMagic {
-    input_manager: InputManager,
+pub struct InputManager {
+    key_binder: KeyBinder,
     input_state: InputState,
-    modifiers: Modifiers,
+    pressed_keys: PressedKeys,
 }
 
-impl InputMagic {
+impl InputManager {
     pub fn new() -> Self {
-        let mut input_manager = InputManager::new();
-        input_manager.bind_defaults();
-        let input_state = input_manager.start().unwrap();
+        let mut key_binder = KeyBinder::new();
+        key_binder.with_default_bindings();
+        let input_state = key_binder.start_state().unwrap();
         Self {
-            input_manager,
+            key_binder,
             input_state,
-            modifiers: Modifiers {
+            pressed_keys: PressedKeys {
                 shift_pressed: false,
             },
         }
     }
-    pub fn input(&mut self, keyboard_input: &KeyboardInput) -> Option<CompleteAction> {
+    pub fn process_input(&mut self, keyboard_input: &KeyboardInput) -> Option<CompleteAction> {
         let pressed = keyboard_input.state == ElementState::Pressed;
         if let Some(virtual_key_code) = &keyboard_input.virtual_keycode {
             match virtual_key_code {
                 VirtualKeyCode::LShift | VirtualKeyCode::RShift => {
-                    self.modifiers.shift_pressed = pressed
+                    self.pressed_keys.shift_pressed = pressed
                 }
                 _ => {}
             }
 
             let input = Input {
                 virtual_key_code,
-                modifiers: &self.modifiers,
+                pressed_keys: &self.pressed_keys,
             };
 
             if pressed {
-                self.input_manager.input(&mut self.input_state, input)
+                self.key_binder.process_input(&mut self.input_state, input)
             } else {
                 None
             }
@@ -48,37 +48,25 @@ impl InputMagic {
     }
 }
 
-enum InputManagerNode {
-    Processing(Processing),
+enum InputAccumulationStage {
+    InputRequirement(InputRequirement),
     Done(fn(&mut Vec<String>) -> CompleteAction),
 }
 
-pub struct InputManager {
-    slot_map: SlotMap<InputManagerKey, InputManagerNode>,
-    start_state: Option<InputManagerKey>,
+pub struct KeyBinder {
+    slot_map: SlotMap<InputManagerKey, InputAccumulationStage>,
+    start_stage: Option<InputManagerKey>,
 }
 
-pub enum InputResult {
-    InputState(InputState),
-    CompleteAction(CompleteAction),
-}
-
-// keycombo! { Key("space"), Key("x"), Register, Register }
-// macro_rules! keycombo {
-//     ($($v:expr),+ $(,)?) => {
-//         vec![$(ProcessingDescriptor::$v),+]
-//     }
-// }
-
-impl InputManager {
-    pub fn new() -> Self {
+impl KeyBinder {
+    fn new() -> Self {
         Self {
             slot_map: SlotMap::with_key(),
-            start_state: None,
+            start_stage: None,
         }
     }
 
-    pub fn bind_defaults(&mut self) {
+    fn with_default_bindings(&mut self) {
         self.bind(vec![key("s"), register()], |v| {
             let register = v.pop().unwrap();
             CompleteAction::SelectRegister(register)
@@ -104,41 +92,27 @@ impl InputManager {
             let register = v.pop().unwrap();
             CompleteAction::SetRemove(".".into(), register)
         });
-        // self.bind(
-        //     vec![
-        //         key("space"),
-        //         key("r"),
-        //         key("b"),
-        //         key("t"),
-        //         register(),
-        //         string(),
-        //     ],
-        //     |mut v| {
-        //         let string = v.pop().unwrap();
-        //         let register = v.pop().unwrap();
-        //         CompleteAction::BindRegisterToString(register, string)
-        //     },
-        // )
     }
 
-    pub fn bind(
+    fn bind(
         &mut self,
-        route: Vec<ProcessingDescriptor>,
+        route: Vec<InputRequirementDescriptor>,
         action_constructor: fn(&mut Vec<String>) -> CompleteAction,
     ) {
         let action_key = self
             .slot_map
-            .insert(InputManagerNode::Done(action_constructor));
+            .insert(InputAccumulationStage::Done(action_constructor));
         let first_key =
             route
                 .into_iter()
                 .rev()
                 .fold(action_key, |next_key, processing_descriptor| {
-                    self.slot_map.insert(InputManagerNode::Processing(
-                        processing_descriptor.build(next_key),
-                    ))
+                    self.slot_map
+                        .insert(InputAccumulationStage::InputRequirement(
+                            processing_descriptor.to_input_requirement(next_key),
+                        ))
                 });
-        match self.start_state {
+        match self.start_stage {
             Some(start_state) => {
                 recursively_merge(
                     &mut self.slot_map,
@@ -150,129 +124,129 @@ impl InputManager {
                     .collect(),
                 );
             }
-            None => self.start_state = Some(first_key),
+            None => self.start_stage = Some(first_key),
         }
     }
 
-    pub fn start(&self) -> Option<InputState> {
-        self.start_state.map(|start_state| InputState {
-            state: start_state,
-            accumulator: vec![],
-            recorder: None,
+    fn start_state(&self) -> Option<InputState> {
+        self.start_stage.map(|start_state| InputState {
+            current_stage: start_state,
+            processed_input: vec![],
+            current_processor: None,
         })
     }
 
-    pub fn input(&self, input_state: &mut InputState, input: Input) -> Option<CompleteAction> {
-        match self.slot_map.get(input_state.state).unwrap() {
-            InputManagerNode::Processing(processing) => {
-                let recorder = input_state
-                    .recorder
+    fn process_input(&self, input_state: &mut InputState, input: Input) -> Option<CompleteAction> {
+        match self.slot_map.get(input_state.current_stage).unwrap() {
+            InputAccumulationStage::InputRequirement(processing) => {
+                let processor = input_state
+                    .current_processor
                     .get_or_insert_with(|| processing.recorder());
                 let mut next_value = None;
-                let mut next_state = None;
-                recorder.record(input).map(|result| {
-                    next_state = Some(processing.next_state(&result)).unwrap();
+                let mut next_stage = None;
+                processor.process(input).map(|result| {
+                    next_stage = Some(processing.next_state(&result)).unwrap();
                     next_value = Some(result);
                 });
                 next_value.map(|next_value| {
-                    input_state.accumulator.push(next_value);
-                    input_state.recorder = None;
+                    input_state.processed_input.push(next_value);
+                    input_state.current_processor = None;
                 });
-                next_state.map(|next_state| input_state.state = *next_state);
-                if let InputManagerNode::Done(action_constructor) =
-                    self.slot_map.get(input_state.state).unwrap()
+                next_stage.map(|next_stage| input_state.current_stage = *next_stage);
+                if let InputAccumulationStage::Done(action_constructor) =
+                    self.slot_map.get(input_state.current_stage).unwrap()
                 {
-                    let complete = action_constructor(&mut input_state.accumulator);
-                    input_state.accumulator.clear();
-                    input_state.state = self.start_state.unwrap();
-                    input_state.recorder = None;
-                    Some(complete)
+                    let complete_action = action_constructor(&mut input_state.processed_input);
+                    input_state.processed_input.clear();
+                    input_state.current_stage = self.start_stage.unwrap();
+                    input_state.current_processor = None;
+                    Some(complete_action)
                 } else {
                     None
                 }
             }
-            InputManagerNode::Done(_) => panic!(),
+            InputAccumulationStage::Done(_) => unreachable!(),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InputState {
-    state: InputManagerKey,
-    accumulator: Vec<String>,
-    recorder: Option<Recorder>,
+    current_stage: InputManagerKey,
+    current_processor: Option<InputProcessor>,
+    processed_input: Vec<String>,
 }
 
 new_key_type! {
     pub struct InputManagerKey;
 }
 
-pub fn key(str: &str) -> ProcessingDescriptor {
-    ProcessingDescriptor::Key(str.to_owned())
+pub fn key(str: &str) -> InputRequirementDescriptor {
+    InputRequirementDescriptor::Key(str.to_owned())
 }
 
-pub fn string() -> ProcessingDescriptor {
-    ProcessingDescriptor::String
+pub fn string() -> InputRequirementDescriptor {
+    InputRequirementDescriptor::String
 }
 
-pub fn register() -> ProcessingDescriptor {
-    ProcessingDescriptor::Register
+pub fn register() -> InputRequirementDescriptor {
+    InputRequirementDescriptor::Register
 }
 
-pub enum ProcessingDescriptor {
+pub enum InputRequirementDescriptor {
     Register,
     String,
     Key(String),
 }
 
-impl ProcessingDescriptor {
-    fn build(self, key: InputManagerKey) -> Processing {
+impl InputRequirementDescriptor {
+    fn to_input_requirement(self, key: InputManagerKey) -> InputRequirement {
         match self {
-            Self::Register => Processing::Register(key),
-            Self::String => Processing::String(key),
-            Self::Key(code) => Processing::Key(vec![(code, key)].into_iter().collect()),
+            Self::Register => InputRequirement::Register(key),
+            Self::String => InputRequirement::String(key),
+            Self::Key(code) => InputRequirement::Key(vec![(code, key)].into_iter().collect()),
         }
     }
 }
 
-enum Processing {
+enum InputRequirement {
     Register(InputManagerKey),
     String(InputManagerKey),
     Key(HashMap<String, InputManagerKey>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct StringRecorder {
+struct StringProcessor {
     string: String,
     done: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum Recorder {
-    Register(Option<String>),
-    String(StringRecorder),
-    Key(Option<String>),
+enum InputProcessor {
+    Register,
+    Key,
+    String(StringProcessor),
 }
 
-struct Modifiers {
+struct PressedKeys {
     shift_pressed: bool,
 }
 
 pub struct Input<'a> {
-    modifiers: &'a Modifiers,
+    pressed_keys: &'a PressedKeys,
     virtual_key_code: &'a VirtualKeyCode,
 }
 
-impl Recorder {
-    fn record(&mut self, input: Input) -> Option<String> {
+impl InputProcessor {
+    fn process(&mut self, input: Input) -> Option<String> {
         match self {
-            Self::Register(s) => {
+            Self::Register => {
                 Some(crate::input_map::vk_to_keyname_string(input.virtual_key_code).into())
             }
-            Self::Key(s) => {
+            Self::Key => {
                 Some(crate::input_map::vk_to_keyname_string(input.virtual_key_code).into())
             }
-            Self::String(StringRecorder { string, done }) => {
+            Self::String(StringProcessor { string, done }) => {
                 enum Do {
                     Insert(String),
                     Delete(bool),
@@ -281,7 +255,7 @@ impl Recorder {
                 }
 
                 let fix_case = |str: &'static str| -> String {
-                    if input.modifiers.shift_pressed {
+                    if input.pressed_keys.shift_pressed {
                         str.to_uppercase()
                     } else {
                         str.into()
@@ -289,7 +263,7 @@ impl Recorder {
                 };
 
                 let enter = || -> Do {
-                    if input.modifiers.shift_pressed {
+                    if input.pressed_keys.shift_pressed {
                         Do::Done
                     } else {
                         Do::Insert("\n".into())
@@ -333,7 +307,7 @@ impl Recorder {
                     VirtualKeyCode::X => Do::Insert(fix_case("x")),
                     VirtualKeyCode::Y => Do::Insert(fix_case("y")),
                     VirtualKeyCode::Z => Do::Insert(fix_case("z")),
-                    VirtualKeyCode::Delete => Do::Delete(input.modifiers.shift_pressed),
+                    VirtualKeyCode::Delete => Do::Delete(input.pressed_keys.shift_pressed),
                     VirtualKeyCode::Return => enter(),
                     VirtualKeyCode::Space => Do::Insert(" ".into()),
                     VirtualKeyCode::Numpad0 => Do::Insert("0".into()),
@@ -420,12 +394,12 @@ struct Merge {
 }
 
 fn recursively_merge(
-    slot_map: &mut SlotMap<InputManagerKey, InputManagerNode>,
+    slot_map: &mut SlotMap<InputManagerKey, InputAccumulationStage>,
     todo: &mut VecDeque<Merge>,
 ) {
     while let Some(Merge { into, from }) = todo.pop_front() {
         match slot_map.get_disjoint_mut([into, from]).unwrap() {
-            [InputManagerNode::Processing(Processing::Key(into_map)), InputManagerNode::Processing(Processing::Key(from_map))] =>
+            [InputAccumulationStage::InputRequirement(InputRequirement::Key(into_map)), InputAccumulationStage::InputRequirement(InputRequirement::Key(from_map))] =>
             {
                 for (from_k, from_v) in from_map.drain() {
                     match into_map.get(&from_k) {
@@ -447,237 +421,22 @@ fn recursively_merge(
     }
 }
 
-impl Processing {
+impl InputRequirement {
     fn next_state(&self, data: &String) -> Option<&InputManagerKey> {
         match self {
-            Processing::Register(k) => Some(k),
-            Processing::String(k) => Some(k),
-            Processing::Key(map) => map.get(data),
+            InputRequirement::Register(k) => Some(k),
+            InputRequirement::String(k) => Some(k),
+            InputRequirement::Key(map) => map.get(data),
         }
     }
-    fn recorder(&self) -> Recorder {
+    fn recorder(&self) -> InputProcessor {
         match self {
-            Self::Register(_) => Recorder::Register(None),
-            Self::Key(_) => Recorder::Key(None),
-            Self::String(_) => Recorder::String(StringRecorder {
+            Self::Register(_) => InputProcessor::Register,
+            Self::Key(_) => InputProcessor::Key,
+            Self::String(_) => InputProcessor::String(StringProcessor {
                 string: "".into(),
                 done: false,
             }),
         }
     }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    // #[test]
-    // fn im_0() {
-    //     let vs = vec![
-    //         ProcessingDescriptor::Key("space".into()),
-    //         ProcessingDescriptor::Key("s".into()),
-    //         ProcessingDescriptor::Key("i".into()),
-    //         ProcessingDescriptor::Key("t".into()),
-    //         ProcessingDescriptor::Register,
-    //         ProcessingDescriptor::String,
-    //     ];
-    //     fn make_action(vs: &mut Vec<String>) -> CompleteAction {
-    //         let string = vs.pop().unwrap();
-    //         let register = vs.pop().unwrap();
-    //         CompleteAction::BindRegisterToString(register, string)
-    //     }
-    //     let mut im = InputManager::new();
-    //     im.bind(vs, make_action);
-    //     let vs2 = vec![
-    //         ProcessingDescriptor::Key("space".into()),
-    //         ProcessingDescriptor::Key("s".into()),
-    //         ProcessingDescriptor::Key("r".into()),
-    //         ProcessingDescriptor::Key("r".into()),
-    //         ProcessingDescriptor::Register,
-    //         ProcessingDescriptor::Register,
-    //     ];
-    //     fn make_action_2(mut vs: Vec<String>) -> CompleteAction {
-    //         let register_to_lookup = vs.pop().unwrap();
-    //         let register_to_modify = vs.pop().unwrap();
-    //         CompleteAction::SetRemove(register_to_modify, register_to_lookup)
-    //     }
-    //     im.bind(vs2, make_action_2);
-    //     {
-    //         let input_state = im.start();
-    //         assert!(input_state.is_some());
-    //         let input_state = input_state.unwrap();
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::Space,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::S,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::I,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::T,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::X,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::A,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(c) => {
-    //                 panic!();
-    //             }
-    //         };
-    //         let complete_action = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: true,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::Return,
-    //             },
-    //         ) {
-    //             InputResult::InputState(_) => panic!(),
-    //             InputResult::CompleteAction(c) => c,
-    //         };
-    //         assert_eq!(
-    //             complete_action,
-    //             CompleteAction::BindRegisterToString("x".into(), "a".into())
-    //         );
-    //     }
-
-    //     // NEXT
-    //     {
-    //         let input_state = im.start();
-    //         assert!(input_state.is_some());
-    //         let input_state = input_state.unwrap();
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::Space,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::S,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::R,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::R,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let input_state = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::X,
-    //             },
-    //         ) {
-    //             InputResult::InputState(s) => s,
-    //             InputResult::CompleteAction(_) => panic!(),
-    //         };
-    //         let complete_action = match im.input(
-    //             input_state,
-    //             Input {
-    //                 modifiers: &Modifiers {
-    //                     shift_pressed: false,
-    //                 },
-    //                 virtual_key_code: &VirtualKeyCode::Y,
-    //             },
-    //         ) {
-    //             InputResult::InputState(_) => panic!(),
-    //             InputResult::CompleteAction(c) => c,
-    //         };
-    //         assert_eq!(
-    //             complete_action,
-    //             CompleteAction::SetRemove("x".into(), "y".into())
-    //         );
-    //     }
-    // }
 }
