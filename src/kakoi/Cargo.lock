@@ -1072,7 +1072,6 @@ dependencies = [
  "glob",
  "image",
  "log",
- "petgraph",
  "rayon",
  "shaderc",
  "slotmap 1.0.3",
