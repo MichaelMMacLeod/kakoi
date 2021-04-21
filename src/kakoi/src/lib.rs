@@ -13,3 +13,4 @@ pub mod spatial_tree;
 pub mod sphere;
 pub mod state;
 pub mod window;
+pub mod new_input_manager;

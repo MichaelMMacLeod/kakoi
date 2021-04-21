@@ -18,6 +18,7 @@ enum Action {
     Registers,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CompleteAction {
     SetInsert(String, String),
     SetUnion(String, String),
@@ -184,7 +185,7 @@ impl Recorder {
         if keyboard_input.state == ElementState::Pressed {
             match self {
                 Self::Register => {
-                    Some(vk_to_keyname_string(keyboard_input.virtual_keycode?).into())
+                    Some(vk_to_keyname_string(&keyboard_input.virtual_keycode?).into())
                 }
                 Self::String(string) => {
                     enum Do {
@@ -443,7 +444,7 @@ impl InputManager {
                     if let Some(virtual_key_code) = keyboard_input.virtual_keycode {
                         match self
                             .input_state
-                            .input(vk_to_keyname_string(virtual_key_code))
+                            .input(vk_to_keyname_string(&virtual_key_code))
                         {
                             Some(action) => {
                                 self.action_state = Some(ActionState::new(*action));
