@@ -21,7 +21,7 @@ impl TextRenderer {
         // base this number on an estimate of how much data we would upload into
         // it. See https://docs.rs/wgpu/0.7.0/wgpu/util/struct.StagingBelt.html
         // for more information.
-        let staging_belt = wgpu::util::StagingBelt::new(4096);
+        let staging_belt = wgpu::util::StagingBelt::new(2u64.pow(16));
 
         let local_pool = futures::executor::LocalPool::new();
         let local_spawner = local_pool.spawner();
