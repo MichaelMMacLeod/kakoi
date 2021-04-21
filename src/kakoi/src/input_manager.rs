@@ -109,14 +109,14 @@ impl KeyBinder {
 
     fn bind(
         &mut self,
-        route: Vec<InputRequirementDescriptor>,
+        descriptors: Vec<InputRequirementDescriptor>,
         action_constructor: fn(&mut Vec<String>) -> CompleteAction,
     ) {
         let action_key = self
             .slot_map
             .insert(InputAccumulationStage::Done(action_constructor));
         let first_key =
-            route
+            descriptors
                 .into_iter()
                 .rev()
                 .fold(action_key, |next_key, processing_descriptor| {
@@ -154,11 +154,11 @@ impl KeyBinder {
             InputAccumulationStage::InputRequirement(processing) => {
                 let processor = input_state
                     .current_processor
-                    .get_or_insert_with(|| processing.recorder());
+                    .get_or_insert_with(|| processing.processor());
                 let mut next_value = None;
                 let mut next_stage = None;
                 processor.process(input).map(|result| {
-                    next_stage = Some(processing.next_state(&result)).unwrap();
+                    next_stage = Some(processing.next_stage(&result)).unwrap();
                     next_value = Some(result);
                 });
                 next_value.map(|next_value| {
@@ -410,10 +410,11 @@ fn recursively_merge(
     slot_map: &mut SlotMap<InputManagerKey, InputAccumulationStage>,
     todo: &mut VecDeque<Merge>,
 ) {
+    use InputAccumulationStage::InputRequirement as IR;
+    use InputRequirement::Key as IK;
     while let Some(Merge { into, from }) = todo.pop_front() {
         match slot_map.get_disjoint_mut([into, from]).unwrap() {
-            [InputAccumulationStage::InputRequirement(InputRequirement::Key(into_map)), InputAccumulationStage::InputRequirement(InputRequirement::Key(from_map))] =>
-            {
+            [IR(IK(into_map)), IR(IK(from_map))] => {
                 for (from_k, from_v) in from_map.drain() {
                     match into_map.get(&from_k) {
                         Some(into_v) => {
@@ -435,14 +436,14 @@ fn recursively_merge(
 }
 
 impl InputRequirement {
-    fn next_state(&self, data: &String) -> Option<&InputManagerKey> {
+    fn next_stage(&self, data: &String) -> Option<&InputManagerKey> {
         match self {
             InputRequirement::Register(k) => Some(k),
             InputRequirement::String(k) => Some(k),
             InputRequirement::Key(map) => map.get(data),
         }
     }
-    fn recorder(&self) -> InputProcessor {
+    fn processor(&self) -> InputProcessor {
         match self {
             Self::Register(_) => InputProcessor::Register,
             Self::Key(_) => InputProcessor::Key,
