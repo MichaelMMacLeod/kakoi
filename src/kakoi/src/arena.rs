@@ -16,7 +16,7 @@ new_key_type! {
 
 /// Describes the way in which a containee [`Value`] is included inside of a
 /// [`Structure::Map`].
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum MapRoute {
     /// For [`Value`]s contained within the key of a map.
     Key,
@@ -27,7 +27,7 @@ pub enum MapRoute {
 
 /// Describes the way in which a containee [`Value`] is included inside of a
 /// container [`Value`].
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum Route {
     /// For [`Value`]s contained within a [`Structure::Set`].
     Set,
@@ -39,6 +39,7 @@ pub enum Route {
 ///
 /// The data associated with each variant is boxed to save memory. It may not be
 /// necessary to box every variant. This has not been profiled.
+#[derive(Debug)]
 pub enum Structure {
     /// A [set] for associating unique objects.
     ///
@@ -57,6 +58,7 @@ pub enum Structure {
 }
 
 /// Container that also tracks which [`Value`]s contain it.
+#[derive(Debug)]
 pub struct Value {
     /// The data associated with this object.
     pub structure: Structure,
@@ -395,6 +397,10 @@ impl Arena {
             register_map,
             lookup_map,
         }
+    }
+
+    pub fn string(&mut self, string: &str) -> ArenaKey {
+        insert_string(&mut self.slot_map, &mut self.lookup_map, string)
     }
 
     pub fn register<S: Into<String>>(&mut self, register: S) -> Option<ArenaKey> {
