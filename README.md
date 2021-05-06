@@ -1,12 +1,14 @@
 # kakoi - software for surrounding
 
-![](documentation/src/images/vowels-and-consonants.svg)
+Kakoi is a piece of software for creating, improving, and linking together
+representations of our ideas.
 
-## development status: DESIGN ##
+<iframe width="600" height="338" allowfullscreen="true" src="michaelmmacleod.github.io/kakoi-demo.mp4"></iframe>
 
-This software currently exists only as a set of design documentation rough
-drafts. No code has been written yet; don't get too excited.
+### development status: DESIGN / IMPLEMENTATION ###
 
-Documentation source files can be found in `documentation/src`. The compiled
-documentation is semi-regularly updated
-[here](https://michaelmmacleod.github.io/kakoi-documentation/kakoi.html)
+Some code has been written, but this software is still very much in the design
+phase.
+
+It is not currently in a incredibly useful state; many features are missing.
+Progress is, however, being made.
