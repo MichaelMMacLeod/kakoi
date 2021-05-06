@@ -10,5 +10,5 @@ representations of our ideas.
 Some code has been written, but this software is still very much in the design
 phase.
 
-It is not currently in a incredibly useful state; many features are missing.
+It is not currently in an incredibly useful state; many features are missing.
 Progress is, however, being made.
