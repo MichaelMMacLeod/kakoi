@@ -3,7 +3,7 @@
 Kakoi is a piece of software for creating, improving, and linking together
 representations of our ideas.
 
-<iframe width="600" height="338" allowfullscreen="true" src="michaelmmacleod.github.io/kakoi-demo.mp4"></iframe>
+![demo video](michaelmmacleod.github.io/kakoi-demo.mp4)
 
 ### development status: DESIGN / IMPLEMENTATION ###
 
