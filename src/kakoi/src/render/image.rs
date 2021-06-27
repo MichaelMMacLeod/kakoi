@@ -1,7 +1,8 @@
 use crate::arena::{ArenaKey, Structure, Value};
+use crate::spatial_bound::SpatialBound;
 use crate::{camera::Camera, spatial_tree::SpatialTreeData, sphere::Sphere};
-use std::collections::HashMap;
 use slotmap::SlotMap;
+use std::collections::HashMap;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -253,7 +254,7 @@ impl ImageRenderer {
             })
             .instances
             .push(TextureInstance {
-                sphere: spatial_tree_data.sphere,
+                sphere: spatial_tree_data.bounds,
             });
     }
 
@@ -419,7 +420,7 @@ impl ImageRenderer {
 }
 
 struct TextureInstance {
-    sphere: Sphere,
+    sphere: SpatialBound,
 }
 
 impl TextureInstance {
@@ -435,12 +436,20 @@ pub struct RawTextureInstance {
 }
 
 impl RawTextureInstance {
-    pub fn new(sphere: &Sphere, aspect_ratio: f32) -> Self {
-        let (scale_x, scale_y) = sphere.as_rectangle_bounds(aspect_ratio);
-        let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
-        let translation = cgmath::Matrix4::from_translation(sphere.center);
-        Self {
-            model: (translation * scale).into(),
+    pub fn new(bound: &SpatialBound, aspect_ratio: f32) -> Self {
+        match bound {
+            SpatialBound::Sphere(sphere) => {
+                let (scale_x, scale_y) = sphere.as_rectangle_bounds(aspect_ratio);
+                let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
+                let translation = cgmath::Matrix4::from_translation(sphere.center);
+                Self {
+                    model: (translation * scale).into(),
+                }
+            }
+            SpatialBound::SquareCuboid(square_cuboid) => {
+                let (width, height) = square_cuboid.dimensions_2d();
+                
+            }
         }
     }
 

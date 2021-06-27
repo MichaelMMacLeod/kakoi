@@ -15,6 +15,13 @@ new_key_type! {
 }
 
 /// Describes the way in which a containee [`Value`] is included inside of a
+/// [`Structure::List`].
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct ListRoute {
+    index: usize,
+}
+
+/// Describes the way in which a containee [`Value`] is included inside of a
 /// [`Structure::Map`].
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum MapRoute {
@@ -33,6 +40,8 @@ pub enum Route {
     Set,
     /// For [`Value`]s contained within a [`Structure::Map`].
     Map(MapRoute),
+    /// For [`Value`]s contained within a [`Structure::List`].
+    List(ListRoute),
 }
 
 /// Data container inside [`Value`].
@@ -45,6 +54,8 @@ pub enum Structure {
     ///
     /// [set]: https://en.wikipedia.org/wiki/Set_(mathematics)
     Set(Box<HashSet<ArenaKey>>),
+    // A list. Like a set, but has a specified ordering.
+    List(Box<Vec<ArenaKey>>),
     /// A [map] for associating unique key-objects with value-objects. A single
     /// key may only be associated with one value, but there may be many keys
     /// associated with the same value.
@@ -211,6 +222,24 @@ fn insert_set(slot_map: &mut SlotMap<ArenaKey, Value>, set: HashSet<ArenaKey>) -
     key
 }
 
+/// Inserts a [`list`](Vec) into a [`SlotMap`].
+fn insert_list(slot_map: &mut SlotMap<ArenaKey, Value>, list: Vec<ArenaKey>) -> ArenaKey {
+    let indications = list.clone();
+
+    // insert the list into the slot map
+    let key = slot_map.insert(Value {
+        structure: Structure::List(Box::new(list)),
+        inclusions: HashSet::new(),
+    });
+
+    // add the list's key to the inclusions of each value in the list
+    for (n, k) in indications.into_iter().enumerate() {
+        add_inclusion(slot_map, k, key, Route::List(ListRoute { index: n }));
+    }
+
+    key
+}
+
 /// Inserts a [`map`](HashMap) into a [`SlotMap`].
 fn insert_map(
     slot_map: &mut SlotMap<ArenaKey, Value>,
@@ -245,6 +274,35 @@ fn insert_map(
 //         Structure::Map(map) => insert_map(slot_map, map),
 //     }
 // }
+
+fn list_push(slot_map: &mut SlotMap<ArenaKey, Value>, list: ArenaKey, value: ArenaKey) {
+    let index = match &mut slot_map.get_mut(list).unwrap().structure {
+        Structure::List(vec) => {
+            let index = vec.len();
+            vec.push(value);
+            index
+        }
+        _ => panic!(),
+    };
+
+    add_inclusion(slot_map, value, list, Route::List(ListRoute { index }));
+}
+
+fn list_pop(slot_map: &mut SlotMap<ArenaKey, Value>, list: ArenaKey) {
+    let (index, value) = match &mut slot_map.get_mut(list).unwrap().structure {
+        Structure::List(vec) => {
+            let value = vec.pop();
+            (vec.len(), value)
+        }
+        _ => panic!(),
+    };
+
+    // In the case of an already-empty list, value is None, so we don't need to
+    // remove any inclusions.
+    value.map(|value| {
+        remove_inclusion(slot_map, value, list, Route::List(ListRoute { index }));
+    });
+}
 
 fn set_insert(slot_map: &mut SlotMap<ArenaKey, Value>, set: ArenaKey, value: ArenaKey) {
     add_inclusion(slot_map, value, set, Route::Set);
@@ -441,17 +499,54 @@ impl Arena {
         });
     }
 
+    pub fn list_push<S: Into<String>>(
+        &mut self,
+        list_register: S,
+        value_register: S,
+    ) -> Option<()> {
+        let list_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            list_register.into(),
+        );
+        let value_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            value_register.into(),
+        );
+
+        let list = map_get(&self.slot_map, self.register_map, list_register)?;
+        let value = map_get(&self.slot_map, self.register_map, value_register)?;
+
+        list_push(&mut self.slot_map, list, value);
+
+        Some(())
+    }
+
+    pub fn list_pop<S: Into<String>>(
+        &mut self,
+        list_register: S,
+    ) -> Option<()> {
+        let list_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            list_register.into(),
+        );
+
+        let list = map_get(&self.slot_map, self.register_map, list_register)?;
+
+        list_pop(&mut self.slot_map, list);
+
+        Some(())
+    }
+
     pub fn set_insert_string<S: Into<String>>(&mut self, set_register: S, string: S) -> Option<()> {
         let set_register = insert_string(
             &mut self.slot_map,
             &mut self.lookup_map,
             set_register.into(),
         );
-        let string = insert_string(
-            &mut self.slot_map,
-            &mut self.lookup_map,
-            string.into(),
-        );
+        let string = insert_string(&mut self.slot_map, &mut self.lookup_map, string.into());
 
         let set = map_get(&self.slot_map, self.register_map, set_register)?;
 

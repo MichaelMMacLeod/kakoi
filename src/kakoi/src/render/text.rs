@@ -126,7 +126,7 @@ impl TextRenderer {
     ) {
         if instances_cache_stale {
             instances_cache.clear();
-            for SpatialTreeData { key, sphere } in constraints {
+            for SpatialTreeData { key, bounds: sphere } in constraints {
                 instances_cache.push(TextConstraintInstance::new(
                     store,
                     key,

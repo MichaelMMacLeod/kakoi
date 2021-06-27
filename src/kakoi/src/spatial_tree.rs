@@ -10,6 +10,7 @@
 //! The transformation from easy-to-work-with-square to
 //! difficult-to-work-with-pixel-rectangle is automatically done elsewhere.
 //!
+//! TODO (update to talk about cuboids):
 //! Each object displayed on screen has associated with it a [`Sphere`]. The
 //! `radius` of the sphere denotes the maximum possible size that the object can
 //! be. The `center` of the sphere denotes the location of the center of the
@@ -36,7 +37,10 @@ use crate::circle::{Circle, CirclePositioner, Point};
 use crate::forest::Forest;
 use crate::render::circle::{CircleRenderer, MIN_RADIUS};
 use crate::render::image::ImageRenderer;
+use crate::spatial_bound::SpatialBound;
 use crate::sphere::Sphere;
+use crate::square_cuboid::Orientation;
+use crate::square_cuboid::SquareCuboid;
 use crate::{arena::ArenaKey, render::text::TextRenderer};
 use slotmap::new_key_type;
 use slotmap::SlotMap;
@@ -61,7 +65,7 @@ pub struct SpatialTreeData {
     /// The bounding sphere of the object. The sphere's `center` is the center
     /// of the object on screen. The sphere's `radius` is the maximum possible
     /// size of the object.
-    pub sphere: Sphere,
+    pub bounds: SpatialBound,
 }
 
 /// A tree containing `SpatialTreeData`
@@ -104,14 +108,23 @@ fn rebuild_tree(
 ) -> SpatialTreeKey {
     existing_tree_root.map(|root| forest.remove_root(root));
 
-    // The first instance is always in the center of the screen and has radius
-    // one.
     let root = forest.insert_root(SpatialTreeData {
         key: start,
-        sphere: Sphere {
-            center: (0.0, 0.0, 0.0).into(),
-            radius: 1.0,
-        },
+        bounds: SpatialBound::SquareCuboid(if screen_width > screen_height {
+            SquareCuboid {
+                length: screen_width,
+                depth: screen_height,
+                center: (0.0, 0.0, 0.0).into(),
+                orientation: Orientation::Horizontal,
+            }
+        } else {
+            SquareCuboid {
+                length: screen_height,
+                depth: screen_width,
+                center: (0.0, 0.0, 0.0).into(),
+                orientation: Orientation::Vertical,
+            }
+        }),
     });
 
     // We search through the slot_map for objects by starting with the root,
@@ -125,15 +138,19 @@ fn rebuild_tree(
         // Ensure that the object we want to arrange is actually visible on
         // screen. If it isn't, ignore this object and move on to the next loop
         // iteration.
-        if spatial_tree_data
-            .sphere
-            .screen_radius(screen_width, screen_height)
-            > 1.0
-        {
+        let visible_on_screen = match &spatial_tree_data.bounds {
+            SpatialBound::Sphere(s) => s.screen_radius(screen_width, screen_height) > 1.0,
+            SpatialBound::SquareCuboid(s) => {
+                s.min_screen_dimension(screen_width, screen_height) > 1.0
+            }
+        };
+        if visible_on_screen {
             match &slot_map.get(spatial_tree_data.key).unwrap().structure {
                 Structure::String(_) => handle_string(text_renderer, spatial_tree_data),
                 Structure::Image(_) => handle_image(image_renderer, spatial_tree_data),
                 Structure::Set(set) => handle_set(circle_renderer, spatial_tree_data, set.as_ref()),
+                Structure::List(_) => todo!(),
+                // Structure::List(list) => handle_list(list_renderer, spatial_tree_data, list.as_ref()),
                 Structure::Map(map) => handle_map(circle_renderer, spatial_tree_data, map.as_ref()),
             }
             .into_iter()
@@ -222,14 +239,28 @@ impl SpatialTree {
             .iter()
             .copied()
             .find_map(|child| {
-                let SpatialTreeData { key, sphere } = self.forest.get(child).unwrap();
-                let dx = sphere.center.x - mouse_x;
-                let dy = sphere.center.y - mouse_y;
-                let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
-                if inside_rad {
-                    Some(*key)
-                } else {
-                    None
+                let SpatialTreeData { key, bounds } = self.forest.get(child).unwrap();
+                match bounds {
+                    SpatialBound::Sphere(sphere) => {
+                        let dx = sphere.center.x - mouse_x;
+                        let dy = sphere.center.y - mouse_y;
+                        let inside_rad = (dx * dx + dy * dy).sqrt() <= sphere.radius;
+                        if inside_rad {
+                            Some(*key)
+                        } else {
+                            None
+                        }
+                    }
+                    SpatialBound::SquareCuboid(cuboid) => {
+                        let dx = cuboid.center.x - mouse_x;
+                        let dy = cuboid.center.y - mouse_y;
+                        let (width, height) = cuboid.dimensions_2d();
+                        if dx < width && dy < height {
+                            Some(*key)
+                        } else {
+                            None
+                        }
+                    }
                 }
             })
     }
@@ -296,7 +327,7 @@ fn handle_set(
     set: &HashSet<ArenaKey>,
 ) -> Vec<SpatialTreeData> {
     // The circle that encloses the set
-    circle_handler.with_instance(spatial_tree_data.sphere);
+    circle_handler.with_instance(spatial_tree_data.bounds);
 
     let sphere = if set.len() == 1 {
         // In the case where our set only contains one element, it is confusing
@@ -306,11 +337,11 @@ fn handle_set(
         // set-containing-a-single-set. For this reason, we make the
         // single-element a bit smaller than it would naturally be.
         Sphere {
-            center: spatial_tree_data.sphere.center,
-            radius: spatial_tree_data.sphere.radius * MIN_RADIUS,
+            center: spatial_tree_data.bounds.center,
+            radius: spatial_tree_data.bounds.radius * MIN_RADIUS,
         }
     } else {
-        spatial_tree_data.sphere
+        spatial_tree_data.bounds
     };
     let circle_positioner = CirclePositioner::new(
         (sphere.radius * MIN_RADIUS) as f64,
@@ -334,7 +365,7 @@ fn handle_set(
                 radius,
             };
             SpatialTreeData {
-                sphere: other_sphere,
+                bounds: other_sphere,
                 key: *key,
             }
         })
@@ -354,14 +385,14 @@ fn handle_map(
     spatial_tree_data: SpatialTreeData,
     map: &HashMap<ArenaKey, ArenaKey>,
 ) -> Vec<SpatialTreeData> {
-    circle_handler.with_instance(spatial_tree_data.sphere);
+    circle_handler.with_instance(spatial_tree_data.bounds);
     let sphere = if map.len() == 1 {
         Sphere {
-            center: spatial_tree_data.sphere.center,
-            radius: spatial_tree_data.sphere.radius * MIN_RADIUS,
+            center: spatial_tree_data.bounds.center,
+            radius: spatial_tree_data.bounds.radius * MIN_RADIUS,
         }
     } else {
-        spatial_tree_data.sphere
+        spatial_tree_data.bounds
     };
     let circle_positioner = CirclePositioner::new(
         (sphere.radius * MIN_RADIUS) as f64,
@@ -399,7 +430,7 @@ fn handle_map(
                         radius,
                     };
                     SpatialTreeData {
-                        sphere: other_sphere,
+                        bounds: other_sphere,
                         key,
                     }
                 })
