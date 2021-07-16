@@ -448,7 +448,7 @@ impl RawTextureInstance {
             }
             SpatialBound::SquareCuboid(square_cuboid) => {
                 let (width, height) = square_cuboid.dimensions_2d();
-                
+                todo!()
             }
         }
     }

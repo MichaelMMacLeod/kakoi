@@ -1,3 +1,4 @@
+use crate::spatial_bound::SpatialBound;
 use crate::sphere::Sphere;
 use crate::{camera::Camera, sampling_config::SamplingConfig};
 use wgpu::util::DeviceExt;

@@ -90,6 +90,6 @@ pub struct RectangleRenderer {
 
 impl RectangleRenderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
-        
+        todo!()
     }
 }

@@ -110,20 +110,11 @@ fn rebuild_tree(
 
     let root = forest.insert_root(SpatialTreeData {
         key: start,
-        bounds: SpatialBound::SquareCuboid(if screen_width > screen_height {
-            SquareCuboid {
-                length: screen_width,
-                depth: screen_height,
-                center: (0.0, 0.0, 0.0).into(),
-                orientation: Orientation::Horizontal,
-            }
-        } else {
-            SquareCuboid {
-                length: screen_height,
-                depth: screen_width,
-                center: (0.0, 0.0, 0.0).into(),
-                orientation: Orientation::Vertical,
-            }
+        bounds: SpatialBound::SquareCuboid(SquareCuboid {
+            length: 2.0,
+            depth: 2.0,
+            center: (0.0, 0.0, 0.0).into(),
+            orientation: Orientation::Horizontal,
         }),
     });
 
@@ -138,12 +129,9 @@ fn rebuild_tree(
         // Ensure that the object we want to arrange is actually visible on
         // screen. If it isn't, ignore this object and move on to the next loop
         // iteration.
-        let visible_on_screen = match &spatial_tree_data.bounds {
-            SpatialBound::Sphere(s) => s.screen_radius(screen_width, screen_height) > 1.0,
-            SpatialBound::SquareCuboid(s) => {
-                s.min_screen_dimension(screen_width, screen_height) > 1.0
-            }
-        };
+        let visible_on_screen = spatial_tree_data
+            .bounds
+            .is_visible(screen_width, screen_height);
         if visible_on_screen {
             match &slot_map.get(spatial_tree_data.key).unwrap().structure {
                 Structure::String(_) => handle_string(text_renderer, spatial_tree_data),
@@ -326,8 +314,10 @@ fn handle_set(
     spatial_tree_data: SpatialTreeData,
     set: &HashSet<ArenaKey>,
 ) -> Vec<SpatialTreeData> {
+    let sphere = SpatialBound::sphere_inside_bound(&spatial_tree_data.bounds);
+
     // The circle that encloses the set
-    circle_handler.with_instance(spatial_tree_data.bounds);
+    circle_handler.with_instance(sphere);
 
     let sphere = if set.len() == 1 {
         // In the case where our set only contains one element, it is confusing
@@ -337,11 +327,11 @@ fn handle_set(
         // set-containing-a-single-set. For this reason, we make the
         // single-element a bit smaller than it would naturally be.
         Sphere {
-            center: spatial_tree_data.bounds.center,
-            radius: spatial_tree_data.bounds.radius * MIN_RADIUS,
+            center: sphere.center,
+            radius: sphere.radius * MIN_RADIUS,
         }
     } else {
-        spatial_tree_data.bounds
+        sphere
     };
     let circle_positioner = CirclePositioner::new(
         (sphere.radius * MIN_RADIUS) as f64,
@@ -365,7 +355,7 @@ fn handle_set(
                 radius,
             };
             SpatialTreeData {
-                bounds: other_sphere,
+                bounds: SpatialBound::Sphere(other_sphere),
                 key: *key,
             }
         })
@@ -385,14 +375,15 @@ fn handle_map(
     spatial_tree_data: SpatialTreeData,
     map: &HashMap<ArenaKey, ArenaKey>,
 ) -> Vec<SpatialTreeData> {
-    circle_handler.with_instance(spatial_tree_data.bounds);
+    let bound_sphere = SpatialBound::sphere_inside_bound(&spatial_tree_data.bounds);
+    circle_handler.with_instance(bound_sphere);
     let sphere = if map.len() == 1 {
         Sphere {
-            center: spatial_tree_data.bounds.center,
-            radius: spatial_tree_data.bounds.radius * MIN_RADIUS,
+            center: bound_sphere.center,
+            radius: bound_sphere.radius * MIN_RADIUS,
         }
     } else {
-        spatial_tree_data.bounds
+        bound_sphere
     };
     let circle_positioner = CirclePositioner::new(
         (sphere.radius * MIN_RADIUS) as f64,
@@ -430,7 +421,7 @@ fn handle_map(
                         radius,
                     };
                     SpatialTreeData {
-                        bounds: other_sphere,
+                        bounds: SpatialBound::Sphere(other_sphere),
                         key,
                     }
                 })

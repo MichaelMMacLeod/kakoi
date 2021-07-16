@@ -1,7 +1,8 @@
+use crate::arena::{ArenaKey, Structure, Value};
+use crate::spatial_bound::SpatialBound;
+use crate::spatial_tree::SpatialTreeData;
 use crate::{camera::Camera, sphere::Sphere};
 use slotmap::SlotMap;
-use crate::arena::{ArenaKey, Value, Structure};
-use crate::spatial_tree::SpatialTreeData;
 use wgpu_glyph::GlyphCruncher;
 
 pub struct TextRenderer {
@@ -126,12 +127,12 @@ impl TextRenderer {
     ) {
         if instances_cache_stale {
             instances_cache.clear();
-            for SpatialTreeData { key, bounds: sphere } in constraints {
+            for SpatialTreeData { key, bounds: bound } in constraints {
                 instances_cache.push(TextConstraintInstance::new(
                     store,
                     key,
                     glyph_brush,
-                    sphere,
+                    bound,
                     view_projection_matrix,
                     sc_desc.width as f32,
                     sc_desc.height as f32,
@@ -150,7 +151,7 @@ pub struct TextConstraintInstance {
     scale: f32,
     width: f32,
     height: f32,
-    sphere: Sphere,
+    bound: Sphere,
     scaled_radius: f32,
     transformation: [f32; 16],
 }
@@ -160,7 +161,7 @@ impl TextConstraintInstance {
         store: &SlotMap<ArenaKey, Value>,
         key: &ArenaKey,
         glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
-        sphere: &Sphere,
+        bound: &SpatialBound,
         view_projection_matrix: &cgmath::Matrix4<f32>,
         viewport_width: f32,
         viewport_height: f32,
@@ -177,10 +178,12 @@ impl TextConstraintInstance {
                 .with_scale(20.0)],
             ..wgpu_glyph::Section::default()
         };
+        // TODO: make this work with cuboid_inside_bound instead:
+        let bound_sphere = SpatialBound::sphere_inside_bound(bound);
         let scaled_radius = if viewport_width > viewport_height {
-            viewport_width * sphere.radius
+            viewport_width * bound_sphere.radius
         } else {
-            viewport_height * sphere.radius
+            viewport_height * bound_sphere.radius
         };
         let (width, height) =
             Self::binary_search_for_text_scale(glyph_brush, &mut section, scaled_radius);
@@ -190,11 +193,11 @@ impl TextConstraintInstance {
             width,
             height,
             scale,
-            sphere: *sphere,
+            bound: bound_sphere,
             scaled_radius,
             transformation: Self::calculate_transformation(
                 view_projection_matrix,
-                sphere,
+                &bound_sphere,
                 scaled_radius,
             ),
         }
@@ -202,7 +205,7 @@ impl TextConstraintInstance {
 
     fn set_view_projection_matrix(&mut self, view_projection_matrix: &cgmath::Matrix4<f32>) {
         self.transformation =
-            Self::calculate_transformation(view_projection_matrix, &self.sphere, self.scaled_radius)
+            Self::calculate_transformation(view_projection_matrix, &self.bound, self.scaled_radius)
     }
 
     fn calculate_transformation(

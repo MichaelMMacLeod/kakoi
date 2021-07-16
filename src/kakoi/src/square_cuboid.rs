@@ -33,6 +33,28 @@ pub struct SquareCuboid {
 }
 
 impl SquareCuboid {
+    pub fn width(&self) -> f32 {
+        match self.orientation {
+            Orientation::Horizontal => {
+                self.length
+            }
+            Orientation::Vertical => {
+                self.depth
+            }
+        }
+    }
+
+    pub fn height(&self) -> f32 {
+        match self.orientation {
+            Orientation::Horizontal => {
+                self.depth
+            }
+            Orientation::Vertical => {
+                self.length
+            }
+        }
+    }
+
     pub fn dimensions_2d(&self) -> (f32, f32) {
         match self.orientation {
             Orientation::Horizontal => {
@@ -53,6 +75,11 @@ impl SquareCuboid {
         } else {
             x * screen_width
         }
+    }
+
+    pub fn aspect_ratio(&self) -> f32 {
+        let (width, height) = self.dimensions_2d();
+        width / height
     }
 
     // pub const fn is_horizontal(&self) -> bool {
