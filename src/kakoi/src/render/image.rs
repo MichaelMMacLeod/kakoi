@@ -1,6 +1,6 @@
 use crate::arena::{ArenaKey, Structure, Value};
 use crate::spatial_bound::SpatialBound;
-use crate::{camera::Camera, spatial_tree::SpatialTreeData, sphere::Sphere};
+use crate::{camera::Camera, spatial_tree::SpatialTreeData};
 use slotmap::SlotMap;
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
@@ -438,7 +438,8 @@ pub struct RawTextureInstance {
 impl RawTextureInstance {
     pub fn new(bound: &SpatialBound, aspect_ratio: f32) -> Self {
         let self_bound = SpatialBound::cuboid_inside_bound(bound, aspect_ratio);
-        let scale = cgmath::Matrix4::from_nonuniform_scale(self_bound.width(), self_bound.height(), 1.0);
+        let scale =
+            cgmath::Matrix4::from_nonuniform_scale(self_bound.width(), self_bound.height(), 1.0);
         let translation = cgmath::Matrix4::from_translation(self_bound.center);
         Self {
             model: (translation * scale).into(),

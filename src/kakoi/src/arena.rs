@@ -223,6 +223,7 @@ fn insert_set(slot_map: &mut SlotMap<ArenaKey, Value>, set: HashSet<ArenaKey>) -
 }
 
 /// Inserts a [`list`](Vec) into a [`SlotMap`].
+#[allow(unused)]
 fn insert_list(slot_map: &mut SlotMap<ArenaKey, Value>, list: Vec<ArenaKey>) -> ArenaKey {
     let indications = list.clone();
 
@@ -400,6 +401,7 @@ fn map_remove_value_inclusion(
     }
 }
 
+#[allow(unused)]
 fn map_remove(slot_map: &mut SlotMap<ArenaKey, Value>, map: ArenaKey, key: ArenaKey) {
     map_remove_value_inclusion(slot_map, map, key);
     remove_inclusion(slot_map, key, map, Route::Map(MapRoute::Key));

@@ -1,5 +1,4 @@
 use super::{circle::CircleRenderer, image::ImageRenderer, text::TextRenderer};
-use crate::arena;
 use crate::camera::Camera;
 use crate::spatial_tree::SpatialTree;
 use crate::{
