@@ -1,4 +1,5 @@
 use super::{circle::CircleRenderer, image::ImageRenderer, text::TextRenderer};
+use crate::arena;
 use crate::camera::Camera;
 use crate::spatial_tree::SpatialTree;
 use crate::{
@@ -23,6 +24,33 @@ pub struct Renderer {
 impl Renderer {
     pub fn new<'a>(device: &'a wgpu::Device, sc_desc: &'a wgpu::SwapChainDescriptor) -> Self {
         let mut arena = Arena::new();
+        // {
+        //     let kakoi_example_1 = {
+        //         let kakoi_example_1 =
+        //             include_bytes!("../resources/images/Kakoi Example 1 [senseis.xmp.net].png");
+        //         image::load_from_memory(kakoi_example_1)
+        //             .unwrap()
+        //             .into_rgba8()
+        //     };
+        //     let kakoi_example_2 = {
+        //         let kakoi_example_2 =
+        //             include_bytes!("../resources/images/Kakoi Example 2 [senseis.xmp.net].png");
+        //         image::load_from_memory(kakoi_example_2)
+        //             .unwrap()
+        //             .into_rgba8()
+        //     };
+        //     let kakoi_example_3 = {
+        //         let kakoi_example_3 =
+        //             include_bytes!("../resources/images/Kakoi Example 1 [senseis.xmp.net] wide.png");
+        //         image::load_from_memory(kakoi_example_3)
+        //             .unwrap()
+        //             .into_rgba8()
+        //     };
+        //     vec![kakoi_example_1, kakoi_example_2, kakoi_example_3]
+        //         .drain(..)
+        //         .map(|s| arena.image(s)).collect::<Vec<_>>().into_iter()
+        //         .for_each(|k| arena.set_insert_value(".", k).unwrap());
+        // }
         let camera = Camera::new(sc_desc.width as f32 / sc_desc.height as f32);
         let mut circle_renderer = CircleRenderer::new(device, sc_desc);
         let mut text_renderer = TextRenderer::new(device, sc_desc);

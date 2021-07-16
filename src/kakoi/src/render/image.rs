@@ -437,19 +437,11 @@ pub struct RawTextureInstance {
 
 impl RawTextureInstance {
     pub fn new(bound: &SpatialBound, aspect_ratio: f32) -> Self {
-        match bound {
-            SpatialBound::Sphere(sphere) => {
-                let (scale_x, scale_y) = sphere.as_rectangle_bounds(aspect_ratio);
-                let scale = cgmath::Matrix4::from_nonuniform_scale(scale_x, scale_y, 1.0);
-                let translation = cgmath::Matrix4::from_translation(sphere.center);
-                Self {
-                    model: (translation * scale).into(),
-                }
-            }
-            SpatialBound::SquareCuboid(square_cuboid) => {
-                let (width, height) = square_cuboid.dimensions_2d();
-                todo!()
-            }
+        let self_bound = SpatialBound::cuboid_inside_bound(bound, aspect_ratio);
+        let scale = cgmath::Matrix4::from_nonuniform_scale(self_bound.width(), self_bound.height(), 1.0);
+        let translation = cgmath::Matrix4::from_translation(self_bound.center);
+        Self {
+            model: (translation * scale).into(),
         }
     }
 

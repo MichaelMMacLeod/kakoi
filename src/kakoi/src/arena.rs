@@ -461,6 +461,10 @@ impl Arena {
         insert_string(&mut self.slot_map, &mut self.lookup_map, string)
     }
 
+    pub fn image(&mut self, image: image::RgbaImage) -> ArenaKey {
+        insert_image(&mut self.slot_map, &mut self.lookup_map, image)
+    }
+
     pub fn register<S: Into<String>>(&mut self, register: S) -> Option<ArenaKey> {
         let register = insert_string(&mut self.slot_map, &mut self.lookup_map, register.into());
         map_get(&self.slot_map, self.register_map, register)
@@ -552,6 +556,17 @@ impl Arena {
 
         set_insert(&mut self.slot_map, set, string);
 
+        Some(())
+    }
+
+    pub fn set_insert_value<S: Into<String>>(&mut self, set_register: S, value: ArenaKey) -> Option<()> {
+        let set_register = insert_string(
+            &mut self.slot_map,
+            &mut self.lookup_map,
+            set_register.into(),
+        );
+        let set = map_get(&self.slot_map, self.register_map, set_register)?;
+        set_insert(&mut self.slot_map, set, value);
         Some(())
     }
 
