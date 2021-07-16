@@ -1,9 +1,10 @@
 use crate::arena::{ArenaKey, Structure, Value};
+use crate::camera::Camera;
 use crate::spatial_bound::SpatialBound;
 use crate::spatial_tree::SpatialTreeData;
-use crate::{camera::Camera, sphere::Sphere};
+use cgmath::Vector3;
 use slotmap::SlotMap;
-use wgpu_glyph::GlyphCruncher;
+use wgpu_glyph::{GlyphBrush, GlyphCruncher};
 
 pub struct TextRenderer {
     constraints: Vec<SpatialTreeData>,
@@ -83,7 +84,7 @@ impl TextRenderer {
                 bounds: (f32::INFINITY, f32::INFINITY),
                 text: vec![wgpu_glyph::Text::new(text.as_ref())
                     .with_color([1.0, 1.0, 1.0, 1.0])
-                    .with_scale(instance.scale)],
+                    .with_scale(instance.text_scale)],
                 ..wgpu_glyph::Section::default()
             };
             self.glyph_brush.queue(&section);
@@ -146,13 +147,30 @@ impl TextRenderer {
     }
 }
 
+#[derive(Debug)]
 pub struct TextConstraintInstance {
+    /// Location of the text we want to render in an [Arena].
     key: ArenaKey,
-    scale: f32,
+
+    /// Point scale of the text.
+    text_scale: f32,
+
+    /// Scalar used to convert a transformation in our coordinate system to
+    /// glyph_brush's coordinate system.
+    transform_scale: f32,
+
+    /// The width, in pixels, that the text will be rendered at. Note: this is
+    /// not necessarily the width of the text on screen.
     width: f32,
+
+    /// The height, in pixels, that the text will be rendered at. Note: this is
+    /// not necessarily the height of the text on screen.
     height: f32,
-    bound: Sphere,
-    scaled_radius: f32,
+
+    /// The center of the text's bounding box (the actual center, not the top
+    /// left corner).
+    center: Vector3<f32>,
+
     transformation: [f32; 16],
 }
 
@@ -170,6 +188,9 @@ impl TextConstraintInstance {
             Structure::String(s) => s,
             _ => panic!(),
         };
+
+        // Use an arbitrary default scale (20.0) to determine the aspect ratio
+        // of the text's bounding box.
         let mut section = wgpu_glyph::Section {
             screen_position: (0.0, 0.0),
             bounds: (f32::INFINITY, f32::INFINITY),
@@ -178,107 +199,81 @@ impl TextConstraintInstance {
                 .with_scale(20.0)],
             ..wgpu_glyph::Section::default()
         };
-        // TODO: make this work with cuboid_inside_bound instead:
-        let bound_sphere = SpatialBound::sphere_inside_bound(bound);
-        let scaled_radius = if viewport_width > viewport_height {
-            viewport_width * bound_sphere.radius
-        } else {
-            viewport_height * bound_sphere.radius
+        let (tw, th) = Self::text_dimensions(glyph_brush, &section);
+        // The true aspect ratio (what you would see on screen) is (tw / th).
+        // Since our spatial bound parameter comes from virtual coordinate space
+        // (which goes from -1..1 in all dimensions), we need to squish /
+        // stretch our aspect ratio to account for later transformations.
+        let aspect_ratio = (tw / th) * (viewport_height / viewport_width);
+
+        // Now that we've got our adjusted aspect ratio, we need to calculate
+        // the desired size (in virtual coordinate space) of our text (as
+        // opposed to the arbitrary, 20pt one we've got now).
+        let cuboid = SpatialBound::cuboid_inside_bound(bound, aspect_ratio);
+        let (width, height) = {
+            let (w, h) = cuboid.dimensions_2d();
+            (w * 0.5 * viewport_width, h * 0.5 * viewport_height)
         };
-        let (width, height) =
-            Self::binary_search_for_text_scale(glyph_brush, &mut section, scaled_radius);
-        let scale = section.text[0].scale.y;
+        // 'diff' gives the amount to scale our (currently 20pt) text so that it
+        // fits nicely in our desired bounding box.
+        let diff = width / tw;
+        section.text[0].scale = (section.text[0].scale.x * diff).into();
+
+        let virtual_height = SpatialBound::cuboid_inside_bound(bound, width / height).height();
+
+        let text_scale = section.text[0].scale.x;
+        let transform_scale = virtual_height / height;
+
         Self {
             key: *key,
-            width,
-            height,
-            scale,
-            bound: bound_sphere,
-            scaled_radius,
+            width: width,
+            height: height,
+            text_scale,
+            transform_scale,
+            center: cuboid.center,
             transformation: Self::calculate_transformation(
                 view_projection_matrix,
-                &bound_sphere,
-                scaled_radius,
+                cuboid.center,
+                transform_scale,
             ),
         }
     }
 
+    fn text_dimensions(
+        glyph_brush: &mut GlyphBrush<()>,
+        section: &wgpu_glyph::Section,
+    ) -> (f32, f32) {
+        match glyph_brush.glyph_bounds(section.clone()) {
+            Some(rect) => (rect.width(), rect.height()),
+            None => (1.0, 1.0),
+        }
+    }
+
     fn set_view_projection_matrix(&mut self, view_projection_matrix: &cgmath::Matrix4<f32>) {
-        self.transformation =
-            Self::calculate_transformation(view_projection_matrix, &self.bound, self.scaled_radius)
+        self.transformation = Self::calculate_transformation(
+            view_projection_matrix,
+            self.center,
+            self.transform_scale,
+        )
     }
 
     fn calculate_transformation(
         view_projection_matrix: &cgmath::Matrix4<f32>,
-        sphere: &Sphere,
-        scaled_radius: f32,
+        center: Vector3<f32>,
+        scale: f32,
     ) -> [f32; 16] {
-        // TODO: possible division by zero error?
-        let transformation = cgmath::Matrix4::from_nonuniform_scale(
-            sphere.radius / scaled_radius,
-            -sphere.radius / scaled_radius,
-            1.0,
-        );
-        let transformation = cgmath::Matrix4::from_translation(sphere.center) * transformation;
+        // glyph_brush's coordinate system is (annoyingly) different from ours.
+        // To be perfectly honest I forget why this code works. I'm scared to
+        // touch it any more though. From what I recall, glyph brush assumes
+        // that the screen's top left corner is (0,0) and its width and height
+        // are the actual width and height of the screen (in pixels). This is
+        // not our coordinate system (where (0,0) is in the center of the
+        // screen, with x and y ranging from -1 to 1). Anyway, the important
+        // part is that the transformation passed to glyph_brush's
+        // draw_queued_with_transform function operates in THEIR coordinate
+        // system, not ours, so we adjust for that here (with 'scale').
+        let transformation = cgmath::Matrix4::from_nonuniform_scale(scale, -scale, 1.0);
+        let transformation = cgmath::Matrix4::from_translation(center) * transformation;
         *(view_projection_matrix * transformation).as_mut()
-    }
-
-    fn binary_search_for_text_scale(
-        glyph_brush: &mut wgpu_glyph::GlyphBrush<()>,
-        section: &mut wgpu_glyph::Section,
-        scaled_radius: f32,
-    ) -> (f32, f32) {
-        use wgpu_glyph::ab_glyph::PxScale;
-
-        const SCALE_TOLERENCE: f32 = 1.0;
-
-        let mut min_scale: PxScale = 0.0.into();
-        let mut max_scale: PxScale = (scaled_radius * 2.0).into();
-        let mut previous_scale: Option<PxScale> = None;
-        let mut current_scale = (min_scale.y * 0.5 + max_scale.y * 0.5).into();
-        let mut width = 0.0;
-        let mut height = 0.0;
-        let mut target = None;
-
-        section.text[0].scale = current_scale;
-
-        loop {
-            match glyph_brush.glyph_bounds(&section.clone()) {
-                Some(rect) => {
-                    let old_ps = previous_scale;
-                    previous_scale = Some(current_scale);
-                    let rect_width = rect.width();
-                    let rect_height = rect.height();
-                    width = rect_width;
-                    height = rect_height;
-                    if let Some(ps) = old_ps {
-                        if (ps.y - current_scale.y).abs() < SCALE_TOLERENCE {
-                            break;
-                        }
-                    }
-                    let max_dimension = rect_width.max(rect_height);
-                    if target.is_none() {
-                        let aspect_ratio = width / height;
-                        let (scale_x, scale_y) = Sphere {
-                            radius: scaled_radius,
-                            // It doesn't matter what radius we choose here.
-                            center: cgmath::vec3(0.0, 0.0, 0.0),
-                        }
-                        .as_rectangle_bounds(aspect_ratio);
-                        target = Some(scale_x.max(scale_y));
-                    }
-                    if max_dimension > target.unwrap() {
-                        max_scale = current_scale;
-                    } else {
-                        min_scale = current_scale;
-                    }
-                    current_scale = (min_scale.y * 0.5 + max_scale.y * 0.5).into();
-                    section.text[0].scale = current_scale;
-                }
-                None => break,
-            }
-        }
-
-        (width, height)
     }
 }

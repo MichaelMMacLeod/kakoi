@@ -40,7 +40,7 @@ impl Camera {
     pub fn set_aspect(&mut self, aspect: f32) {
         self.aspect = aspect;
         self.view_projection_matrix_cache = None;
-    } 
+    }
 
     pub fn eye(&self) -> &Point3<f32> {
         &self.eye

@@ -1,4 +1,4 @@
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Orientation {
     Vertical,
     Horizontal,
@@ -24,7 +24,7 @@ pub enum Orientation {
 /// |/              /            |/   /  depth
 /// ------------------------------  ---
 ///```
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct SquareCuboid {
     pub length: f32,
     pub depth: f32,
@@ -33,6 +33,24 @@ pub struct SquareCuboid {
 }
 
 impl SquareCuboid {
+    pub fn from_dimensions(width: f32, height: f32, center: cgmath::Vector3<f32>) -> Self {
+        if width >= height {
+            Self {
+                length: width,
+                depth: height,
+                center,
+                orientation: Orientation::Horizontal,
+            }
+        } else {
+            Self {
+                length: height,
+                depth: width,
+                center,
+                orientation: Orientation::Vertical,
+            }
+        }
+    }
+
     pub fn width(&self) -> f32 {
         match self.orientation {
             Orientation::Horizontal => {
