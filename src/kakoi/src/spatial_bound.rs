@@ -3,7 +3,7 @@ use crate::{
     square_cuboid::{Orientation, SquareCuboid},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum SpatialBound {
     Sphere(Sphere),
     SquareCuboid(SquareCuboid),

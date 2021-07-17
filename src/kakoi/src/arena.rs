@@ -66,6 +66,8 @@ pub enum Structure {
     Image(Box<image::RgbaImage>),
     /// A string. Does not contain any other values.
     String(Box<String>),
+    Command(Box<Vec<ArenaKey>>),
+
 }
 
 /// Container that also tracks which [`Value`]s contain it.
@@ -452,6 +454,14 @@ impl Arena {
             &mut slot_map,
             vec![(selected_register, empty_set)].into_iter().collect(),
         );
+        // let s1 = insert_string(&mut slot_map, &mut lookup_map, "set-insert");
+        // let s2 = insert_string(&mut slot_map, &mut lookup_map, "my-favorite-set");
+        // let s3 = insert_string(&mut slot_map, &mut lookup_map, "'Hello, world!'");
+        // let command = slot_map.insert(Value {
+        //     structure: Structure::Command(Box::new(vec![empty_set, empty_set, empty_set, empty_set])),
+        //     inclusions: HashSet::new(),
+        // });
+        // set_insert(&mut slot_map, empty_set, command);
         Self {
             slot_map,
             register_map,

@@ -4,7 +4,7 @@ pub enum Orientation {
     Horizontal,
 }
 
-/// Represents the 3D shape formed by taking two equal-sized squares and connecting 
+/// Represents the 3D shape formed by taking two equal-sized squares and connecting
 /// their vertices with four straight parallel lines.
 ///
 /// Here is a picture of a horizontal cuboid (a cuboid whose 'orientatin' is
@@ -12,7 +12,7 @@ pub enum Orientation {
 ///
 ///```
 ///               length
-///    |----------------------------|    
+///    |----------------------------|
 ///
 ///    ------------------------------  ---
 ///   /|            /              /|   |
@@ -20,7 +20,7 @@ pub enum Orientation {
 /// ------------------------------  |   |
 /// |  |         center          |  |   |
 /// |  -------------|------------|---  ---
-/// | /             |/           | /   /  
+/// | /             |/           | /   /
 /// |/              /            |/   /  depth
 /// ------------------------------  ---
 ///```
@@ -33,6 +33,25 @@ pub struct SquareCuboid {
 }
 
 impl SquareCuboid {
+    /// Splits a cuboid vertically into `n` separate cuboids stacked ontop of
+    /// each other. The returned list is ordered from top to bottom.
+    pub fn split_vertically(cuboid: SquareCuboid, n: usize) -> Vec<SquareCuboid> {
+        let (width, height) = cuboid.dimensions_2d();
+        let mut result = Vec::with_capacity(n);
+        let offset = height / (2 * n) as f32;
+        let h = height / n as f32;
+
+        let x = cuboid.center.x;
+        let mut y = cuboid.center.y + offset * (n - 1) as f32;
+
+        for _ in 0..n {
+            result.push(Self::from_dimensions(width, h, (x, y, 0.0).into()));
+            y -= 2.0 * offset;
+        }
+
+        result
+    }
+
     pub fn from_dimensions(width: f32, height: f32, center: cgmath::Vector3<f32>) -> Self {
         if width >= height {
             Self {
@@ -53,34 +72,22 @@ impl SquareCuboid {
 
     pub fn width(&self) -> f32 {
         match self.orientation {
-            Orientation::Horizontal => {
-                self.length
-            }
-            Orientation::Vertical => {
-                self.depth
-            }
+            Orientation::Horizontal => self.length,
+            Orientation::Vertical => self.depth,
         }
     }
 
     pub fn height(&self) -> f32 {
         match self.orientation {
-            Orientation::Horizontal => {
-                self.depth
-            }
-            Orientation::Vertical => {
-                self.length
-            }
+            Orientation::Horizontal => self.depth,
+            Orientation::Vertical => self.length,
         }
     }
 
     pub fn dimensions_2d(&self) -> (f32, f32) {
         match self.orientation {
-            Orientation::Horizontal => {
-                (self.length, self.depth)
-            },
-            Orientation::Vertical => {
-                (self.depth, self.length)
-            }
+            Orientation::Horizontal => (self.length, self.depth),
+            Orientation::Vertical => (self.depth, self.length),
         }
     }
 

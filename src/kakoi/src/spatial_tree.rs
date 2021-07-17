@@ -58,7 +58,7 @@ new_key_type! {
 ///
 /// See [the module-level documentation](crate::spatial_tree) for more
 /// information.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpatialTreeData {
     /// The object that will be displayed on screen.
     pub key: ArenaKey,
@@ -140,6 +140,7 @@ fn rebuild_tree(
                 Structure::List(_) => todo!(),
                 // Structure::List(list) => handle_list(list_renderer, spatial_tree_data, list.as_ref()),
                 Structure::Map(map) => handle_map(circle_renderer, spatial_tree_data, map.as_ref()),
+                Structure::Command(command) => handle_command(spatial_tree_data, command.as_ref()),
             }
             .into_iter()
             .for_each(|child_data| {
@@ -299,6 +300,28 @@ fn handle_image(
 ) -> Vec<SpatialTreeData> {
     image_handler.with_image(spatial_tree_data);
     vec![]
+}
+
+fn handle_command(
+    spatial_tree_data: SpatialTreeData,
+    command: &Vec<ArenaKey>,
+) -> Vec<SpatialTreeData> {
+    if command.len() > 0 {
+        let cuboid = SpatialBound::cuboid_inside_bound(
+            &spatial_tree_data.bounds,
+            1.0 / command.len() as f32,
+        );
+        SquareCuboid::split_vertically(cuboid, command.len())
+            .into_iter()
+            .zip(command.into_iter())
+            .map(|(c, k)| SpatialTreeData {
+                key: *k,
+                bounds: SpatialBound::SquareCuboid(c),
+            })
+            .collect()
+    } else {
+        vec![]
+    }
 }
 
 /// Lays out a set.
